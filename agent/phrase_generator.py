@@ -508,7 +508,7 @@ class PhraseGenerator:
                     # Generate from AudioOracle using request masking
                     generated_frames = self.audio_oracle.generate_with_request(
                         request=request,
-                        length=phrase_length,
+                        max_length=phrase_length,
                         temperature=temperature
                     )
                     print(f"🔍 Oracle returned: {len(generated_frames) if generated_frames else 0} frames")  # DEBUG
@@ -687,7 +687,7 @@ class PhraseGenerator:
                 request = self._build_request_for_mode(mode)
                 if request:
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, length=phrase_length, temperature=0.8
+                        request=request, max_length=phrase_length, temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []
@@ -796,7 +796,7 @@ class PhraseGenerator:
                 request = self._build_request_for_mode(mode)
                 if request:
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, length=phrase_length, temperature=0.8
+                        request=request, max_length=phrase_length, temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []
@@ -877,7 +877,7 @@ class PhraseGenerator:
                 request = self._build_request_for_mode(mode)
                 if request:
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, length=phrase_length, temperature=0.8
+                        request=request, max_length=phrase_length, temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []

@@ -1782,6 +1782,9 @@ class EnhancedDriftEngineAI:
         print("🧠 Loading previous learning data...")
         print("🔍 Debug: _load_learning_data() called")
         
+        # Initialize model_loaded flag
+        model_loaded = False
+        
         # Load memory buffer
         memory_loaded = self.memory_buffer.load_from_file(self.memory_file)
         
