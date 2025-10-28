@@ -1,0 +1,196 @@
+# Virtual environments
+venv/
+CCM3/
+env/
+ENV/
+.venv/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.dylib
+*.dll
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and Debug Files
+logs/
+*.log
+*.txt
+beat_tracking_test.log
+librosa_tempo_test.log
+simple_interval_test.log
+synthetic_training.log
+tempo_debug.log
+tempo_new_test.log
+tempo_test.log
+
+# Machine Learning Models & Data
+models/
+*.pkl
+*.pt
+*.h5
+*.model
+*.joblib
+*.json.backup
+*_model.json
+*_metadata.json
+*_history.json
+*_scaler.pkl
+validation_results*.json
+simple_hierarchical_analysis.json
+itzama_smart*.json
+ground_truth_wav2vec_synthetic.json
+
+# Audio Files (keep small test files, exclude large ones)
+input_audio/*.wav
+input_audio/*.mp3
+input_audio/*.flac
+input_audio/*.aiff
+input_audio/*.m4a
+# Keep specific small test files if needed
+!input_audio/test_*.wav
+!test_100bpm.wav
+
+# Audio Metadata and Cache
+*.asd
+*.reapeaks
+*.peaks
+*.waveform
+
+# Training Data and Results
+ai_learning_data/
+hybrid_training/
+**/training_data/
+**/validation_data/
+**/test_data/
+
+# Temporary and Cache Files
+temp/
+tmp/
+cache/
+.cache/
+
+# Generated Documentation
+docs/_build/
+docs/build/
+
+# Backup Files
+*.bak
+*.backup
+*BACKUP*
+*backup*
+
+# Large JSON and CSV Files (logs/exports)
+*conversation_*.csv
+*decisions_*.csv
+*system_events_*.csv
+simple_bass_test_*.json
+
+# SuperCollider and External Tools
+SuperCollider/
+Lib/
+
+# Test Output and Results
+test_georgia_*
+test_chandra_fix
+**/test_results/
+**/output/
+
+# References and Documentation that might be large
+References/
+
+# Python Test Files Directory (if contains temporary files)
+Python\ test\ files/
