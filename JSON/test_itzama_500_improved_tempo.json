@@ -1,0 +1,278 @@
+{
+  "training_successful": true,
+  "audio_oracle_stats": {
+    "total_patterns": 3431,
+    "total_states": 501,
+    "sequence_length": 500,
+    "max_pattern_length": 50,
+    "is_trained": true,
+    "last_update": 1758781519.170173,
+    "memory_usage": 500,
+    "distance_threshold": 0.019820274961085252,
+    "distance_function": "euclidean",
+    "feature_dimensions": 15,
+    "adaptive_threshold": true,
+    "total_distances_calculated": 126036,
+    "average_distance": 0.039799999999999995,
+    "threshold_adjustments": 1912,
+    "harmonic_patterns": 7,
+    "polyphonic_patterns": 1,
+    "chord_progressions": 0,
+    "rhythmic_patterns": 0,
+    "musical_insights_used": 0,
+    "polyphonic_frames": 0,
+    "chord_types": {},
+    "average_pitches_per_frame": 0.0
+  },
+  "events_processed": 500,
+  "harmonic_patterns": 7,
+  "polyphonic_patterns": 1,
+  "sample_harmonic_patterns": [
+    [
+      [
+        "C",
+        "C"
+      ],
+      499
+    ],
+    [
+      [
+        "C",
+        "C",
+        "C"
+      ],
+      498
+    ],
+    [
+      [
+        "C",
+        "C",
+        "C",
+        "C"
+      ],
+      497
+    ],
+    [
+      [
+        "C",
+        "C",
+        "C",
+        "C",
+        "C"
+      ],
+      496
+    ],
+    [
+      [
+        "C",
+        "C",
+        "C",
+        "C",
+        "C",
+        "C"
+      ],
+      495
+    ]
+  ],
+  "sample_polyphonic_patterns": [
+    [
+      "[{'stream_0': {'stream_id': 0, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_1': {'stream_id': 1, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_2': {'stream_id': 2, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_3': {'stream_id': 3, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}}, {'stream_0': {'stream_id': 0, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_1': {'stream_id': 1, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'phrase_center'}, 'stream_2': {'stream_id': 2, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_3': {'stream_id': 3, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}}]",
+      1
+    ]
+  ],
+  "transformer_analysis": {
+    "key_signature": "C_major",
+    "tempo_analysis": {
+      "estimated_tempo": 80.0,
+      "tempo_variation": 0.0010634430218487978,
+      "tempo_stability": 0.9989365339279175
+    },
+    "chord_progression": [],
+    "musical_form": {
+      "verse": 0.04537186026573181,
+      "chorus": 0.000687457388266921,
+      "bridge": 0.020427286624908447,
+      "intro": 0.6276437044143677,
+      "outro": 0.010552755557000637,
+      "solo": 0.019652605056762695,
+      "break": 0.2336524873971939,
+      "coda": 0.04201178997755051
+    },
+    "scale_analysis": {
+      "C_major": 0.0005712321144528687,
+      "C_minor": 4.486471957831917e-12,
+      "C#_major": 1.1335442650306504e-05,
+      "C#_minor": 1.70700946711122e-08,
+      "D_major": 9.297981939937472e-09,
+      "D_minor": 0.4812244474887848,
+      "D#_major": 3.1525268506804593e-10,
+      "D#_minor": 1.22313707606736e-07,
+      "E_major": 9.130474791163579e-05,
+      "E_minor": 0.5095779299736023,
+      "F_major": 1.4079653283260996e-06,
+      "F_minor": 6.3088761645402336e-12,
+      "F#_major": 1.776784586127178e-07,
+      "F#_minor": 1.9154084984762676e-09,
+      "G_major": 6.4569298956485e-06,
+      "G_minor": 0.0037018596194684505,
+      "G#_major": 1.7293618759239848e-09,
+      "G#_minor": 7.82147344580153e-06,
+      "A_major": 4.3434522645213747e-10,
+      "A_minor": 7.798336127962102e-07,
+      "A#_major": 3.7030811654403806e-05,
+      "A#_minor": 0.004524527583271265,
+      "B_major": 1.561283352202736e-05,
+      "B_minor": 0.00022800556325819343
+    },
+    "confidence_scores": {
+      "chord": 0.0,
+      "scale": 0.38766276836395264,
+      "form": 0.38766276836395264,
+      "harmony": 0.38766276836395264,
+      "melody": 0.38766276836395264,
+      "rhythm": 0.38766276836395264
+    }
+  },
+  "hierarchical_analysis": {
+    "duration": 183.6825850340136,
+    "hierarchical_structure": {
+      "sections": 2,
+      "phrases": 20,
+      "measures": 61
+    },
+    "auditory_streams": [
+      {
+        "stream_id": 0,
+        "start_time": 0.37151927437641724,
+        "end_time": 45.04671201814059,
+        "stream_type": "melody",
+        "confidence": -251.7379014287948
+      },
+      {
+        "stream_id": 1,
+        "start_time": 2.089795918367347,
+        "end_time": 45.789750566893424,
+        "stream_type": "melody",
+        "confidence": -566.862713882839
+      },
+      {
+        "stream_id": 2,
+        "start_time": 0.09287981859410431,
+        "end_time": 46.393469387755104,
+        "stream_type": "melody",
+        "confidence": -282.10328576859644
+      },
+      {
+        "stream_id": 3,
+        "start_time": 0.0,
+        "end_time": 45.00027210884354,
+        "stream_type": "melody",
+        "confidence": -243.94580838735519
+      },
+      {
+        "stream_id": 4,
+        "start_time": 0.046439909297052155,
+        "end_time": 45.186031746031745,
+        "stream_type": "melody",
+        "confidence": -355.9427966029676
+      }
+    ],
+    "sampled_events_count": 500,
+    "sampling_strategy": "hierarchical_adaptive"
+  },
+  "training_statistics": {
+    "total_events": 500,
+    "hierarchical_analysis_time": 5.864295244216919,
+    "rhythmic_analysis_time": 0.0,
+    "transformer_analysis_time": 1.071277141571045,
+    "audio_oracle_training_time": 9.058037042617798,
+    "rhythm_oracle_training_time": 0.0,
+    "total_training_time": 0.0,
+    "hierarchical_insights_applied": true,
+    "rhythmic_insights_applied": false,
+    "enhancement_applied": true,
+    "training_result": {
+      "training_successful": true,
+      "audio_oracle_stats": {
+        "total_patterns": 3431,
+        "total_states": 501,
+        "sequence_length": 500,
+        "max_pattern_length": 50,
+        "is_trained": true,
+        "last_update": 1758781519.170173,
+        "memory_usage": 500,
+        "distance_threshold": 0.019820274961085252,
+        "distance_function": "euclidean",
+        "feature_dimensions": 15,
+        "adaptive_threshold": true,
+        "total_distances_calculated": 126036,
+        "average_distance": 0.039799999999999995,
+        "threshold_adjustments": 1912,
+        "harmonic_patterns": 7,
+        "polyphonic_patterns": 1,
+        "chord_progressions": 0,
+        "rhythmic_patterns": 0,
+        "musical_insights_used": 0,
+        "polyphonic_frames": 0,
+        "chord_types": {},
+        "average_pitches_per_frame": 0.0
+      },
+      "events_processed": 500,
+      "harmonic_patterns": 7,
+      "polyphonic_patterns": 1,
+      "sample_harmonic_patterns": [
+        [
+          [
+            "C",
+            "C"
+          ],
+          499
+        ],
+        [
+          [
+            "C",
+            "C",
+            "C"
+          ],
+          498
+        ],
+        [
+          [
+            "C",
+            "C",
+            "C",
+            "C"
+          ],
+          497
+        ],
+        [
+          [
+            "C",
+            "C",
+            "C",
+            "C",
+            "C"
+          ],
+          496
+        ],
+        [
+          [
+            "C",
+            "C",
+            "C",
+            "C",
+            "C",
+            "C"
+          ],
+          495
+        ]
+      ],
+      "sample_polyphonic_patterns": [
+        [
+          "[{'stream_0': {'stream_id': 0, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_1': {'stream_id': 1, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_2': {'stream_id': 2, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_3': {'stream_id': 3, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}}, {'stream_0': {'stream_id': 0, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_1': {'stream_id': 1, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'phrase_center'}, 'stream_2': {'stream_id': 2, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}, 'stream_3': {'stream_id': 3, 'chord_tension': 0.5, 'rhythmic_density': 0.5, 'hierarchical_level': 'section_boundary'}}]",
+          1
+        ]
+      ]
+    }
+  }
+}

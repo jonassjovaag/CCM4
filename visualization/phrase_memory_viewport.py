@@ -206,16 +206,24 @@ class PhraseMemoryViewport(BaseViewport):
         if not motif:
             return "[]"
         
+        # Handle both Motif objects and raw lists
+        if hasattr(motif, 'notes'):
+            # It's a Motif object
+            note_list = motif.notes
+        else:
+            # It's already a list
+            note_list = motif
+        
         # Simple MIDI to note name conversion (C4 = 60)
         note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         
         notes = []
-        for midi in motif[:5]:  # Show first 5 notes
+        for midi in note_list[:5]:  # Show first 5 notes
             octave = (midi // 12) - 1
             note = note_names[midi % 12]
             notes.append(f"{note}{octave}")
         
-        if len(motif) > 5:
+        if len(note_list) > 5:
             notes.append("...")
         
         return "[" + " ".join(notes) + "]"

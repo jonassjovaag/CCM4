@@ -1,0 +1,14 @@
+{
+  "total_events": 100,
+  "training_time": 5.549715995788574,
+  "events_per_second": 18.018940081958327,
+  "device_used": "mps",
+  "switch_reason": "100 \u2264 5000",
+  "patterns_found": 299,
+  "chord_patterns": 0,
+  "polyphonic_frames": 0,
+  "total_states": 101,
+  "sequence_length": 100,
+  "cpu_threshold": 5000,
+  "mps_available": true
+}

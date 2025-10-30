@@ -114,6 +114,15 @@ class PhraseGenerator:
         tagged_event['source'] = source
         tagged_event['timestamp'] = time.time()
         
+        # DEBUG: Check if gesture_token is present
+        if source == 'human' and not hasattr(self, '_track_debug_count'):
+            self._track_debug_count = 0
+        if source == 'human' and self._track_debug_count < 3:
+            has_token = 'gesture_token' in event_data
+            token_value = event_data.get('gesture_token', 'MISSING')
+            print(f"🔍 TRACK: source={source}, has_gesture_token={has_token}, token={token_value}, buffer_size={len(self.recent_events)}")
+            self._track_debug_count += 1
+        
         self.recent_events.append(tagged_event)
         
         # Keep history limited
@@ -130,10 +139,18 @@ class PhraseGenerator:
         human_events = self._get_recent_human_events(n * 2)  # Get more events to ensure we have N tokens
         tokens = []
         
+        # DEBUG: Show what we're working with
+        if len(human_events) == 0:
+            print(f"🔍 DEBUG: No human events found in recent_events buffer (size: {len(self.recent_events)})")
+        
         for event in human_events:
             token = event.get('gesture_token')
             if token is not None:
                 tokens.append(token)
+        
+        # DEBUG: Show extraction results
+        if len(human_events) > 0 and len(tokens) == 0:
+            print(f"🔍 DEBUG: Found {len(human_events)} human events but no gesture tokens")
         
         return tokens[-n:] if len(tokens) > n else tokens
     
@@ -206,26 +223,13 @@ class PhraseGenerator:
         
         print(f"🎯 Shadow: recent_tokens={recent_tokens}, consonance={avg_consonance:.2f}, barlow={barlow_complexity:.1f}")  # DEBUG
         
-        # Multi-parameter request (gesture + consonance + rhythm complexity)
+        # Use primary parameter in AudioOracle-compatible format
+        # Focus on gesture token matching for shadow mode
         request = {
-            'primary': {
-                'parameter': 'gesture_token',
-                'type': '==',
-                'value': recent_tokens[-1] if recent_tokens else None,
-                'weight': mode_params.get('request_weight', 0.95)
-            },
-            'secondary': {
-                'parameter': 'consonance',
-                'type': 'gradient',
-                'value': 2.0,  # Favor similar values
-                'weight': 0.5
-            },
-            'tertiary': {
-                'parameter': 'barlow_complexity',
-                'type': '==',
-                'value': barlow_complexity,
-                'weight': 0.4
-            }
+            'parameter': 'gesture_token',
+            'type': '==',
+            'value': recent_tokens[-1] if recent_tokens else None,
+            'weight': mode_params.get('request_weight', 0.95)
         }
         
         return request
@@ -238,25 +242,14 @@ class PhraseGenerator:
         if mode_params is None:
             mode_params = {}
         
-        melodic_tendency = self._get_melodic_tendency(n=5)
         avg_consonance = self._calculate_avg_consonance(n=10)
         
-        # Contrast melodic direction, match harmonic character
-        gradient = -2.0 if melodic_tendency > 0 else 2.0
-        
+        # Focus on consonance matching for mirror mode
         request = {
-            'primary': {
-                'parameter': 'midi_relative',
-                'type': 'gradient',
-                'value': gradient,
-                'weight': mode_params.get('request_weight', 0.7)
-            },
-            'secondary': {
-                'parameter': 'consonance',
-                'type': '==',
-                'value': avg_consonance,
-                'weight': 0.6
-            }
+            'parameter': 'consonance',
+            'type': '==',
+            'value': avg_consonance,
+            'weight': mode_params.get('request_weight', 0.7)
         }
         
         return request
@@ -269,22 +262,12 @@ class PhraseGenerator:
         if mode_params is None:
             mode_params = {}
         
-        rhythmic_tendency = self._get_rhythmic_tendency(n=5)
-        
-        # High consonance, complement rhythm
+        # High consonance constraint for couple mode
         request = {
-            'primary': {
-                'parameter': 'consonance',
-                'type': '>',
-                'value': 0.7,
-                'weight': mode_params.get('request_weight', 0.3)  # Loose constraint
-            },
-            'secondary': {
-                'parameter': 'rhythm_ratio',
-                'type': 'gradient',
-                'value': -1.5 if rhythmic_tendency > 1.5 else 1.5,  # Complement rhythm
-                'weight': 0.4
-            }
+            'parameter': 'consonance',
+            'type': '>',
+            'value': 0.7,
+            'weight': mode_params.get('request_weight', 0.3)  # Loose constraint
         }
         
         return request
@@ -292,35 +275,30 @@ class PhraseGenerator:
     def _build_request_for_mode(self, mode: str, mode_params: Dict = None) -> Optional[Dict]:
         """Build request parameters based on current behavior mode"""
         mode_upper = mode.upper()
-        print(f"🎯 Building request for mode: {mode_upper}")  # DEBUG
         
         if mode_upper == 'SHADOW':
-            result = self._build_shadowing_request(mode_params)
-            print(f"🎯 Shadow request: {result}")  # DEBUG
-            return result
+            return self._build_shadowing_request(mode_params)
         elif mode_upper == 'MIRROR':
-            result = self._build_mirroring_request(mode_params)
-            print(f"🎯 Mirror request: {result}")  # DEBUG
-            return result
+            return self._build_mirroring_request(mode_params)
         elif mode_upper == 'COUPLE':
-            result = self._build_coupling_request(mode_params)
-            print(f"🎯 Couple request: {result}")  # DEBUG
-            return result
+            return self._build_coupling_request(mode_params)
         elif mode_upper in ['IMITATE', 'CONTRAST', 'LEAD']:
             # Use shadowing as fallback for compatibility
-            result = self._build_shadowing_request(mode_params)
-            print(f"🎯 {mode_upper} request (using shadow): {result}")  # DEBUG
-            return result
+            return self._build_shadowing_request(mode_params)
         else:
-            print(f"🎯 Unknown mode, no request")  # DEBUG
             return None
     
     def generate_phrase(self, current_event: Dict, voice_type: str, 
-                       mode: str, harmonic_context: Dict, temperature: float = 0.8) -> Optional[MusicalPhrase]:
+                       mode: str, harmonic_context: Dict, temperature: float = 0.8, 
+                       activity_multiplier: float = 1.0) -> Optional[MusicalPhrase]:
         """Generate a musical phrase based on context and rhythm patterns
         
         Args:
             temperature: Controls randomness in Oracle generation (from mode_params)
+            activity_multiplier: Multiplier from performance arc (0.0-1.0)
+                - During buildup: 0.3 → 1.0 (sparse → full)
+                - During main: 1.0 (full activity)
+                - During ending: 1.0 → 0.0 (gradual fade)
         """
         
         current_time = time.time()
@@ -352,8 +330,39 @@ class PhraseGenerator:
                 
                 self.last_phrase_time = current_time
                 
-                # Store in memory for future development
-                self.phrase_memory.add_phrase(phrase.notes, phrase.durations, current_time, mode)
+                # DON'T store recalled phrases back into memory (prevents feedback loop)
+                # Recalled phrases are already in memory - storing them again increases their
+                # probability, creating a positive feedback loop where the same motif dominates
+                
+                # Emit phrase memory event
+                if self.visualization_manager:
+                    self.visualization_manager.emit_phrase_memory(
+                        action='recall',
+                        motif=motif,
+                        variation_type=variation_type,
+                        timestamp=current_time
+                    )
+                
+                # Emit thematic recall visualization event
+                if self.visualization_manager:
+                    self.visualization_manager.emit_timeline_update(
+                        'thematic_recall', 
+                        mode=mode,
+                        timestamp=current_time
+                    )
+                    
+                    # 🎨 ALSO emit request parameters for viewport (thematic recall path)
+                    thematic_request = {
+                        'parameter': 'motif_recall',
+                        'type': 'thematic',
+                        'value': f"variation_{variation_type}",
+                        'weight': 0.85
+                    }
+                    self.visualization_manager.emit_request_params(
+                        mode=mode,
+                        request=thematic_request,
+                        voice_type=voice_type
+                    )
                 
                 return phrase
         
@@ -363,13 +372,20 @@ class PhraseGenerator:
         # Build request based on mode (for AudioOracle pattern matching)
         request = self._build_request_for_mode(mode)
         
-        # Emit request parameters to visualization
+        # Emit request parameters to visualization (rate-limited to avoid spam)
         if self.visualization_manager and request:
-            self.visualization_manager.emit_request_params(
-                mode=mode,
-                request=request,
-                voice_type=voice_type
-            )
+            # Rate limit: only emit if enough time passed since last emission (reduce Qt event queue spam)
+            current_emit_time = time.time()
+            if not hasattr(self, '_last_viz_emit_time'):
+                self._last_viz_emit_time = 0
+            
+            if current_emit_time - self._last_viz_emit_time > 0.5:  # Max 2 updates per second
+                self.visualization_manager.emit_request_params(
+                    mode=mode,
+                    request=request,
+                    voice_type=voice_type
+                )
+                self._last_viz_emit_time = current_emit_time
         
         # Decide phrase arc
         phrase_arc = self._decide_phrase_arc(current_event)
@@ -379,16 +395,16 @@ class PhraseGenerator:
             phrase = self._generate_silence_phrase(current_time)
             self.phrases_since_silence = 0
         elif phrase_arc == PhraseArc.BUILDUP:
-            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature)
+            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.PEAK:
-            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature)
+            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.RELEASE:
-            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature)
+            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
             self.phrases_since_silence += 1
         else:
-            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature)
+            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
             self.phrases_since_silence += 1
         
         if phrase:
@@ -396,6 +412,15 @@ class PhraseGenerator:
             
             # Store phrase in memory for future thematic development
             self.phrase_memory.add_phrase(phrase.notes, phrase.durations, current_time, mode)
+            
+            # Emit phrase memory event for new storage
+            if self.visualization_manager:
+                self.visualization_manager.emit_phrase_memory(
+                    action='store',
+                    motif=phrase.notes,
+                    variation_type=None,
+                    timestamp=current_time
+                )
             
         return phrase
     
@@ -486,15 +511,23 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8) -> MusicalPhrase:
-        """Generate a phrase that builds energy"""
+    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
+        """Generate a phrase that builds energy
         
-        # Melody: 2-4 notes (short musical phrases)
-        # Bass: 1-2 notes (sparse accompaniment)
+        Args:
+            activity_multiplier: Scale phrase length (0.3-1.0 during buildup phase)
+        """
+        
+        # Melody: 2-4 notes (short musical phrases), scaled by activity
+        # Bass: 1-2 notes (sparse accompaniment), scaled by activity
         if voice_type == "melodic":
-            phrase_length = random.randint(2, 4)
+            base_length = random.randint(2, 4)
         else:
-            phrase_length = random.randint(1, 2)
+            base_length = random.randint(1, 2)
+        
+        # Scale phrase length by activity multiplier
+        # activity_multiplier: 0.3 → 1.0 during buildup
+        phrase_length = max(1, int(base_length * activity_multiplier))
         
         # Query AudioOracle with request parameters (proper suffix link traversal)
         oracle_notes = None
@@ -505,8 +538,14 @@ class PhraseGenerator:
                 request = self._build_request_for_mode(mode)
                 print(f"🔍 Oracle query: request={request is not None}, mode={mode}")  # DEBUG
                 if request:
+                    # Get recent tokens for context
+                    recent_tokens = self._get_recent_human_tokens(n=3)
+                    if not recent_tokens:
+                        recent_tokens = []  # Empty list if no context
+                    
                     # Generate from AudioOracle using request masking
                     generated_frames = self.audio_oracle.generate_with_request(
+                        current_context=recent_tokens,
                         request=request,
                         max_length=phrase_length,
                         temperature=temperature
@@ -514,17 +553,23 @@ class PhraseGenerator:
                     print(f"🔍 Oracle returned: {len(generated_frames) if generated_frames else 0} frames")  # DEBUG
                     
                     if generated_frames and len(generated_frames) > 0:
-                        # Extract MIDI notes from generated frames
+                        # Extract MIDI notes from generated frame IDs
                         oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                # Convert Hz to MIDI
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
-                        print(f"🔍 Extracted notes: {oracle_notes}")  # DEBUG
+                        for frame_id in generated_frames:
+                            # frame_id is an integer index into audio_frames
+                            if isinstance(frame_id, int) and frame_id < len(self.audio_oracle.audio_frames):
+                                frame_obj = self.audio_oracle.audio_frames[frame_id]
+                                audio_data = frame_obj.audio_data
+                                
+                                # Try to extract MIDI note
+                                if 'midi_note' in audio_data:
+                                    oracle_notes.append(int(audio_data['midi_note']))
+                                elif 'pitch_hz' in audio_data and audio_data['pitch_hz'] > 0:
+                                    # Convert Hz to MIDI
+                                    import math
+                                    midi_note = int(round(69 + 12 * math.log2(audio_data['pitch_hz'] / 440.0)))
+                                    oracle_notes.append(midi_note)
+                        print(f"🔍 Extracted {len(oracle_notes)} notes from {len(generated_frames)} frames: {oracle_notes[:5]}...")  # DEBUG
             except Exception as e:
                 # Silently fall back to random generation
                 print(f"🔍 Oracle exception: {e}")  # DEBUG
@@ -582,8 +627,9 @@ class PhraseGenerator:
         # Fallback: Generate notes from scratch if AudioOracle didn't provide any
         print(f"⚠️  FALLBACK: Generating {phrase_length} random notes for {voice_type} (oracle_notes was None or empty)")
         print(f"   Range: {min_note}-{max_note}")  # DEBUG
-        # COMPLETELY UNPREDICTABLE note selection
+        # Musical note selection with melodic contour
         previous_note = random.randint(min_note, max_note)
+        previous_direction = 0  # Track melodic direction: -1=down, 0=static, 1=up
         print(f"   Starting note: {previous_note}")  # DEBUG
         
         for i in range(phrase_length):
@@ -593,32 +639,50 @@ class PhraseGenerator:
             else:
                 # More musical intervals for melody
                 if voice_type == "melodic":
-                    # Melodic motion: mostly steps and small leaps
+                    # Melodic motion: HEAVILY favor stepwise motion and small leaps
+                    # This creates singable, memorable melodies
                     interval_choices = [
-                        (-7, -5),   # Descending 4th-5th
-                        (-5, -3),   # Descending 3rd-4th
-                        (-2, -1),   # Descending step
-                        (-1, 1),    # Static/tiny movement
-                        (1, 2),     # Ascending step
-                        (3, 5),     # Ascending 3rd-4th
-                        (5, 7),     # Ascending 4th-5th
-                        (7, 12),    # Ascending leap (up to octave)
+                        (-2, -2),   # Descending whole step (major 2nd)
+                        (-1, -1),   # Descending half step (minor 2nd)
+                        (1, 1),     # Ascending half step (minor 2nd)
+                        (2, 2),     # Ascending whole step (major 2nd)
+                        (-4, -3),   # Descending minor/major 3rd
+                        (3, 4),     # Ascending minor/major 3rd
+                        (-5, -5),   # Descending perfect 4th
+                        (5, 5),     # Ascending perfect 4th
+                        (-7, -7),   # Descending perfect 5th (rare)
+                        (7, 7),     # Ascending perfect 5th (rare)
                     ]
-                    # Weight toward steps and small leaps
-                    probs = [0.1, 0.15, 0.2, 0.1, 0.2, 0.15, 0.1, 0.05]
+                    # STRONG bias toward steps (75% stepwise motion)
+                    probs = [0.20, 0.20, 0.20, 0.15, 0.10, 0.05, 0.04, 0.03, 0.02, 0.01]
                 else:
-                    # Bass: allow bigger leaps
+                    # Bass: allow bigger leaps but still favor 4ths/5ths (consonant)
                     interval_choices = [
-                        (-12, -7),  # Descending 5th-octave
-                        (-7, -3),   # Descending 3rd-5th
-                        (-3, 3),    # Small motion
-                        (3, 7),     # Ascending 3rd-5th
-                        (7, 12),    # Ascending 5th-octave
+                        (-7, -7),   # Descending 5th (very common in bass)
+                        (-5, -5),   # Descending 4th
+                        (-4, -3),   # Descending 3rd
+                        (0, 0),     # Repeat (pedal point)
+                        (3, 4),     # Ascending 3rd
+                        (5, 5),     # Ascending 4th
+                        (7, 7),     # Ascending 5th (very common in bass)
+                        (-12, -12), # Descending octave (rare)
+                        (12, 12),   # Ascending octave (rare)
                     ]
-                    probs = [0.2, 0.3, 0.2, 0.2, 0.1]
+                    probs = [0.25, 0.15, 0.15, 0.10, 0.10, 0.10, 0.10, 0.025, 0.025]
                 
                 chosen_magnitude = random.choices(interval_choices, weights=probs)[0]
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
+                
+                # Melodic contour: Favor direction changes after 2-3 steps in same direction
+                # This creates arch-like melodies (up then down, or down then up)
+                if i >= 2:  # Need at least 2 previous notes to detect direction
+                    current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
+                    if current_direction == previous_direction and previous_direction != 0:
+                        # Same direction for 2+ steps - bias toward reversing
+                        if random.random() < 0.4:  # 40% chance to force direction change
+                            interval = -interval  # Reverse direction
+                    previous_direction = current_direction
+                
                 note = previous_note + interval
                 
                 # Wrap around range boundaries with octave jumping
@@ -675,7 +739,7 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8) -> MusicalPhrase:
+    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
         """Generate a peak phrase (high energy)"""
         
         phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
@@ -686,8 +750,16 @@ class PhraseGenerator:
             try:
                 request = self._build_request_for_mode(mode)
                 if request:
+                    # Get recent tokens for context
+                    recent_tokens = self._get_recent_human_tokens(n=3)
+                    if not recent_tokens:
+                        recent_tokens = []  # Empty list if no context
+                    
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, max_length=phrase_length, temperature=0.8
+                        current_context=recent_tokens,
+                        request=request,
+                        max_length=phrase_length,
+                        temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []
@@ -720,19 +792,36 @@ class PhraseGenerator:
                 # Starting note: totally random in range
                 note = random.randint(min_note, max_note)
             else:
-                # DRASTIC intervals for peaks too!
-                interval_magnitudes = [
-                    (-36, -24),  # Large descending leaps
-                    (-24, -12),  # Medium descending leaps
-                    (-12, -4),   # Small descending leaps
-                    (-4, 4),     # Step motion
-                    (4, 12),     # Small ascending leaps
-                    (12, 24),    # Medium ascending leaps  
-                    (24, 36),    # Large ascending leaps
-                ]
+                # Peak phrases: More energetic but still melodic
+                # Allow slightly wider intervals than buildup, but keep it singable
+                if voice_type == "melodic":
+                    interval_magnitudes = [
+                        (-3, -3),   # Descending minor 3rd
+                        (-2, -2),   # Descending whole step
+                        (-1, -1),   # Descending half step
+                        (1, 1),     # Ascending half step
+                        (2, 2),     # Ascending whole step
+                        (3, 3),     # Ascending minor 3rd
+                        (4, 4),     # Ascending major 3rd
+                        (5, 5),     # Ascending perfect 4th
+                        (7, 7),     # Ascending perfect 5th (peak energy!)
+                        (-5, -5),   # Descending perfect 4th
+                    ]
+                    # Balanced toward steps with some expressive leaps
+                    magnitude_probs = [0.12, 0.18, 0.15, 0.15, 0.15, 0.10, 0.08, 0.05, 0.03, 0.04]
+                else:
+                    # Bass peaks: Strong 4ths/5ths with some octaves
+                    interval_magnitudes = [
+                        (-7, -7),   # Descending 5th
+                        (-5, -5),   # Descending 4th
+                        (-12, -12), # Descending octave
+                        (0, 0),     # Repeat (pedal)
+                        (5, 5),     # Ascending 4th
+                        (7, 7),     # Ascending 5th
+                        (12, 12),   # Ascending octave (rare)
+                    ]
+                    magnitude_probs = [0.25, 0.20, 0.10, 0.10, 0.15, 0.15, 0.05]
                 
-                # More aggressive for peaks
-                magnitude_probs = [0.15, 0.2, 0.25, 0.05, 0.25, 0.3, 0.2]
                 chosen_magnitude = random.choices(interval_magnitudes, weights=magnitude_probs)[0]
                 
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
@@ -784,7 +873,7 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8) -> MusicalPhrase:
+    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
         """Generate a release phrase (settling down)"""
         
         phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
@@ -795,8 +884,16 @@ class PhraseGenerator:
             try:
                 request = self._build_request_for_mode(mode)
                 if request:
+                    # Get recent tokens for context
+                    recent_tokens = self._get_recent_human_tokens(n=3)
+                    if not recent_tokens:
+                        recent_tokens = []  # Empty list if no context
+                    
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, max_length=phrase_length, temperature=0.8
+                        current_context=recent_tokens,
+                        request=request,
+                        max_length=phrase_length,
+                        temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []
@@ -865,7 +962,7 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8) -> MusicalPhrase:
+    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
         """Generate a contemplation phrase (meditative)"""
         
         phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
@@ -876,8 +973,16 @@ class PhraseGenerator:
             try:
                 request = self._build_request_for_mode(mode)
                 if request:
+                    # Get recent tokens for context
+                    recent_tokens = self._get_recent_human_tokens(n=3)
+                    if not recent_tokens:
+                        recent_tokens = []  # Empty list if no context
+                    
                     generated_frames = self.audio_oracle.generate_with_request(
-                        request=request, max_length=phrase_length, temperature=0.8
+                        current_context=recent_tokens,
+                        request=request,
+                        max_length=phrase_length,
+                        temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
                         oracle_notes = []

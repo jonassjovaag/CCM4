@@ -5,7 +5,7 @@ Main coordinator for multi-viewport system
 """
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt, QThread
+from PyQt5.QtCore import Qt, QThread, QTimer, QMetaObject, Q_ARG
 from typing import Dict, List, Optional, Any
 import sys
 
@@ -170,9 +170,22 @@ class VisualizationManager:
         return self.app
     
     def close(self):
-        """Close all viewports and cleanup"""
+        """Close all viewports and cleanup (THREAD-SAFE)"""
+        # If we're not on the Qt main thread, schedule close on main thread
+        if QThread.currentThread() != self.app.thread():
+            # Use QTimer.singleShot to safely execute close on main thread
+            QTimer.singleShot(0, self._close_viewports)
+        else:
+            # Already on main thread, close directly
+            self._close_viewports()
+    
+    def _close_viewports(self):
+        """Internal method to actually close viewports (must be on main thread)"""
         for viewport in self.viewports.values():
-            viewport.close()
+            try:
+                viewport.close()
+            except Exception as e:
+                print(f"⚠️  Error closing viewport: {e}")
         print("🎨 Visualization system closed")
     
     # ===== API for MusicHal_9000 =====

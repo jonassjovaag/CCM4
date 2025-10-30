@@ -176,7 +176,15 @@ class BehaviorEngine:
     """
     
     def __init__(self, rhythm_oracle=None, visualization_manager=None):
-        self.current_mode = BehaviorMode.IMITATE
+        # Randomly select initial mode for variety
+        self.current_mode = random.choice([
+            BehaviorMode.IMITATE,
+            BehaviorMode.CONTRAST,
+            BehaviorMode.LEAD,
+            BehaviorMode.SHADOW,
+            BehaviorMode.MIRROR,
+            BehaviorMode.COUPLE
+        ])
         self.mode_history = []
         self.decision_history = []
         self.visualization_manager = visualization_manager
@@ -272,8 +280,8 @@ class BehaviorEngine:
         # Variable pause durations (balanced for responsiveness without click noise)
         self.melody_pause_min = 6.0   # seconds (increased from 10.0 for more responsiveness)
         self.melody_pause_max = 20.0  # seconds (reduced from 40.0 for more activity)
-        self.bass_pause_min = 2.5     # seconds (increased from 4.0 for more responsiveness)
-        self.bass_pause_max = 8.0     # seconds (reduced from 15.0 for more activity)
+        self.bass_pause_min = 4     # seconds (increased from 4.0 for more responsiveness)
+        self.bass_pause_max = 12.0     # seconds (reduced from 15.0 for more activity)
         self.current_melody_pause = 6.0   # Start with minimum
         self.current_bass_pause = 2.5     # Start with minimum
         
@@ -315,8 +323,12 @@ class BehaviorEngine:
                     print(f"🎵 GPT-OSS: High silence detected, using longer pauses")
     
     def decide_behavior(self, current_event: Dict, 
-                       memory_buffer, clustering) -> List[MusicalDecision]:
-        """Make musical decisions based on current context"""
+                       memory_buffer, clustering, activity_multiplier: float = 1.0) -> List[MusicalDecision]:
+        """Make musical decisions based on current context
+        
+        Args:
+            activity_multiplier: Performance arc activity level (0.0-1.0) from timeline manager
+        """
         current_time = time.time()
         
         # Store last event for drum-triggered evolution
@@ -326,9 +338,9 @@ class BehaviorEngine:
         if self._should_change_mode(current_time):
             self._select_new_mode(current_event, memory_buffer, clustering)
         
-        # Generate decisions based on current mode (melodic and bass)
+        # Generate decisions based on current mode (melodic and bass) with activity multiplier
         decisions = self._generate_decision(
-            self.current_mode, current_event, memory_buffer, clustering
+            self.current_mode, current_event, memory_buffer, clustering, activity_multiplier
         )
         
         # Store decisions
@@ -436,6 +448,8 @@ class BehaviorEngine:
     def _select_new_mode(self, current_event: Dict, 
                         memory_buffer, clustering):
         """Select a new behavior mode"""
+        mode_change_start = time.time()
+        
         # STICKY MODES: Check if we should persist with current mode
         elapsed = time.time() - self.mode_start_time
         
@@ -475,8 +489,9 @@ class BehaviorEngine:
             'instrument': instrument
         })
         
-        # Print mode change for visibility (with duration)
-        print(f"🎭 Mode shift: {new_mode.value.upper()} (will persist for {self.current_mode_duration:.0f}s)")
+        mode_change_duration = time.time() - mode_change_start
+        # Print mode change for visibility (with duration and timing)
+        print(f"🎭 Mode shift: {new_mode.value.upper()} (will persist for {self.current_mode_duration:.0f}s) [switch took {mode_change_duration*1000:.1f}ms]")
     
     def _calculate_mode_weights(self, current_event: Dict, 
                               memory_buffer, clustering) -> List[float]:
@@ -513,8 +528,15 @@ class BehaviorEngine:
         return weights
     
     def _generate_decision(self, mode: BehaviorMode, current_event: Dict,
-                          memory_buffer, clustering) -> List[MusicalDecision]:
-        """Generate musical phrase decisions for melody and bass partnership with rhythmic awareness"""
+                          memory_buffer, clustering, activity_multiplier: float = 1.0) -> List[MusicalDecision]:
+        """Generate musical phrase decisions for melody and bass partnership with rhythmic awareness
+        
+        Args:
+            activity_multiplier: Performance arc activity level (0.0-1.0)
+                - 0.3-1.0 during buildup phase (sparse → full)
+                - 1.0 during main phase (full activity)
+                - 1.0-0.0 during ending phase (fade to silence)
+        """
         decisions = []
         instrument = current_event.get('instrument', 'unknown')
         current_time = time.time()
@@ -557,14 +579,18 @@ class BehaviorEngine:
                 voice_type = "bass"
                 print(f"🎵 Voice selection: bass (since_bass={time_since_bass:.1f}s, required={required_bass_gap:.1f}s)")
             else:
-                print(f"🎵 Voice selection: BLOCKED (melody={time_since_melody:.1f}s, bass={time_since_bass:.1f}s)")
+                # Voice timing blocked - return empty to prevent single-note fallback
+                print(f"🚫 Voice selection: BLOCKED - returning empty (no single-note fallback)")
+                return decisions  # Return empty list instead of falling through to single-note generation
             
+            # If we selected a voice, generate a phrase for it
             if voice_type:
-                # Generate musical phrase with mode-specific temperature
+                # Generate musical phrase with mode-specific temperature and activity multiplier
                 current_params = self.mode_params[mode]
                 phrase = self.phrase_generator.generate_phrase(
                     current_event, voice_type, mode.value, harmonic_context,
-                    temperature=current_params['temperature']
+                    temperature=current_params['temperature'],
+                    activity_multiplier=activity_multiplier
                 )
                 
                 if phrase:
@@ -841,6 +867,27 @@ class BehaviorEngine:
         # Generate musical parameters (with harmonic awareness)
         musical_params = self._generate_imitate_params(current_event, target_moment, voice_type, harmonic_context)
         
+        # 🎨 VISUALIZATION: Emit request parameters for viewport (rate-limited)
+        if self.visualization_manager and harmonic_context:
+            current_time = time.time()
+            if not hasattr(self, '_last_viz_emit'):
+                self._last_viz_emit = 0
+            
+            # Rate limit: max 2 updates per second to avoid Qt event queue spam
+            if current_time - self._last_viz_emit > 0.5:
+                request = {
+                    'parameter': 'consonance',
+                    'type': '==',
+                    'value': harmonic_context.get('stability', 0.5),
+                    'weight': 0.85
+                }
+                self.visualization_manager.emit_request_params(
+                    mode=BehaviorMode.IMITATE.value,
+                    request=request,
+                    voice_type=voice_type
+                )
+                self._last_viz_emit = current_time
+        
         return MusicalDecision(
             mode=BehaviorMode.IMITATE,
             confidence=confidence,
@@ -889,6 +936,27 @@ class BehaviorEngine:
         
         musical_params = self._generate_contrast_params(current_event, target_moment, voice_type, harmonic_context)
         
+        # 🎨 VISUALIZATION: Emit request parameters for viewport (rate-limited)
+        if self.visualization_manager and harmonic_context:
+            current_time = time.time()
+            if not hasattr(self, '_last_viz_emit'):
+                self._last_viz_emit = 0
+            
+            # Rate limit: max 2 updates per second
+            if current_time - self._last_viz_emit > 0.5:
+                request = {
+                    'parameter': 'consonance',
+                    'type': '<',
+                    'value': 0.5,
+                    'weight': 0.7
+                }
+                self.visualization_manager.emit_request_params(
+                    mode=BehaviorMode.CONTRAST.value,
+                    request=request,
+                    voice_type=voice_type
+                )
+                self._last_viz_emit = current_time
+        
         return MusicalDecision(
             mode=BehaviorMode.CONTRAST,
             confidence=confidence,
@@ -926,6 +994,27 @@ class BehaviorEngine:
             key = harmonic_context.get('key_signature', 'N/A')
             reasoning += f" | Exploring new territory in {key}"
         
+        # 🎨 VISUALIZATION: Emit request parameters for viewport (rate-limited)
+        if self.visualization_manager and harmonic_context:
+            current_time = time.time()
+            if not hasattr(self, '_last_viz_emit'):
+                self._last_viz_emit = 0
+            
+            # Rate limit: max 2 updates per second
+            if current_time - self._last_viz_emit > 0.5:
+                request = {
+                    'parameter': 'innovation',
+                    'type': 'exploration',
+                    'value': 'high',
+                    'weight': 0.3
+                }
+                self.visualization_manager.emit_request_params(
+                    mode=BehaviorMode.LEAD.value,
+                    request=request,
+                    voice_type=voice_type
+                )
+                self._last_viz_emit = current_time
+        
         return MusicalDecision(
             mode=BehaviorMode.LEAD,
             confidence=confidence,
@@ -955,6 +1044,63 @@ class BehaviorEngine:
                 normalized[i] = (features[i] - mean) / std
         
         return normalized
+    
+    def _extract_request_params_from_context(self, harmonic_context: Dict, mode: BehaviorMode) -> List[Dict]:
+        """Extract visualization-friendly request parameters from harmonic context"""
+        request_params = []
+        
+        # Extract chord information
+        if 'current_chord' in harmonic_context:
+            request_params.append({
+                'parameter': 'chord',
+                'type': 'harmonic',
+                'value': harmonic_context['current_chord'],
+                'weight': 0.8
+            })
+        
+        # Extract key signature
+        if 'key_signature' in harmonic_context:
+            request_params.append({
+                'parameter': 'key',
+                'type': 'harmonic',
+                'value': harmonic_context['key_signature'],
+                'weight': 0.7
+            })
+        
+        # Extract stability/consonance
+        if 'stability' in harmonic_context:
+            stability = harmonic_context['stability']
+            request_params.append({
+                'parameter': 'consonance',
+                'type': 'harmonic',
+                'value': f"{stability:.2f}",
+                'weight': 0.9
+            })
+        
+        # Mode-specific parameters
+        if mode == BehaviorMode.IMITATE:
+            request_params.append({
+                'parameter': 'similarity',
+                'type': 'behavioral',
+                'value': 'high',
+                'weight': 0.95
+            })
+        elif mode == BehaviorMode.CONTRAST:
+            request_params.append({
+                'parameter': 'contrast',
+                'type': 'behavioral',
+                'value': 'high',
+                'weight': 0.85
+            })
+        elif mode == BehaviorMode.LEAD:
+            request_params.append({
+                'parameter': 'innovation',
+                'type': 'behavioral',
+                'value': 'high',
+                'weight': 0.75
+            })
+        
+        return request_params
     
     def _generate_imitate_params(self, current_event: Dict, 
                                target_moment, voice_type: str = "melodic", 

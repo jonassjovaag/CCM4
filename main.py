@@ -2,6 +2,14 @@
 # Drift Engine AI - Main Application
 # Complete AI-driven musical partner system
 
+# Activate CCM3 virtual environment if available
+try:
+    from ccm3_venv_manager import ensure_ccm3_venv_active
+    ensure_ccm3_venv_active()
+    print("✅ CCM3 virtual environment activated")
+except ImportError:
+    print("Note: CCM3 environment manager not available, using current environment")
+
 import time
 import threading
 import argparse

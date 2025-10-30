@@ -40,16 +40,30 @@ class PerformanceTimelineManager:
     """Manages performance timeline and applies learned arcs"""
     
     def __init__(self, config: PerformanceConfig):
+        """Initialize the performance timeline manager"""
         self.config = config
-        self.performance_arc: Optional[PerformanceArc] = None
-        self.performance_state: Optional[PerformanceState] = None
-        self.scaled_arc: Optional[PerformanceArc] = None
+        self.performance_arc = None
+        self.scaled_arc = None
+        self.performance_state = None
         
-        # Load and scale the performance arc
-        self._load_and_scale_arc()
+        # Load and scale the performance arc (if file exists)
+        if self.config.arc_file_path and os.path.exists(self.config.arc_file_path):
+            self._load_and_scale_arc()
+        else:
+            if self.config.arc_file_path:
+                print(f"⚠️  Performance arc file not found: {self.config.arc_file_path}")
+            print(f"📊 Using simple duration-based timeline: {self.config.duration_minutes} minutes")
         
-        # Initialize performance state
+        # Initialize the performance state (works with or without arc)
         self._initialize_performance_state()
+    
+    def _load_and_scale_arc(self):
+        """Load the performance arc and scale it to the desired duration"""
+        print(f"📂 Loading performance arc from: {self.config.arc_file_path}")
+        
+        if not os.path.exists(self.config.arc_file_path):
+            print(f"⚠️  Arc file not found, skipping arc load")
+            return
     
     def _load_and_scale_arc(self):
         """Load the performance arc and scale it to the desired duration"""
@@ -183,7 +197,10 @@ class PerformanceTimelineManager:
     def start_performance(self):
         """Start a new performance session"""
         print(f"🎵 Starting performance session: {self.config.duration_minutes} minutes")
-        print(f"📊 Performance arc: {len(self.scaled_arc.phases)} phases")
+        if self.scaled_arc:
+            print(f"📊 Performance arc: {len(self.scaled_arc.phases)} phases")
+        else:
+            print(f"📊 Simple duration-based timeline (no arc phases)")
         print(f"🎚️ Engagement profile: {self.config.engagement_profile}")
         
         self._initialize_performance_state()
@@ -226,6 +243,63 @@ class PerformanceTimelineManager:
             fade_progress = remaining / fade_duration
             return fade_progress ** 2  # Square for smoother fade
     
+    def get_performance_phase(self) -> str:
+        """
+        Get current performance phase based on elapsed time
+        
+        Returns: 'buildup', 'main', or 'ending'
+        """
+        if not self.performance_state:
+            return 'main'
+        
+        total_duration = self.performance_state.total_duration
+        elapsed = self.performance_state.current_time
+        progress = elapsed / total_duration if total_duration > 0 else 0.0
+        
+        # Phase boundaries (configurable percentages)
+        buildup_end = 0.15    # First 15% is buildup
+        ending_start = 0.80   # Last 20% is ending (fade-out)
+        
+        if progress < buildup_end:
+            return 'buildup'
+        elif progress < ending_start:
+            return 'main'
+        else:
+            return 'ending'
+    
+    def get_activity_multiplier(self) -> float:
+        """
+        Get activity level multiplier based on current performance phase
+        
+        Returns:
+            Float from 0.0 to 1.0 representing activity level
+            - Buildup: 0.3 → 1.0 (gradual increase)
+            - Main: 1.0 (full activity)
+            - Ending: 1.0 → 0.0 (gradual decrease)
+        """
+        if not self.performance_state:
+            return 1.0
+        
+        phase = self.get_performance_phase()
+        total_duration = self.performance_state.total_duration
+        elapsed = self.performance_state.current_time
+        progress = elapsed / total_duration if total_duration > 0 else 0.0
+        
+        if phase == 'buildup':
+            # Gradual increase from 0.3 to 1.0 over first 15%
+            buildup_progress = progress / 0.15  # 0.0 → 1.0
+            return 0.3 + (0.7 * buildup_progress)  # 0.3 → 1.0
+        
+        elif phase == 'main':
+            # Full activity
+            return 1.0
+        
+        else:  # ending
+            # Gradual decrease from 1.0 to 0.0 over last 20%
+            ending_progress = (progress - 0.80) / 0.20  # 0.0 → 1.0
+            fade_factor = 1.0 - ending_progress  # 1.0 → 0.0
+            return fade_factor ** 2  # Smooth exponential fade
+    
     def update_performance_state(self, human_activity: bool = False, instrument_detected: str = None):
         """Update the performance state based on current time and human activity"""
         current_time = time.time()
@@ -256,6 +330,10 @@ class PerformanceTimelineManager:
     
     def _update_current_phase(self):
         """Update the current phase based on elapsed time"""
+        if not self.scaled_arc:
+            # No arc loaded - skip phase updates
+            return
+            
         current_time = self.performance_state.current_time
         
         for phase in self.scaled_arc.phases:
@@ -263,13 +341,15 @@ class PerformanceTimelineManager:
                 self.performance_state.current_phase = phase
                 return
         
-        # If we're past the last phase, use the last phase
+        # If past all phases, stay on the last phase
         if self.scaled_arc.phases:
             self.performance_state.current_phase = self.scaled_arc.phases[-1]
     
     def _update_engagement_level(self, human_activity: bool):
         """Update engagement level based on phase and human activity"""
         if not self.performance_state.current_phase:
+            # No arc - use simple fixed engagement
+            self.performance_state.engagement_level = 0.7
             return
         
         base_engagement = self.performance_state.current_phase.engagement_level
@@ -360,65 +440,113 @@ class PerformanceTimelineManager:
         ))
     
     def get_performance_guidance(self) -> Dict[str, Any]:
-        """Get current performance guidance based on state"""
-        if not self.performance_state or not self.performance_state.current_phase:
+        """Get current performance guidance based on state and 3-phase arc"""
+        if not self.performance_state:
             return {
                 'should_respond': False,
                 'engagement_level': 0.0,
                 'behavior_mode': 'wait',
                 'confidence_threshold': 0.8,
-                'silence_mode': True
+                'silence_mode': True,
+                'performance_phase': 'main',
+                'activity_multiplier': 1.0
             }
         
-        # Determine if we should respond
-        should_respond = not self.performance_state.silence_mode
+        # Get 3-phase arc info
+        performance_phase = self.get_performance_phase()
+        activity_multiplier = self.get_activity_multiplier()
         
-        # Strategic re-entry logic - much more conservative
-        if self.performance_state.silence_mode:
-            # Check if we should re-enter based on momentum and phase
-            if self.performance_state.musical_momentum > 0.7:
-                # Very high momentum - small chance to re-enter
-                should_respond = random.random() < 0.05  # 5% chance
-            elif self.performance_state.musical_momentum > 0.5:
-                # High momentum - very small chance
-                should_respond = random.random() < 0.02  # 2% chance
-            elif self.performance_state.musical_momentum > 0.3:
-                # Medium momentum - minimal chance
-                should_respond = random.random() < 0.01  # 1% chance
+        # Determine if we should respond based on activity multiplier and silence mode
+        base_should_respond = not self.performance_state.silence_mode if self.performance_state.current_phase else True
+        
+        # Apply activity multiplier to response probability
+        if performance_phase == 'buildup':
+            # During buildup, gradually increase response rate
+            should_respond = base_should_respond and (random.random() < activity_multiplier)
+        elif performance_phase == 'ending':
+            # During ending, gradually decrease response rate
+            should_respond = base_should_respond and (random.random() < activity_multiplier)
+        else:
+            # Main phase - full response
+            should_respond = base_should_respond
+        
+        # Strategic re-entry logic during silence - adjusted by phase
+        if self.performance_state.silence_mode and self.performance_state.current_phase:
+            re_entry_chance = 0.0
+            
+            if performance_phase == 'buildup':
+                # Very conservative during buildup
+                re_entry_chance = 0.001 * activity_multiplier
+            elif performance_phase == 'ending':
+                # Almost never during ending (let it fade)
+                re_entry_chance = 0.0
             else:
-                # Low momentum - almost never re-enter
-                should_respond = random.random() < 0.001  # 0.1% chance
+                # Main phase - use momentum-based logic
+                if self.performance_state.musical_momentum > 0.7:
+                    re_entry_chance = 0.05  # 5% chance
+                elif self.performance_state.musical_momentum > 0.5:
+                    re_entry_chance = 0.02  # 2% chance
+                elif self.performance_state.musical_momentum > 0.3:
+                    re_entry_chance = 0.01  # 1% chance
+                else:
+                    re_entry_chance = 0.001  # 0.1% chance
+            
+            should_respond = random.random() < re_entry_chance
         
-        # Determine behavior mode based on phase and engagement
-        phase = self.performance_state.current_phase
-        if phase.phase_type == 'intro':
-            behavior_mode = 'imitate'
-            confidence_threshold = 0.8
-        elif phase.phase_type == 'development':
-            behavior_mode = 'contrast'
-            confidence_threshold = 0.7
-        elif phase.phase_type == 'climax':
-            behavior_mode = 'lead'
-            confidence_threshold = 0.6
-        else:  # resolution
-            behavior_mode = 'imitate'
-            confidence_threshold = 0.8
+        # Determine behavior mode based on 3-phase arc and loaded phase
+        if self.performance_state.current_phase:
+            phase = self.performance_state.current_phase
+            # Use loaded arc phases if available
+            if phase.phase_type == 'intro':
+                behavior_mode = 'imitate'
+                confidence_threshold = 0.8
+            elif phase.phase_type == 'development':
+                behavior_mode = 'contrast'
+                confidence_threshold = 0.7
+            elif phase.phase_type == 'climax':
+                behavior_mode = 'lead'
+                confidence_threshold = 0.6
+            else:  # resolution
+                behavior_mode = 'imitate'
+                confidence_threshold = 0.8
+        else:
+            # Fallback to 3-phase behavior if no arc loaded
+            if performance_phase == 'buildup':
+                behavior_mode = 'imitate'
+                confidence_threshold = 0.8
+            elif performance_phase == 'ending':
+                behavior_mode = 'imitate'
+                confidence_threshold = 0.9
+            else:
+                behavior_mode = 'contrast'
+                confidence_threshold = 0.7
+        
+        # Adjust engagement level by activity multiplier
+        base_engagement = self.performance_state.engagement_level if self.performance_state.current_phase else 0.5
+        adjusted_engagement = base_engagement * activity_multiplier
         
         # Adjust confidence threshold based on engagement
-        confidence_threshold *= (1.0 - self.performance_state.engagement_level * 0.3)
+        confidence_threshold *= (1.0 - adjusted_engagement * 0.3)
         
-        return {
+        guidance = {
             'should_respond': should_respond,
-            'engagement_level': self.performance_state.engagement_level,
+            'engagement_level': adjusted_engagement,
             'behavior_mode': behavior_mode,
             'confidence_threshold': confidence_threshold,
-            'silence_mode': self.performance_state.silence_mode,
-            'current_phase': phase.phase_type,
-            'instrument_roles': self.performance_state.instrument_roles,
-            'musical_momentum': self.performance_state.musical_momentum,
+            'silence_mode': self.performance_state.silence_mode if self.performance_state.current_phase else False,
+            'performance_phase': performance_phase,
+            'activity_multiplier': activity_multiplier,
+            'musical_momentum': self.performance_state.musical_momentum if self.performance_state.current_phase else 0.5,
             'time_remaining': self.performance_state.total_duration - self.performance_state.current_time,
-            'detected_instrument': self.performance_state.detected_instrument
+            'detected_instrument': self.performance_state.detected_instrument if self.performance_state.current_phase else None
         }
+        
+        # Add arc-based info if available
+        if self.performance_state.current_phase:
+            guidance['current_phase'] = self.performance_state.current_phase.phase_type
+            guidance['instrument_roles'] = self.performance_state.instrument_roles
+        
+        return guidance
     
     def get_performance_progress(self) -> Dict[str, Any]:
         """Get performance progress information"""

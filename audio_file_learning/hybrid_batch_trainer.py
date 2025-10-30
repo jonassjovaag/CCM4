@@ -378,8 +378,12 @@ class HybridBatchTrainer:
             }
         
         # CRITICAL FIX: Start with ALL audio features from event_data
-        # This preserves f0, midi, rms_db, centroid, etc.
+        # This preserves f0, midi, rms_db, centroid, gesture_token, etc.
         musical_features = event_data.copy()
+        
+        # CRITICAL: Explicitly preserve gesture_token if present
+        if 'gesture_token' in event_data:
+            musical_features['gesture_token'] = event_data['gesture_token']
         
         # Ensure minimum required fields exist
         musical_features.setdefault('t', 0)

@@ -10,6 +10,17 @@ This enhanced version:
 - Maintains backward compatibility
 """
 
+# FIRST: Ensure CCM3 virtual environment is active
+try:
+    from ccm3_venv_manager import ensure_ccm3_venv_active
+    ensure_ccm3_venv_active()
+    print("✅ CCM3 virtual environment activated")
+except ImportError:
+    print("⚠️  CCM3 virtual environment manager not found, continuing with current environment")
+except Exception as e:
+    print(f"⚠️  CCM3 virtual environment activation failed: {e}")
+    print("Continuing with current environment...")
+
 import time
 import threading
 import argparse
@@ -199,7 +210,7 @@ class EnhancedDriftEngineAI:
             from listener.hybrid_perception import HybridPerceptionModule
             self.hybrid_perception = HybridPerceptionModule(
                 vocabulary_size=64,
-                enable_ratio_analysis=not enable_wav2vec,  # Disable ratio if using Wav2Vec
+                enable_ratio_analysis=True,  # ALWAYS enable ratio analysis for chord detection
                 enable_symbolic=True,  # Enable symbolic quantization for gesture tokens
                 enable_wav2vec=enable_wav2vec,
                 wav2vec_model=wav2vec_model,
@@ -211,15 +222,17 @@ class EnhancedDriftEngineAI:
                 print(f"   Features: 768D neural encoding")
                 
                 # Try to load Wav2Vec chord classifier (for human-readable labels)
-                try:
-                    from hybrid_training.wav2vec_chord_classifier import Wav2VecChordClassifier
-                    classifier_path = "models/wav2vec_chord_classifier.pt"
-                    self.wav2vec_chord_classifier = Wav2VecChordClassifier.load(classifier_path)
-                    print(f"   🎹 Chord classifier loaded: {classifier_path}")
-                except Exception as e:
-                    print(f"   ⚠️  Chord classifier not available: {e}")
-                    import traceback
-                    traceback.print_exc()  # Show full error for debugging
+                # DISABLED: Not critical for operation, ratio analyzer provides chord detection
+                self.wav2vec_chord_classifier = None
+                # try:
+                #     from hybrid_training.wav2vec_chord_classifier import Wav2VecChordClassifier
+                #     classifier_path = "models/wav2vec_chord_classifier.pt"
+                #     self.wav2vec_chord_classifier = Wav2VecChordClassifier.load(classifier_path)
+                #     print(f"   🎹 Chord classifier loaded: {classifier_path}")
+                # except Exception as e:
+                #     print(f"   ⚠️  Chord classifier not available: {e}")
+                #     import traceback
+                #     traceback.print_exc()  # Show full error for debugging
             else:
                 print("🔬 Hybrid perception enabled - ratio + chroma features")
         else:
@@ -644,9 +657,11 @@ class EnhancedDriftEngineAI:
             self.visualization_manager.close()
             print("🎨 Visualization system closed")
         
-        # Wait for main thread
+        # Wait for main thread (only if we're NOT in it)
         if self.main_thread and self.main_thread.is_alive():
-            self.main_thread.join(timeout=2.0)
+            if threading.current_thread() != self.main_thread:
+                self.main_thread.join(timeout=2.0)
+            # If we ARE in the main thread, it will exit naturally after this returns
         
         print("✅ Enhanced Drift Engine AI stopped")
     
@@ -810,6 +825,7 @@ class EnhancedDriftEngineAI:
             )
             
             # Emit timeline event for human input
+            print(f"🎨 TIMELINE: Emitting human_input event at {current_time}")  # DEBUG
             self.visualization_manager.emit_timeline_update('human_input', timestamp=current_time)
             
             # Emit pattern matching even without gesture token
@@ -979,12 +995,26 @@ class EnhancedDriftEngineAI:
         time_since_last_human = current_time - self.last_human_event_time
         
         # IRCAM Phase 3+: Track human event for request-based generation
-        if self.ai_agent and hasattr(self.ai_agent, 'phrase_generator') and self.ai_agent.phrase_generator:
-            self.ai_agent.phrase_generator.track_event(event_data, source='human')
+        if not hasattr(self, '_track_debug_logged'):
+            has_behavior_engine = hasattr(self.ai_agent, 'behavior_engine') if self.ai_agent else False
+            has_phrase_gen = hasattr(self.ai_agent.behavior_engine, 'phrase_generator') if has_behavior_engine and self.ai_agent.behavior_engine else False
+            phrase_gen_exists = self.ai_agent.behavior_engine.phrase_generator is not None if has_phrase_gen else False
+            print(f"🔍 MAIN: About to track event - ai_agent={self.ai_agent is not None}, behavior_engine={has_behavior_engine}, has_phrase_gen={has_phrase_gen}, phrase_gen={phrase_gen_exists}")
+            print(f"🔍 MAIN: event_data has gesture_token: {'gesture_token' in event_data}, value: {event_data.get('gesture_token', 'MISSING')}")
+            self._track_debug_logged = True
         
-        # Get all potential decisions
+        if self.ai_agent and hasattr(self.ai_agent, 'behavior_engine') and self.ai_agent.behavior_engine and hasattr(self.ai_agent.behavior_engine, 'phrase_generator') and self.ai_agent.behavior_engine.phrase_generator:
+            self.ai_agent.behavior_engine.phrase_generator.track_event(event_data, source='human')
+        
+        # Get activity multiplier from timeline manager (for 3-phase arc)
+        activity_multiplier = 1.0
+        if self.timeline_manager:
+            guidance = self.timeline_manager.get_performance_guidance()
+            activity_multiplier = guidance.get('activity_multiplier', 1.0)
+        
+        # Get all potential decisions (with activity multiplier for phrase length scaling)
         all_decisions = self.ai_agent.process_event(
-            event_data, self.memory_buffer, self.clustering
+            event_data, self.memory_buffer, self.clustering, activity_multiplier
         )
         
         # Filter decisions based on human activity and voice type
@@ -1569,11 +1599,21 @@ class EnhancedDriftEngineAI:
                         instrument_detected='unknown'
                     )
                     
+                    # DEBUG: Show timeline status every 30 seconds
+                    remaining = self.timeline_manager.get_time_remaining()
+                    if int(remaining) % 30 == 0 and int(remaining) > 0 and not hasattr(self, f'_timeline_msg_{int(remaining)}'):
+                        elapsed = (self.timeline_manager.performance_state.total_duration - remaining) / 60
+                        total_min = self.timeline_manager.performance_state.total_duration / 60
+                        print(f"⏱️  Timeline: {elapsed:.1f}/{total_min:.1f} min | Remaining: {remaining/60:.1f} min | Complete: {self.timeline_manager.is_complete()}")
+                        setattr(self, f'_timeline_msg_{int(remaining)}', True)
+                    
                     if self.timeline_manager.is_complete():
                         print("\n🎭 Performance complete - gracefully ending...")
+                        # Set running flag to false to stop all background processes
+                        self.running = False
                         # Call stop() to properly clean up all resources
                         self.stop()
-                        return  # Exit main loop
+                        break  # Exit main loop immediately
                     
                     # Get fade-out factor (1.0 → 0.0 over final 60 seconds)
                     fade_factor = self.timeline_manager.get_fade_out_factor(fade_duration=60.0)
@@ -1591,7 +1631,7 @@ class EnhancedDriftEngineAI:
                     fade_factor = 1.0  # Full activity when no performance arc
                 
                 # IRCAM Phase 2.3: Autonomous generation with adaptive interval (with fade-out)
-                if self.autonomous_generation_enabled:
+                if self.autonomous_generation_enabled and self.running:  # Check self.running
                     adaptive_interval = self._calculate_adaptive_interval()
                     
                     if current_time - self.last_autonomous_time >= adaptive_interval:
@@ -1602,7 +1642,9 @@ class EnhancedDriftEngineAI:
                 
                 # Continue active phrases (check every 100ms for 250ms note intervals)
                 # Apply same activity-based filtering as reactive events
-                continue_decisions = self.ai_agent.behavior_engine.continue_phrase_iteration()
+                continue_decisions = []
+                if self.running:  # Check self.running
+                    continue_decisions = self.ai_agent.behavior_engine.continue_phrase_iteration()
                 
                 # Process phrase continuations - let phrases complete once started
                 # (Phrase continuation represents notes in an already-started phrase)
@@ -1649,6 +1691,7 @@ class EnhancedDriftEngineAI:
                                 
                                 # Emit visualization event for AI response
                                 if self.visualization_manager:
+                                    print(f"🎨 TIMELINE: Emitting response event at {current_time}")  # DEBUG
                                     self.visualization_manager.emit_timeline_update('response', timestamp=current_time)
                                 
                                 # Log phrase continuation
@@ -1857,6 +1900,50 @@ class EnhancedDriftEngineAI:
                             try:
                                 self.hybrid_perception.load_quantizer(quantizer_file)
                                 print(f"✅ Gesture vocabulary (quantizer) loaded!")
+                                
+                                # CRITICAL FIX: Monkey-patch transform to convert ALL intermediate dtypes to float32
+                                # The pickled quantizer uses sklearn normalize() which returns float64
+                                import numpy as np
+                                from sklearn.preprocessing import normalize as sklearn_normalize
+                                quantizer = self.hybrid_perception.quantizer
+                                if quantizer is not None:
+                                    # Patch transform to ensure float32 throughout
+                                    original_transform = quantizer.transform
+                                    def fixed_transform(features):
+                                        try:
+                                            # Ensure input features are float32
+                                            if len(features) == 0:
+                                                return np.array([])
+                                            if features.ndim == 1:
+                                                features = features.reshape(1, -1)
+                                            if features.dtype != np.float32:
+                                                features = features.astype(np.float32)
+                                            
+                                            # Manually do what transform does, but with float32
+                                            if quantizer.use_l2_norm:
+                                                # sklearn normalize returns float64, so we need to convert
+                                                features_scaled = sklearn_normalize(features, norm='l2', axis=1)
+                                                if features_scaled.dtype != np.float32:
+                                                    features_scaled = features_scaled.astype(np.float32)
+                                            else:
+                                                features_scaled = quantizer.scaler.transform(features)
+                                                if features_scaled.dtype != np.float32:
+                                                    features_scaled = features_scaled.astype(np.float32)
+                                            
+                                            # Ensure kmeans centroids are also float32
+                                            if hasattr(quantizer.kmeans, 'cluster_centers_'):
+                                                if quantizer.kmeans.cluster_centers_.dtype != np.float32:
+                                                    quantizer.kmeans.cluster_centers_ = quantizer.kmeans.cluster_centers_.astype(np.float32)
+                                            
+                                            # Now call kmeans.predict with float32
+                                            tokens = quantizer.kmeans.predict(features_scaled)
+                                            return tokens
+                                        except Exception as e:
+                                            print(f"🔧 Monkey-patch error: {e}")
+                                            raise
+                                    
+                                    quantizer.transform = fixed_transform
+                                    print("✅ Quantizer dtype fix monkey-patched (full transform override + kmeans centers)!")
                             except Exception as e:
                                 print(f"⚠️  Could not load quantizer: {e}")
                         else:
@@ -2504,14 +2591,14 @@ def main():
     parser.add_argument('--initiative', type=float, default=0.7, help='Initiative budget (0.0-1.0)')
     parser.add_argument('--no-rhythmic', action='store_true', help='Disable rhythmic analysis (harmonic only)')
     parser.add_argument('--no-mpe', action='store_true', help='Disable MPE MIDI mode (use standard MIDI)')
-    parser.add_argument('--hybrid-perception', action='store_true', 
-                       help='Enable hybrid perception (ratio + consonance analysis) - NEW!')
-    parser.add_argument('--wav2vec', action='store_true',
-                       help='Enable Wav2Vec 2.0 neural encoding (replaces ratio+chroma)')
+    parser.add_argument('--no-hybrid-perception', action='store_true', 
+                       help='Disable hybrid perception (ratio + consonance analysis) - DEFAULT: ENABLED')
+    parser.add_argument('--no-wav2vec', action='store_true',
+                       help='Disable Wav2Vec 2.0 neural encoding - DEFAULT: ENABLED')
     parser.add_argument('--wav2vec-model', type=str, default='facebook/wav2vec2-base',
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
-    parser.add_argument('--gpu', action='store_true',
-                       help='Use GPU for Wav2Vec (MPS/CUDA)')
+    parser.add_argument('--no-gpu', action='store_true',
+                       help='Disable GPU for Wav2Vec (use CPU) - DEFAULT: GPU ENABLED')
     parser.add_argument('--performance-duration', type=int, default=0, help='Performance duration in minutes (0 = no timeline)')
     parser.add_argument('--learn-target', type=str, help='Learn target fingerprint (description)')
     parser.add_argument('--load-target', type=str, help='Load target fingerprint from file')
@@ -2520,7 +2607,7 @@ def main():
     parser.add_argument('--bass-accompaniment', type=float, default=0.5, help='Probability (0-1) bass plays during human activity')
     parser.add_argument('--melody-while-active', action='store_true', help='Allow melody to play (sparse) while human is active')
     parser.add_argument('--debug-decisions', action='store_true', help='Show real-time decision explanations in terminal')
-    parser.add_argument('--visualize', action='store_true', help='Enable multi-viewport visualization system (requires PyQt5)')
+    parser.add_argument('--no-visualize', action='store_true', help='Disable multi-viewport visualization system - DEFAULT: ENABLED')
     parser.add_argument('--enable-live-training', action='store_true', 
                        help='Allow AudioOracle to learn from live input (may overwrite trained patterns)')
     
@@ -2533,13 +2620,13 @@ def main():
         enable_rhythmic=not args.no_rhythmic,
         enable_mpe=not args.no_mpe,
         performance_duration=args.performance_duration,
-        enable_hybrid_perception=args.hybrid_perception,
-        enable_wav2vec=args.wav2vec,
+        enable_hybrid_perception=not args.no_hybrid_perception,
+        enable_wav2vec=not args.no_wav2vec,
         enable_live_training=args.enable_live_training,
         wav2vec_model=args.wav2vec_model,
-        use_gpu=args.gpu,
+        use_gpu=not args.no_gpu,
         debug_decisions=args.debug_decisions,
-        enable_visualization=args.visualize
+        enable_visualization=not args.no_visualize
     )
     
     # Set parameters
@@ -2587,8 +2674,8 @@ def main():
         print("\n🎵 Enhanced Drift Engine AI is running!")
         print("Press Ctrl+C to stop...")
         
-        # Keep running
-        while True:
+        # Keep running until system stops naturally or user interrupts
+        while drift_ai.running:
             # Process Qt events if visualization is enabled (do this FIRST, before sleep)
             if drift_ai.visualization_manager:
                 for _ in range(10):  # Process events 10 times per loop
@@ -2596,6 +2683,11 @@ def main():
                     time.sleep(0.01)  # 10ms between each process call = 100ms total
             else:
                 time.sleep(0.1)  # Shorter sleep for more responsive Ctrl+C
+        
+        # If we exited the loop naturally (performance complete), stop cleanly
+        if not drift_ai.running:
+            print("🎬 Performance completed, exiting...")
+            return 0
             
     except KeyboardInterrupt:
         print("\n🛑 Stopping Enhanced Drift Engine AI...")

@@ -182,7 +182,7 @@ class PhraseMemory:
     
     def get_current_theme(self) -> Optional[Motif]:
         """
-        Get the active theme (most frequently occurring motif)
+        Get the active theme using weighted random selection
         
         Returns:
             Motif object or None
@@ -190,21 +190,39 @@ class PhraseMemory:
         if not self.motifs:
             return None
         
-        # Find most frequently occurring motif
-        most_frequent = max(self.motifs.values(), key=lambda m: m.occurrence_count)
-        self.current_theme = most_frequent
+        # Use weighted random selection instead of always picking most frequent
+        # This adds variety while still favoring more common motifs
+        motif_list = list(self.motifs.values())
+        
+        # Weight by occurrence count with diminishing returns (sqrt dampens dominance)
+        import math
+        weights = [math.sqrt(m.occurrence_count) for m in motif_list]
+        
+        # Also consider recency - boost motifs used recently
+        current_time = time.time()
+        for i, motif in enumerate(motif_list):
+            time_since_use = current_time - motif.last_used
+            if time_since_use < 60.0:  # Used in last minute
+                weights[i] *= 1.5
+            elif time_since_use > 300.0:  # Not used in 5 minutes
+                weights[i] *= 0.5
+        
+        # Random weighted selection
+        import random
+        selected_motif = random.choices(motif_list, weights=weights)[0]
+        self.current_theme = selected_motif
         
         # Emit visualization event for recalling theme
         if self.visualization_manager:
             self.visualization_manager.emit_phrase_memory(
                 action='recall',
-                motif=most_frequent.notes[:5],  # First 5 notes
+                motif=selected_motif.notes[:5],  # First 5 notes
                 timestamp=time.time()
             )
             # Also emit timeline event
             self.visualization_manager.emit_timeline_update('thematic_recall', timestamp=time.time())
         
-        return most_frequent
+        return selected_motif
     
     def get_variation(self, motif: Motif, variation_type: str = None) -> Dict:
         """

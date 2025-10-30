@@ -1,0 +1,75 @@
+{
+  "distance_threshold": 0.15,
+  "distance_function": "euclidean",
+  "max_pattern_length": 50,
+  "feature_dimensions": 15,
+  "adaptive_threshold": false,
+  "chord_similarity_weight": 0.3,
+  "mps_enabled": true,
+  "device": "mps",
+  "size": 2,
+  "last": 1,
+  "frame_counter": 1,
+  "sequence_length": 100,
+  "is_trained": true,
+  "last_update": 1758395558.067806,
+  "stats": {
+    "total_patterns": 8,
+    "total_states": 2,
+    "sequence_length": 1,
+    "max_pattern_length": 50,
+    "is_trained": true,
+    "last_update": 1758395558.067806,
+    "memory_usage": 1,
+    "distance_threshold": 0.15,
+    "distance_function": "euclidean",
+    "feature_dimensions": 15,
+    "adaptive_threshold": false,
+    "total_distances_calculated": 0,
+    "average_distance": 0.0,
+    "threshold_adjustments": 0,
+    "chord_progressions": 0,
+    "harmonic_patterns": 0,
+    "polyphonic_frames": 1,
+    "chord_types": {
+      "single": 81,
+      "unknown": 17,
+      "complex": 2
+    },
+    "average_pitches_per_frame": 1.32,
+    "mps_acceleration": true,
+    "training_time": 0.06886124610900879
+  },
+  "chord_progressions": {},
+  "harmonic_patterns": {},
+  "distance_history": [],
+  "threshold_adjustments": 0,
+  "transitions": {
+    "0_0": 1,
+    "1_1": 2
+  },
+  "suffix_links": {
+    "1": 0
+  },
+  "states": {
+    "0": {
+      "len": 0,
+      "link": -1,
+      "next": {
+        "0": 1
+      }
+    },
+    "1": {
+      "len": 1,
+      "link": 0,
+      "next": {
+        "1": 2
+      }
+    },
+    "2": {
+      "len": 2,
+      "link": -1,
+      "next": {}
+    }
+  }
+}

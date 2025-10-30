@@ -18,6 +18,14 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from dataclasses import asdict
 
+# Activate CCM3 virtual environment if available
+try:
+    from ccm3_venv_manager import ensure_ccm3_venv_active
+    ensure_ccm3_venv_active()
+    print("✅ CCM3 virtual environment activated")
+except ImportError:
+    print("Note: CCM3 environment manager not available, using current environment")
+
 # Try to import tqdm for progress bars
 try:
     from tqdm import tqdm
@@ -66,11 +74,11 @@ class EnhancedHybridTrainingPipeline:
                  enable_hierarchical: bool = True,
                  enable_rhythmic: bool = True,
                  enable_gpt_oss: bool = True,
-                 enable_hybrid_perception: bool = False,
+                 enable_hybrid_perception: bool = True,
                  symbolic_vocabulary_size: int = 64,
-                 enable_wav2vec: bool = False,
+                 enable_wav2vec: bool = True,
                  wav2vec_model: str = "facebook/wav2vec2-base",
-                 use_gpu: bool = False):
+                 use_gpu: bool = True):
         """
         Initialize enhanced hybrid training pipeline
         
@@ -2018,16 +2026,16 @@ def main():
     parser.add_argument('--no-hierarchical', action='store_true', help='Disable hierarchical analysis')
     parser.add_argument('--no-rhythmic', action='store_true', help='Disable rhythmic analysis')
     parser.add_argument('--no-gpt-oss', action='store_true', help='Disable GPT-OSS analysis')
-    parser.add_argument('--hybrid-perception', action='store_true', 
-                       help='Enable hybrid perception (ratio + symbolic features) - NEW!')
+    parser.add_argument('--no-hybrid-perception', action='store_true', 
+                       help='Disable hybrid perception (ratio + symbolic features)')
     parser.add_argument('--vocab-size', type=int, default=64, 
                        help='Symbolic vocabulary size (16, 64, or 256)')
-    parser.add_argument('--wav2vec', action='store_true',
-                       help='Enable Wav2Vec 2.0 neural encoding (replaces ratio+chroma)')
+    parser.add_argument('--no-wav2vec', action='store_true',
+                       help='Disable Wav2Vec 2.0 neural encoding')
     parser.add_argument('--wav2vec-model', type=str, default='facebook/wav2vec2-base',
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
-    parser.add_argument('--gpu', action='store_true',
-                       help='Use GPU for Wav2Vec (MPS/CUDA)')
+    parser.add_argument('--no-gpu', action='store_true',
+                       help='Disable GPU for Wav2Vec (force CPU)')
     
     args = parser.parse_args()
     
@@ -2035,15 +2043,17 @@ def main():
     if args.output:
         output_file = args.output
     else:
-        # Default to JSON/polyphonic_audio_oracle_training.json (training summary)
-        # The AudioOracle model will be saved as JSON/polyphonic_audio_oracle_model.json
-        # MusicHal_9000.py loads from JSON/ directory by default
-        output_file = "JSON/polyphonic_audio_oracle_training.json"
-        print(f"📁 Using default output location: {output_file}")
+        # Generate filename from audio file name and date
+        # Format: (audiofile-name)_(date)_training.json
+        from datetime import datetime
+        audio_basename = os.path.splitext(os.path.basename(args.file))[0]
+        date_str = datetime.now().strftime("%d%m%y_%H%M")
+        output_file = f"JSON/{audio_basename}_{date_str}_training.json"
+        print(f"📁 Auto-generated output filenames:")
         print(f"   Training summary: {output_file}")
-        print(f"   Oracle model: JSON/polyphonic_audio_oracle_model.json")
-        print(f"   Quantizer: JSON/polyphonic_audio_oracle_quantizer.joblib")
-        print(f"   Correlations: JSON/polyphonic_audio_oracle_correlation_patterns.json")
+        print(f"   Oracle model: JSON/{audio_basename}_{date_str}_model.json")
+        print(f"   Quantizer: JSON/{audio_basename}_{date_str}_quantizer.joblib")
+        print(f"   Correlations: JSON/{audio_basename}_{date_str}_correlation_patterns.json")
     
     # Ensure output directory exists
     output_dir = os.path.dirname(output_file)
@@ -2057,11 +2067,11 @@ def main():
         enable_hierarchical=not args.no_hierarchical,
         enable_rhythmic=not args.no_rhythmic,
         enable_gpt_oss=not args.no_gpt_oss,
-        enable_hybrid_perception=args.hybrid_perception,
+        enable_hybrid_perception=not args.no_hybrid_perception,
         symbolic_vocabulary_size=args.vocab_size,
-        enable_wav2vec=args.wav2vec,
+        enable_wav2vec=not args.no_wav2vec,
         wav2vec_model=args.wav2vec_model,
-        use_gpu=args.gpu
+        use_gpu=not args.no_gpu
     )
     
     # Train from audio file

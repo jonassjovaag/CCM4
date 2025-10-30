@@ -327,6 +327,40 @@ class HybridPerceptionModule:
                 if ratio_analysis:
                     # Use ratio analyzer's consonance (more accurate than variance estimate)
                     consonance = ratio_analysis.consonance_score
+                    # DEBUG: Log chord detection (first 5 times)
+                    if not hasattr(self, '_chord_debug_count'):
+                        self._chord_debug_count = 0
+                    if self._chord_debug_count < 5:
+                        print(f"🎸 Ratio chord detected: {ratio_analysis.chord_match['type']} ({ratio_analysis.chord_match['confidence']:.1%})")
+                        self._chord_debug_count += 1
+                else:
+                    # DEBUG: Log why ratio analysis failed
+                    if not hasattr(self, '_ratio_fail_count'):
+                        self._ratio_fail_count = 0
+                    if self._ratio_fail_count < 3:
+                        print(f"🔍 Ratio analysis returned None for freqs: {frequencies}")
+                        self._ratio_fail_count += 1
+            else:
+                # DEBUG: Not enough frequencies
+                if not hasattr(self, '_freq_count_debug'):
+                    self._freq_count_debug = 0
+                if self._freq_count_debug < 3:
+                    print(f"🔍 Only {len(frequencies)} frequencies, need >= 2")
+                    self._freq_count_debug += 1
+        else:
+            # DEBUG: Log why ratio analysis was skipped
+            if not hasattr(self, '_ratio_skip_count'):
+                self._ratio_skip_count = 0
+            if self._ratio_skip_count < 3:
+                reason = []
+                if not self.ratio_analyzer:
+                    reason.append("no analyzer")
+                if len(active_pcs) < 2:
+                    reason.append(f"only {len(active_pcs)} active_pcs")
+                if not detected_f0 or detected_f0 <= 0:
+                    reason.append(f"invalid f0={detected_f0}")
+                print(f"🔍 Ratio analysis skipped: {', '.join(reason)}")
+                self._ratio_skip_count += 1
         
         # Symbolic quantization (if enabled and fitted)
         symbolic_token = None

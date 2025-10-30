@@ -152,6 +152,18 @@ class RequestParamsViewport(BaseViewport):
         
         lines = []
         
+        # Check if it's the new flat format (single request dict)
+        if 'parameter' in params and 'type' in params and 'value' in params:
+            # Flat format from phrase_generator
+            param_name = params.get('parameter', '?')
+            param_type = params.get('type', '?')
+            param_value = params.get('value', '?')
+            weight = params.get('weight', 1.0)
+            lines.append(f"REQUEST ({weight:.2f}):")
+            lines.append(f"  {param_name} {param_type} {param_value}")
+            return "\n".join(lines)
+        
+        # Legacy nested format (primary/secondary/tertiary)
         # Primary parameter
         if 'primary' in params:
             primary = params['primary']

@@ -1,0 +1,183 @@
+{
+  "distance_threshold": 0.15,
+  "distance_function": "euclidean",
+  "max_pattern_length": 50,
+  "feature_dimensions": 15,
+  "adaptive_threshold": false,
+  "chord_similarity_weight": 0.3,
+  "mps_enabled": true,
+  "device": "mps",
+  "size": 11,
+  "last": 10,
+  "frame_counter": 10,
+  "sequence_length": 10,
+  "is_trained": true,
+  "last_update": 1758396538.096,
+  "stats": {
+    "total_patterns": 0,
+    "total_states": 11,
+    "sequence_length": 10,
+    "max_pattern_length": 50,
+    "is_trained": true,
+    "last_update": 1758396538.096,
+    "memory_usage": 10,
+    "distance_threshold": 0.15,
+    "distance_function": "euclidean",
+    "feature_dimensions": 15,
+    "adaptive_threshold": false,
+    "total_distances_calculated": 0,
+    "average_distance": 0.0,
+    "threshold_adjustments": 0,
+    "chord_progressions": 8,
+    "harmonic_patterns": 7,
+    "polyphonic_frames": 10,
+    "chord_types": {
+      "single": 4,
+      "unknown": 4,
+      "complex": 2
+    },
+    "average_pitches_per_frame": 2.3,
+    "mps_acceleration": true,
+    "training_time": 3.9852302074432373
+  },
+  "chord_progressions": {
+    "single->unknown": 1,
+    "unknown->unknown": 2,
+    "unknown->complex": 1,
+    "complex->unknown": 1,
+    "unknown->single": 1,
+    "single->single": 1,
+    "single->complex": 1,
+    "complex->single": 1
+  },
+  "harmonic_patterns": {
+    "(48, 60, 66)": 2,
+    "(41, 58, 66)": 1,
+    "(41, 58)": 2,
+    "(41, 65)": 1,
+    "(53, 65)": 1,
+    "(36, 53, 61)": 1,
+    "(48, 60)": 1
+  },
+  "distance_history": [],
+  "threshold_adjustments": 0,
+  "transitions": {
+    "0_0": 1,
+    "1_1": 2,
+    "0_(1, 0.0)": 2,
+    "2_2": 3,
+    "0_(2, 0.0)": 3,
+    "3_3": 4,
+    "0_(3, 0.0)": 4,
+    "4_4": 5,
+    "0_(4, 0.0)": 5,
+    "5_5": 6,
+    "0_(5, 0.0)": 6,
+    "6_6": 7,
+    "0_(6, 0.0)": 7,
+    "7_7": 8,
+    "0_(7, 0.0)": 8,
+    "8_8": 9,
+    "0_(8, 0.0)": 9,
+    "9_9": 10,
+    "0_(9, 0.0)": 10
+  },
+  "suffix_links": {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 0,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "10": 0
+  },
+  "states": {
+    "0": {
+      "len": 0,
+      "link": -1,
+      "next": {
+        "0": 1,
+        "(1, 0.0)": 2,
+        "(2, 0.0)": 3,
+        "(3, 0.0)": 4,
+        "(4, 0.0)": 5,
+        "(5, 0.0)": 6,
+        "(6, 0.0)": 7,
+        "(7, 0.0)": 8,
+        "(8, 0.0)": 9,
+        "(9, 0.0)": 10
+      }
+    },
+    "1": {
+      "len": 1,
+      "link": 0,
+      "next": {
+        "1": 2
+      }
+    },
+    "2": {
+      "len": 2,
+      "link": 0,
+      "next": {
+        "2": 3
+      }
+    },
+    "3": {
+      "len": 3,
+      "link": 0,
+      "next": {
+        "3": 4
+      }
+    },
+    "4": {
+      "len": 4,
+      "link": 0,
+      "next": {
+        "4": 5
+      }
+    },
+    "5": {
+      "len": 5,
+      "link": 0,
+      "next": {
+        "5": 6
+      }
+    },
+    "6": {
+      "len": 6,
+      "link": 0,
+      "next": {
+        "6": 7
+      }
+    },
+    "7": {
+      "len": 7,
+      "link": 0,
+      "next": {
+        "7": 8
+      }
+    },
+    "8": {
+      "len": 8,
+      "link": 0,
+      "next": {
+        "8": 9
+      }
+    },
+    "9": {
+      "len": 9,
+      "link": 0,
+      "next": {
+        "9": 10
+      }
+    },
+    "10": {
+      "len": 10,
+      "link": 0,
+      "next": {}
+    }
+  }
+}
