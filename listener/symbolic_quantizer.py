@@ -245,7 +245,15 @@ class SymbolicQuantizer:
         }
         
         joblib.dump(data, filepath)
-        print(f"💾 Symbolic quantizer saved: {filepath}")
+        
+        # Determine type from filename to provide appropriate message
+        if 'gesture' in filepath.lower():
+            print(f"💾 Gesture vocabulary saved: {filepath}")
+        elif 'symbolic' in filepath.lower():
+            print(f"💾 Symbolic quantizer saved: {filepath}")
+        else:
+            # Generic message for backward compatibility
+            print(f"💾 Quantizer saved: {filepath}")
     
     def load(self, filepath: str):
         """Load quantizer from disk"""

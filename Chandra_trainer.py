@@ -699,19 +699,29 @@ class EnhancedHybridTrainingPipeline:
             except Exception as e:
                 print(f"⚠️  Failed to save correlation patterns: {e}")
         
-        # Save symbolic quantizer vocabulary for live use (use same base name)
-        quantizer_file = f"{model_base}_quantizer.joblib"
-        # Check both dual_perception (Wav2Vec) and hybrid_perception (traditional)
-        perception_module = self.dual_perception if self.dual_perception else self.hybrid_perception
-        if perception_module:
+        # Save gesture vocabulary (Wav2Vec quantizer) for live use
+        if self.dual_perception:
+            gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
             try:
-                perception_module.save_quantizer(quantizer_file)
-                print(f"✅ Saved gesture vocabulary (quantizer) to {quantizer_file}")
+                self.dual_perception.save_quantizer(gesture_quantizer_file)
+                print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
             except Exception as e:
-                print(f"⚠️  Failed to save quantizer: {e}")
+                print(f"⚠️  Failed to save gesture quantizer: {e}")
                 import traceback
-                traceback.print_exc()  # Show full error for debugging
-        else:
+                traceback.print_exc()
+        
+        # Save symbolic quantizer vocabulary (hybrid/traditional) if available
+        if self.hybrid_perception:
+            symbolic_quantizer_file = f"{model_base}_symbolic_training_quantizer.joblib"
+            try:
+                self.hybrid_perception.save_quantizer(symbolic_quantizer_file)
+                print(f"✅ Saved symbolic vocabulary (traditional) to {symbolic_quantizer_file}")
+            except Exception as e:
+                print(f"⚠️  Failed to save symbolic quantizer: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        if not self.dual_perception and not self.hybrid_perception:
             print(f"⚠️  No perception module available to save quantizer")
         
         # Save to file with progress
@@ -2052,7 +2062,8 @@ def main():
         print(f"📁 Auto-generated output filenames:")
         print(f"   Training summary: {output_file}")
         print(f"   Oracle model: JSON/{audio_basename}_{date_str}_model.json")
-        print(f"   Quantizer: JSON/{audio_basename}_{date_str}_quantizer.joblib")
+        print(f"   Gesture quantizer: JSON/{audio_basename}_{date_str}_gesture_training_quantizer.joblib")
+        print(f"   Symbolic quantizer: JSON/{audio_basename}_{date_str}_symbolic_training_quantizer.joblib (if enabled)")
         print(f"   Correlations: JSON/{audio_basename}_{date_str}_correlation_patterns.json")
     
     # Ensure output directory exists

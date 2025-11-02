@@ -12,7 +12,11 @@ print("=" * 60)
 
 # 1. Check the trained model has gesture tokens
 model_file = "JSON/Nineteen_301025_1703_training_model.json"
-quantizer_file = "JSON/Nineteen_301025_1703_training_quantizer.joblib"
+# Try new gesture quantizer naming scheme, fall back to old if not found
+gesture_quantizer_file = "JSON/Nineteen_301025_1703_gesture_training_quantizer.joblib"
+old_quantizer_file = "JSON/Nineteen_301025_1703_training_quantizer.joblib"
+
+quantizer_file = gesture_quantizer_file if os.path.exists(gesture_quantizer_file) else old_quantizer_file
 
 print(f"\n1. Checking trained model: {model_file}")
 if os.path.exists(model_file):

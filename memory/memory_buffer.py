@@ -241,12 +241,26 @@ class MemoryBuffer:
                 }
                 save_data['moments'].append(moment_data)
             
-            # Save to JSON file
-            with open(filepath, 'w') as f:
-                json.dump(save_data, f, indent=2, cls=NumpyEncoder)
-            
-            print(f"💾 Saved {len(self.buffer)} musical moments to {filepath}")
-            return True
+            # Atomic write: write to temporary file first, then rename
+            # This prevents corruption if the process is interrupted
+            temp_filepath = filepath + '.tmp'
+            try:
+                with open(temp_filepath, 'w') as f:
+                    json.dump(save_data, f, indent=2, cls=NumpyEncoder)
+                
+                # Atomic rename (overwrites existing file)
+                import shutil
+                shutil.move(temp_filepath, filepath)
+                
+                print(f"💾 Saved {len(self.buffer)} musical moments to {filepath}")
+                return True
+            finally:
+                # Clean up temp file if it still exists
+                if os.path.exists(temp_filepath):
+                    try:
+                        os.remove(temp_filepath)
+                    except:
+                        pass
             
         except Exception as e:
             print(f"❌ Failed to save memory buffer: {e}")
@@ -258,6 +272,12 @@ class MemoryBuffer:
             if not os.path.exists(filepath):
                 print(f"📁 No existing memory file found at {filepath}")
                 return False
+            
+            # Check file size and warn if very large
+            file_size = os.path.getsize(filepath)
+            if file_size > 50 * 1024 * 1024:  # 50MB
+                print(f"⚠️  Memory file is very large ({file_size / (1024*1024):.1f}MB)")
+                print(f"   This may indicate accumulated data. Consider archiving old memories.")
             
             with open(filepath, 'r') as f:
                 save_data = json.load(f)
@@ -285,6 +305,24 @@ class MemoryBuffer:
             
             print(f"📂 Loaded {len(self.buffer)} musical moments from {filepath}")
             return True
+            
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to load memory buffer: Corrupted JSON file")
+            print(f"   Error at line {e.lineno}, column {e.colno}")
+            print(f"   The file may have been corrupted during a previous save.")
+            print(f"   Recommendation: Archive or delete {filepath} to start fresh.")
+            
+            # Offer to rename the corrupted file
+            backup_path = filepath + ".corrupted"
+            try:
+                import shutil
+                shutil.move(filepath, backup_path)
+                print(f"   ✅ Moved corrupted file to: {backup_path}")
+                print(f"   Starting with fresh memory buffer.")
+            except Exception as move_error:
+                print(f"   ⚠️  Could not move corrupted file: {move_error}")
+            
+            return False
             
         except Exception as e:
             print(f"❌ Failed to load memory buffer: {e}")

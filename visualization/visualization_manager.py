@@ -16,6 +16,7 @@ from .request_params_viewport import RequestParamsViewport
 from .phrase_memory_viewport import PhraseMemoryViewport
 from .audio_analysis_viewport import AudioAnalysisViewport
 from .timeline_viewport import TimelineViewport
+from .webcam_viewport import WebcamViewport
 
 
 class VisualizationManager:
@@ -58,7 +59,8 @@ class VisualizationManager:
                 'request_parameters',
                 'phrase_memory',
                 'audio_analysis',
-                'performance_timeline'
+                'performance_timeline',
+                'webcam'
             ]
         
         self.viewports_config = viewports_config
@@ -77,7 +79,8 @@ class VisualizationManager:
             'request_parameters': RequestParamsViewport,
             'phrase_memory': PhraseMemoryViewport,
             'audio_analysis': AudioAnalysisViewport,
-            'performance_timeline': TimelineViewport
+            'performance_timeline': TimelineViewport,
+            'webcam': WebcamViewport
         }
         
         for viewport_id in self.viewports_config:
@@ -210,9 +213,12 @@ class VisualizationManager:
     
     def emit_audio_analysis(self, waveform: Optional[Any] = None, onset: bool = False,
                            ratio: Optional[List] = None, consonance: Optional[float] = None,
-                           timestamp: Optional[float] = None, complexity: Optional[float] = None):
+                           timestamp: Optional[float] = None, complexity: Optional[float] = None,
+                           gesture_token: Optional[int] = None, raw_gesture_token: Optional[int] = None,
+                           chord_label: Optional[str] = None, chord_confidence: Optional[float] = None):
         """Emit audio analysis event"""
-        self.event_bus.emit_audio_analysis(waveform, onset, ratio, consonance, timestamp, complexity)
+        self.event_bus.emit_audio_analysis(waveform, onset, ratio, consonance, timestamp, complexity,
+                                          gesture_token, raw_gesture_token, chord_label, chord_confidence)
     
     def emit_timeline_update(self, event_type: str, mode: Optional[str] = None, 
                             timestamp: Optional[float] = None):

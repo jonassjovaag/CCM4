@@ -207,11 +207,17 @@ class PerformanceTimelineManager:
         self._update_current_phase()
     
     def is_complete(self) -> bool:
-        """Check if the performance duration has been reached"""
+        """
+        Check if the performance duration has been reached
+        
+        Returns True when current time exceeds total duration + grace period.
+        The grace period allows final notes to finish naturally.
+        """
         if not self.performance_state:
             return False
-        # current_time is already elapsed time (set in update_performance_state)
-        return self.performance_state.current_time >= self.performance_state.total_duration
+        # Add 3-second grace period after scheduled end to let final notes finish
+        grace_period = 3.0
+        return self.performance_state.current_time >= (self.performance_state.total_duration + grace_period)
     
     def get_time_remaining(self) -> float:
         """Get remaining time in seconds"""

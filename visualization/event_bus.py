@@ -152,7 +152,11 @@ class VisualizationEventBus(QObject):
                            ratio: Optional[List[int]] = None,
                            consonance: Optional[float] = None,
                            timestamp: Optional[float] = None,
-                           complexity: Optional[float] = None):
+                           complexity: Optional[float] = None,
+                           gesture_token: Optional[int] = None,
+                           raw_gesture_token: Optional[int] = None,
+                           chord_label: Optional[str] = None,
+                           chord_confidence: Optional[float] = None):
         """
         Emit audio analysis update
         
@@ -163,6 +167,10 @@ class VisualizationEventBus(QObject):
             consonance: Consonance value 0-1
             timestamp: Event timestamp
             complexity: Barlow complexity value
+            gesture_token: Smoothed gesture token (phrase-level)
+            raw_gesture_token: Raw gesture token (onset-level)
+            chord_label: Interpreted chord name from smoothed gesture
+            chord_confidence: Confidence of chord interpretation
         """
         data = {
             'waveform': waveform,
@@ -170,7 +178,11 @@ class VisualizationEventBus(QObject):
             'ratio': ratio,
             'consonance': consonance,
             'timestamp': timestamp,
-            'complexity': complexity
+            'complexity': complexity,
+            'gesture_token': gesture_token,
+            'raw_gesture_token': raw_gesture_token,
+            'chord_label': chord_label,
+            'chord_confidence': chord_confidence
         }
         self.audio_analysis_signal.emit(data)
         # Don't record audio data to history (too large)

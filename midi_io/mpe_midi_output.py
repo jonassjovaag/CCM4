@@ -121,6 +121,20 @@ class MPEMIDIOutput:
         # Stop all active notes
         self._stop_all_notes()
         
+        # Send MIDI panic messages (All Notes Off + All Sound Off on all channels)
+        if self.port:
+            for channel in range(16):
+                # CC 123: All Notes Off
+                self.port.send(mido.Message('control_change', 
+                                           channel=channel, 
+                                           control=123, 
+                                           value=0))
+                # CC 120: All Sound Off (immediate silence)
+                self.port.send(mido.Message('control_change', 
+                                           channel=channel, 
+                                           control=120, 
+                                           value=0))
+        
         # Wait for worker thread
         if self.worker_thread and self.worker_thread.is_alive():
             self.worker_thread.join(timeout=1.0)

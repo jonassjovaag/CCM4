@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from listener.ratio_analyzer import FrequencyRatioAnalyzer, ChordAnalysis
 from listener.harmonic_chroma import HarmonicAwareChromaExtractor
 from listener.symbolic_quantizer import SymbolicQuantizer
+from listener.gesture_smoothing import GestureTokenSmoother
 
 
 @dataclass
@@ -38,7 +39,7 @@ class HybridPerceptionResult:
     features: np.ndarray  # Full feature vector
     
     # Symbolic representation (for memory)
-    symbolic_token: Optional[int]  # Quantized class ID
+    symbolic_token: Optional[int]  # Smoothed gesture token (phrase-level)
     
     # Ratio analysis (interpretable)
     ratio_analysis: Optional[ChordAnalysis]
@@ -51,6 +52,9 @@ class HybridPerceptionResult:
     # Metadata
     timestamp: float
     feature_breakdown: Dict  # Which features contributed what
+    
+    # Raw token (optional, for visualization)
+    raw_gesture_token: Optional[int] = None  # Raw onset-level token (before smoothing)
 
 
 class HybridPerceptionModule:
@@ -68,7 +72,9 @@ class HybridPerceptionModule:
                  enable_symbolic: bool = True,
                  enable_wav2vec: bool = False,
                  wav2vec_model: str = "facebook/wav2vec2-base",
-                 use_gpu: bool = False):
+                 use_gpu: bool = False,
+                 gesture_window: float = 3.0,      # Temporal smoothing window
+                 gesture_min_tokens: int = 3):     # Min tokens for consensus
         """
         Initialize hybrid perception
         
@@ -79,6 +85,8 @@ class HybridPerceptionModule:
             enable_wav2vec: Use Wav2Vec 2.0 neural encoding (replaces chroma+ratio)
             wav2vec_model: HuggingFace model name for Wav2Vec
             use_gpu: Use GPU for Wav2Vec (MPS/CUDA)
+            gesture_window: Temporal smoothing window for gesture tokens (seconds)
+            gesture_min_tokens: Minimum tokens needed for consensus
         """
         self.vocabulary_size = vocabulary_size
         self.enable_ratio = enable_ratio_analysis
@@ -103,6 +111,13 @@ class HybridPerceptionModule:
             self.chroma_extractor = HarmonicAwareChromaExtractor()
         
         self.quantizer = SymbolicQuantizer(vocabulary_size) if enable_symbolic else None
+        
+        # Gesture token temporal smoothing (phrase-level coherence)
+        self.gesture_smoother = GestureTokenSmoother(
+            window_duration=gesture_window,
+            min_tokens=gesture_min_tokens,
+            decay_time=1.0  # Exponential decay constant
+        )
         
         # Feature dimensions
         if enable_wav2vec:
@@ -218,9 +233,12 @@ class HybridPerceptionModule:
             full_features = chroma
         
         # 4. Symbolic quantization (if enabled and fitted)
+        raw_symbolic_token = None
         symbolic_token = None
         if self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
-            symbolic_token = int(self.quantizer.transform(full_features.reshape(1, -1))[0])
+            raw_symbolic_token = int(self.quantizer.transform(full_features.reshape(1, -1))[0])
+            # Apply temporal smoothing for phrase-level coherence
+            symbolic_token = self.gesture_smoother.add_token(raw_symbolic_token, timestamp)
         
         # 5. Build result
         feature_breakdown = {
@@ -238,7 +256,8 @@ class HybridPerceptionModule:
             chroma=chroma,
             active_pitch_classes=active_pcs,
             timestamp=timestamp,
-            feature_breakdown=feature_breakdown
+            feature_breakdown=feature_breakdown,
+            raw_gesture_token=raw_symbolic_token
         )
     
     def train_vocabulary(self, feature_samples: List[np.ndarray]):
@@ -363,9 +382,12 @@ class HybridPerceptionModule:
                 self._ratio_skip_count += 1
         
         # Symbolic quantization (if enabled and fitted)
+        raw_symbolic_token = None
         symbolic_token = None
         if self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
-            symbolic_token = int(self.quantizer.transform(features.reshape(1, -1))[0])
+            raw_symbolic_token = int(self.quantizer.transform(features.reshape(1, -1))[0])
+            # Apply temporal smoothing for phrase-level coherence
+            symbolic_token = self.gesture_smoother.add_token(raw_symbolic_token, timestamp)
         
         # Build result
         feature_breakdown = {
@@ -383,7 +405,8 @@ class HybridPerceptionModule:
             chroma=chroma,
             active_pitch_classes=active_pcs,
             timestamp=timestamp,
-            feature_breakdown=feature_breakdown
+            feature_breakdown=feature_breakdown,
+            raw_gesture_token=raw_symbolic_token
         )
 
 

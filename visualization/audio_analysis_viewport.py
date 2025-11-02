@@ -148,6 +148,23 @@ class AudioAnalysisViewport(BaseViewport):
         self.complexity_label.setFont(complexity_font)
         analysis_layout.addWidget(self.complexity_label)
         
+        # Gesture token (smoothed)
+        self.gesture_token_label = QLabel("Gesture Token: ---")
+        gesture_font = QFont()
+        gesture_font.setPointSize(11)
+        gesture_font.setBold(True)
+        self.gesture_token_label.setFont(gesture_font)
+        analysis_layout.addWidget(self.gesture_token_label)
+        
+        # Interpreted chord (from smoothed gesture)
+        self.chord_label = QLabel("Chord: ---")
+        chord_font = QFont()
+        chord_font.setPointSize(12)
+        chord_font.setBold(True)
+        self.chord_label.setFont(chord_font)
+        self.chord_label.setStyleSheet("color: #64B5F6;")  # Light blue
+        analysis_layout.addWidget(self.chord_label)
+        
         content_layout.addWidget(analysis_frame)
         content_layout.addStretch()
     
@@ -211,6 +228,41 @@ class AudioAnalysisViewport(BaseViewport):
         else:
             # Show placeholder if no data
             self.complexity_label.setText("Barlow Complexity: ---")
+        
+        # Update gesture token (smoothed)
+        if 'gesture_token' in data and data['gesture_token'] is not None:
+            token = data['gesture_token']
+            # Show both raw and smoothed if available
+            if 'raw_gesture_token' in data and data['raw_gesture_token'] != token:
+                self.gesture_token_label.setText(f"Gesture Token: {token} (raw: {data['raw_gesture_token']})")
+            else:
+                self.gesture_token_label.setText(f"Gesture Token: {token}")
+            self.gesture_token_label.setStyleSheet("color: #9C27B0;")  # Purple for gesture
+        else:
+            self.gesture_token_label.setText("Gesture Token: ---")
+            self.gesture_token_label.setStyleSheet("color: #DCDCDC;")
+        
+        # Update interpreted chord (from smoothed gesture)
+        if 'chord_label' in data and data['chord_label'] is not None:
+            chord = data['chord_label']
+            confidence = data.get('chord_confidence', 0.0)
+            
+            # Show chord with confidence
+            if confidence > 0.0:
+                self.chord_label.setText(f"Chord: {chord} ({confidence:.1%})")
+            else:
+                self.chord_label.setText(f"Chord: {chord}")
+            
+            # Color code based on confidence
+            if confidence >= 0.7:
+                self.chord_label.setStyleSheet("color: #64B5F6; font-weight: bold;")  # Bright blue (confident)
+            elif confidence >= 0.4:
+                self.chord_label.setStyleSheet("color: #90CAF9; font-weight: bold;")  # Medium blue
+            else:
+                self.chord_label.setStyleSheet("color: #B0BEC5; font-weight: bold;")  # Gray blue (uncertain)
+        else:
+            self.chord_label.setText("Chord: ---")
+            self.chord_label.setStyleSheet("color: #DCDCDC; font-weight: bold;")
     
     def clear(self):
         """Clear the viewport"""

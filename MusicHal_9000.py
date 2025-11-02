@@ -35,6 +35,7 @@ import sys
 
 # Existing harmonic components (unchanged)
 from listener.jhs_listener_core import DriftListener, Event
+from listener.dual_perception import ratio_to_chord_name
 from memory.memory_buffer import MemoryBuffer
 from memory.clustering import MusicalClustering
 from memory.polyphonic_audio_oracle import PolyphonicAudioOracle
@@ -180,6 +181,7 @@ class EnhancedDriftEngineAI:
                  enable_hybrid_perception: bool = False, enable_wav2vec: bool = False,
                  enable_live_training: bool = False,
                  wav2vec_model: str = "facebook/wav2vec2-base", use_gpu: bool = False,
+                 gesture_window: float = 3.0, gesture_min_tokens: int = 3,
                  debug_decisions: bool = False, enable_visualization: bool = False):
         # Core harmonic components (unchanged)
         self.listener: Optional[DriftListener] = None
@@ -214,8 +216,11 @@ class EnhancedDriftEngineAI:
                 enable_symbolic=True,  # Enable symbolic quantization for gesture tokens
                 enable_wav2vec=enable_wav2vec,
                 wav2vec_model=wav2vec_model,
-                use_gpu=use_gpu
+                use_gpu=use_gpu,
+                gesture_window=gesture_window,  # Temporal smoothing window
+                gesture_min_tokens=gesture_min_tokens  # Min tokens for consensus
             )
+            print(f"🔄 Gesture token smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens")
             if enable_wav2vec:
                 print(f"🎵 Wav2Vec perception enabled: {wav2vec_model}")
                 print(f"   GPU: {'Yes (MPS/CUDA)' if use_gpu else 'CPU'}")
@@ -624,6 +629,15 @@ class EnhancedDriftEngineAI:
         
         self.running = False
         
+        # Stop all MIDI outputs (this sends panic messages)
+        print("🔇 Sending MIDI panic (All Notes Off)...")
+        for voice_type, output in self.midi_outputs.items():
+            if output:
+                output.stop()
+        for voice_type, output in self.mpe_midi_outputs.items():
+            if output:
+                output.stop()
+        
         # Close conversation log
         if self._conversation_log_file:
             self._conversation_log_file.close()
@@ -639,14 +653,6 @@ class EnhancedDriftEngineAI:
         # Stop listener
         if self.listener:
             self.listener.stop()
-        
-        # Stop all MIDI outputs
-        for voice_type, output in self.midi_outputs.items():
-            if output:
-                output.stop()
-        for voice_type, output in self.mpe_midi_outputs.items():
-            if output:
-                output.stop()
         
         # Close performance logger
         if hasattr(self.performance_logger, 'close'):
@@ -754,25 +760,39 @@ class EnhancedDriftEngineAI:
                     
                     # IRCAM Phase 1.2: Extract symbolic token for AudioOracle pattern matching
                     if hasattr(hybrid_result, 'symbolic_token') and hybrid_result.symbolic_token is not None:
+                        # Store smoothed token for AI memory/generation
                         event_data['gesture_token'] = hybrid_result.symbolic_token
+                        # Store raw token for visualization (shows rapid onset-level changes)
+                        event_data['raw_gesture_token'] = hybrid_result.raw_gesture_token
                         
-                        # Emit pattern matching visualization (simplified - full scoring happens in agent)
-                        if self.visualization_manager:
+                        # Emit pattern matching visualization with RAW token (shows rapid changes)
+                        if self.visualization_manager and hybrid_result.raw_gesture_token is not None:
                             # Estimate a pattern match score based on consonance (placeholder logic)
                             match_score = hybrid_result.consonance * 100 if hybrid_result.consonance else 50.0
                             self.visualization_manager.emit_pattern_match(
                                 score=match_score,
                                 state_id=0,  # Would need actual AudioOracle state ID
-                                gesture_token=hybrid_result.symbolic_token,
+                                gesture_token=hybrid_result.raw_gesture_token,  # Use RAW for rapid visualization
                                 context={'consonance': hybrid_result.consonance}
                             )
                         
-                        # Debug log (first 10 times)
+                        # Debug log (first 10 times) - show both tokens
                         if not hasattr(self, '_gesture_token_count'):
                             self._gesture_token_count = 0
                         if self._gesture_token_count < 10:
-                            print(f"🎵 Gesture token: {hybrid_result.symbolic_token}")
+                            print(f"🎵 Gesture token: {hybrid_result.symbolic_token} (smoothed), {hybrid_result.raw_gesture_token} (raw)")
                             self._gesture_token_count += 1
+                    
+                    # Extract chord label from ratio analysis (for visualization)
+                    if hybrid_result.ratio_analysis:
+                        # Get fundamental frequency for root note determination
+                        root_freq = float(hybrid_result.ratio_analysis.fundamental)
+                        # Convert to human-friendly chord name (e.g., "Cmaj7", "Em", "G7")
+                        event_data['chord_label'] = ratio_to_chord_name(
+                            hybrid_result.ratio_analysis, 
+                            root_freq
+                        )
+                        event_data['chord_confidence'] = hybrid_result.ratio_analysis.chord_match['confidence']
                     
             except Exception as e:
                 # Debug: print first few errors to help diagnose
@@ -815,13 +835,23 @@ class EnhancedDriftEngineAI:
             consonance = event_data.get('hybrid_consonance', 
                                        event_data.get('consonance', 0.5))
             
+            # Get gesture token (smoothed) and chord label
+            gesture_token = event_data.get('gesture_token', None)
+            raw_gesture_token = event_data.get('raw_gesture_token', None)
+            chord_label = event_data.get('chord_label', None)
+            chord_confidence = event_data.get('chord_confidence', 0.0)
+            
             self.visualization_manager.emit_audio_analysis(
                 waveform=audio_buffer,
                 onset=event_data.get('onset', False),
                 ratio=ratio,
                 consonance=consonance,
                 timestamp=current_time,
-                complexity=complexity  # Now includes REAL Barlow complexity from Brandtsegg
+                complexity=complexity,  # REAL Barlow complexity from Brandtsegg
+                gesture_token=gesture_token,  # Smoothed gesture token
+                raw_gesture_token=raw_gesture_token,  # Raw onset-level token
+                chord_label=chord_label,  # Interpreted chord from smoothed gesture
+                chord_confidence=chord_confidence  # Confidence of chord interpretation
             )
             
             # Emit timeline event for human input
@@ -1048,6 +1078,12 @@ class EnhancedDriftEngineAI:
             
             # Apply graceful fade-out in final minute
             fade_factor = self.timeline_manager.get_fade_out_factor(fade_duration=60.0)
+            
+            # During grace period (after scheduled end), don't generate any new notes
+            remaining = self.timeline_manager.get_time_remaining()
+            if remaining <= 0:
+                return  # Grace period: let final notes finish, but don't start new ones
+            
             if random.random() > fade_factor:
                 return  # Randomly skip responses during fade-out
             
@@ -1895,11 +1931,26 @@ class EnhancedDriftEngineAI:
                     
                     # Load gesture vocabulary (quantizer) if available
                     if self.hybrid_perception and self.enable_hybrid_perception:
-                        quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
-                        if os.path.exists(quantizer_file):
+                        # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
+                        gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
+                        symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
+                        old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                        
+                        quantizer_file = None
+                        if os.path.exists(gesture_quantizer_file):
+                            quantizer_file = gesture_quantizer_file
+                            quantizer_type = "gesture (Wav2Vec)"
+                        elif os.path.exists(symbolic_quantizer_file):
+                            quantizer_file = symbolic_quantizer_file
+                            quantizer_type = "symbolic (traditional)"
+                        elif os.path.exists(old_quantizer_file):
+                            quantizer_file = old_quantizer_file
+                            quantizer_type = "legacy"
+                        
+                        if quantizer_file:
                             try:
                                 self.hybrid_perception.load_quantizer(quantizer_file)
-                                print(f"✅ Gesture vocabulary (quantizer) loaded!")
+                                print(f"✅ Vocabulary loaded: {quantizer_type} quantizer")
                                 
                                 # CRITICAL FIX: Monkey-patch transform to convert ALL intermediate dtypes to float32
                                 # The pickled quantizer uses sklearn normalize() which returns float64
@@ -2599,6 +2650,10 @@ def main():
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
     parser.add_argument('--no-gpu', action='store_true',
                        help='Disable GPU for Wav2Vec (use CPU) - DEFAULT: GPU ENABLED')
+    parser.add_argument('--gesture-window', type=float, default=3.0,
+                       help='Gesture token smoothing window in seconds (default: 3.0, range: 1.0-5.0)')
+    parser.add_argument('--gesture-min-tokens', type=int, default=3,
+                       help='Minimum tokens before gesture consensus (default: 3)')
     parser.add_argument('--performance-duration', type=int, default=0, help='Performance duration in minutes (0 = no timeline)')
     parser.add_argument('--learn-target', type=str, help='Learn target fingerprint (description)')
     parser.add_argument('--load-target', type=str, help='Load target fingerprint from file')
@@ -2625,6 +2680,8 @@ def main():
         enable_live_training=args.enable_live_training,
         wav2vec_model=args.wav2vec_model,
         use_gpu=not args.no_gpu,
+        gesture_window=args.gesture_window,
+        gesture_min_tokens=args.gesture_min_tokens,
         debug_decisions=args.debug_decisions,
         enable_visualization=not args.no_visualize
     )

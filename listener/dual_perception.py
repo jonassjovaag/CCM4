@@ -51,6 +51,7 @@ from listener.wav2vec_perception import Wav2VecMusicEncoder, Wav2VecFeatures
 from listener.ratio_analyzer import FrequencyRatioAnalyzer, ChordAnalysis
 from listener.harmonic_chroma import HarmonicAwareChromaExtractor
 from listener.symbolic_quantizer import SymbolicQuantizer
+from listener.gesture_smoothing import GestureTokenSmoother
 
 
 @dataclass
@@ -113,7 +114,9 @@ class DualPerceptionModule:
                  vocabulary_size: int = 64,
                  wav2vec_model: str = "facebook/wav2vec2-base",
                  use_gpu: bool = False,
-                 enable_symbolic: bool = True):
+                 enable_symbolic: bool = True,
+                 gesture_window: float = 3.0,      # Temporal smoothing window
+                 gesture_min_tokens: int = 3):     # Min tokens for consensus
         """
         Initialize dual perception module
         
@@ -122,6 +125,8 @@ class DualPerceptionModule:
             wav2vec_model: HuggingFace model name (speech or music-pretrained)
             use_gpu: Use GPU for Wav2Vec (MPS/CUDA)
             enable_symbolic: Enable gesture token quantization
+            gesture_window: Temporal smoothing window for gesture tokens (seconds)
+            gesture_min_tokens: Minimum tokens needed for consensus
         """
         print("🔬 Initializing Dual Perception Module...")
         
@@ -131,6 +136,13 @@ class DualPerceptionModule:
         self.vocabulary_size = vocabulary_size
         self.enable_symbolic = enable_symbolic
         
+        # Gesture token temporal smoothing (phrase-level coherence)
+        self.gesture_smoother = GestureTokenSmoother(
+            window_duration=gesture_window,
+            min_tokens=gesture_min_tokens,
+            decay_time=1.0  # 1-second decay for recent token priority
+        )
+        
         # Ratio-based harmonic pathway
         self.ratio_analyzer = FrequencyRatioAnalyzer()
         self.chroma_extractor = HarmonicAwareChromaExtractor()
@@ -138,6 +150,7 @@ class DualPerceptionModule:
         print(f"✅ Dual perception initialized:")
         print(f"   Wav2Vec model: {wav2vec_model}")
         print(f"   Vocabulary size: {vocabulary_size} gesture tokens")
+        print(f"   Gesture smoothing: {gesture_window}s window")
         print(f"   GPU: {'Yes' if use_gpu else 'No'}")
     
     def extract_features(self,
@@ -164,16 +177,25 @@ class DualPerceptionModule:
         if wav2vec_result is None:
             # Fallback if Wav2Vec fails
             wav2vec_features = np.zeros(768)
-            gesture_token = None
+            raw_gesture_token = None
+            smoothed_gesture_token = None
         else:
             wav2vec_features = wav2vec_result.features
             
             # Quantize to gesture token (if enabled and fitted)
-            gesture_token = None
+            raw_gesture_token = None
+            smoothed_gesture_token = None
+            
             if self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
                 # Ensure float64 for sklearn
                 features_64 = wav2vec_features.astype(np.float64)
-                gesture_token = int(self.quantizer.transform(features_64.reshape(1, -1))[0])
+                raw_gesture_token = int(self.quantizer.transform(features_64.reshape(1, -1))[0])
+                
+                # Apply temporal smoothing to get phrase-level token
+                smoothed_gesture_token = self.gesture_smoother.add_token(raw_gesture_token, timestamp)
+        
+        # Use smoothed token as the primary gesture_token for AI
+        gesture_token = smoothed_gesture_token if smoothed_gesture_token is not None else raw_gesture_token
         
         # === PATHWAY 2: Ratio-Based Harmonic Analysis (for context + display) ===
         
@@ -270,7 +292,7 @@ class DualPerceptionModule:
         """Save trained gesture vocabulary"""
         if self.quantizer and self.quantizer.is_fitted:
             self.quantizer.save(filepath)
-            print(f"💾 Gesture vocabulary saved: {filepath}")
+            # Note: self.quantizer.save() already prints its own message
     
     def load_vocabulary(self, filepath: str):
         """Load trained gesture vocabulary"""
@@ -286,6 +308,14 @@ class DualPerceptionModule:
     def load_quantizer(self, filepath: str):
         """Alias for load_vocabulary()"""
         self.load_vocabulary(filepath)
+    
+    def get_gesture_smoothing_stats(self) -> dict:
+        """Get gesture token smoothing statistics for transparency/debugging."""
+        return self.gesture_smoother.get_statistics()
+    
+    def reset_gesture_smoothing(self):
+        """Reset gesture token smoothing window (e.g., on behavioral mode change)."""
+        self.gesture_smoother.reset()
 
 
 def ratio_to_chord_name(ratio_analysis: Optional[ChordAnalysis], 
