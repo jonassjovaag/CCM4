@@ -49,6 +49,7 @@ class VisualizationEventBus(QObject):
     timeline_update_signal = pyqtSignal(dict) # {event_type, mode, timestamp}
     human_input_signal = pyqtSignal(dict)    # {midi, gesture_token, timestamp}
     machine_output_signal = pyqtSignal(dict) # {notes, durations, mode, timestamp}
+    gpt_reflection_signal = pyqtSignal(dict)  # {reflection, timestamp}
     
     def __init__(self):
         """Initialize event bus"""
@@ -250,6 +251,23 @@ class VisualizationEventBus(QObject):
         }
         self.machine_output_signal.emit(data)
         self._record_event(EventType.MACHINE_OUTPUT, data)
+    
+    def emit_gpt_reflection(self,
+                           reflection: str,
+                           timestamp: float):
+        """
+        Emit GPT-OSS reflection update
+        
+        Args:
+            reflection: Reflection text from GPT-OSS
+            timestamp: Time of reflection completion
+        """
+        data = {
+            'reflection': reflection,
+            'timestamp': timestamp
+        }
+        self.gpt_reflection_signal.emit(data)
+        # Note: Not recording in _event_history to avoid bloat
     
     def _record_event(self, event_type: EventType, data: Dict[str, Any]):
         """

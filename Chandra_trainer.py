@@ -223,7 +223,9 @@ class EnhancedHybridTrainingPipeline:
                              sampling_strategy: str = 'balanced',
                              use_transformer: bool = True,
                              use_hierarchical: bool = True,
-                             use_rhythmic: bool = True) -> Dict[str, Any]:
+                             use_rhythmic: bool = True,
+                             analyze_arc: bool = False,
+                             section_duration: float = 60.0) -> Dict[str, Any]:
         """
         Train AudioOracle and RhythmOracle from audio file with enhanced analysis
         
@@ -236,6 +238,8 @@ class EnhancedHybridTrainingPipeline:
             use_transformer: Whether to use transformer analysis
             use_hierarchical: Whether to use hierarchical analysis
             use_rhythmic: Whether to use rhythmic analysis
+            analyze_arc: Whether to analyze long-form arc structure (Brandtsegg sections)
+            section_duration: Section duration for arc analysis in seconds (default 60s)
             
         Returns:
             Training statistics and results
@@ -341,6 +345,47 @@ class EnhancedHybridTrainingPipeline:
             except Exception as e:
                 print(f"⚠️  Rhythmic analysis failed: {e}")
                 rhythmic_result = None
+        
+        # Step 2c: Long-Form Arc Structure Analysis (Brandtsegg sections)
+        if use_rhythmic and analyze_arc and self.rhythmic_analyzer:
+            print("\n🔄 Step 2c: Long-Form Arc Structure Analysis...")
+            arc_start = time.time()
+            
+            try:
+                sections = self.rhythmic_analyzer.analyze_long_form_improvisation(
+                    audio_file,
+                    section_duration=section_duration
+                )
+                
+                if sections:
+                    print(f"✅ Long-form analysis complete: {len(sections)} sections detected")
+                    
+                    # Map sections to arc phases (adds 'arc_phase' key to each section)
+                    self._map_sections_to_arc_phases(sections)
+                    
+                    self.arc_structure_sections = sections
+                    
+                    # Now extract phase distribution (arc_phase exists now!)
+                    tempos = [s['local_tempo'] for s in self.arc_structure_sections]
+                    phases = self._get_phase_distribution(self.arc_structure_sections)
+                    
+                    self.training_stats['arc_structure_time'] = time.time() - arc_start
+                    self.training_stats['arc_sections_detected'] = len(self.arc_structure_sections)
+                    
+                    print(f"   Total duration: {self.arc_structure_sections[-1]['end_time']:.0f}s ({self.arc_structure_sections[-1]['end_time']/60:.1f} min)")
+                    print(f"   Tempo range: {min(tempos):.1f} - {max(tempos):.1f} BPM")
+                    print(f"   Phase distribution: {phases}")
+                else:
+                    print("⚠️  No sections detected in arc structure analysis")
+                    self.arc_structure_sections = None
+                    
+            except Exception as e:
+                print(f"⚠️  Arc structure analysis failed: {e}")
+                import traceback
+                traceback.print_exc()
+                self.arc_structure_sections = None
+        else:
+            self.arc_structure_sections = None
         
         # Step 3: Harmonic-Rhythmic Correlation Analysis
         print("\n🔄 Step 3: Harmonic-Rhythmic Correlation Analysis...")
@@ -1785,10 +1830,111 @@ class EnhancedHybridTrainingPipeline:
                 'analysis_timestamp': time.time()
             }
         
+        # Add long-form arc structure analysis (Brandtsegg sections)
+        if hasattr(self, 'arc_structure_sections') and self.arc_structure_sections:
+            tempos = [s['local_tempo'] for s in self.arc_structure_sections]
+            complexities = [s['rhythmic_complexity'] for s in self.arc_structure_sections]
+            
+            enhanced_output['arc_structure'] = {
+                'sections': self.arc_structure_sections,
+                'total_duration': self.arc_structure_sections[-1]['end_time'],
+                'num_sections': len(self.arc_structure_sections),
+                'tempo_range': [float(min(tempos)), float(max(tempos))],
+                'complexity_range': [float(min(complexities)), float(max(complexities))],
+                'phase_distribution': self._get_phase_distribution(self.arc_structure_sections),
+                'analysis_timestamp': time.time()
+            }
+            print(f"✅ Arc structure analysis included: {len(self.arc_structure_sections)} sections")
+        
         # Add training statistics
         enhanced_output['training_statistics'] = self.training_stats
         
         return enhanced_output
+    
+    def _get_phase_distribution(self, sections: List[Dict]) -> Dict[str, int]:
+        """Get distribution of arc phases across sections"""
+        phases = {}
+        for s in sections:
+            phase = s['arc_phase']
+            phases[phase] = phases.get(phase, 0) + 1
+        return phases
+    
+    def _map_sections_to_arc_phases(self, sections: List[Dict]):
+        """
+        Map detected sections to 5-phase arc structure.
+        
+        Uses tempo trajectory + rhythmic complexity to infer arc phases:
+        - Opening: Low tempo, stable, low complexity
+        - Development: Rising tempo/complexity
+        - Peak: Highest tempo/density
+        - Resolution: Decreasing tempo
+        - Closing: Return to opening feel
+        
+        Args:
+            sections: List of section dicts from analyze_long_form_improvisation()
+        """
+        if len(sections) == 0:
+            return
+        
+        # Extract tempo and complexity trajectories
+        tempos = np.array([s['local_tempo'] for s in sections])
+        complexities = np.array([s['rhythmic_complexity'] for s in sections])
+        densities = np.array([s['onset_density'] for s in sections])
+        
+        # Normalize to 0-1 range
+        tempo_range = tempos.max() - tempos.min()
+        if tempo_range < 10:  # Minimal tempo variation
+            tempo_normalized = np.ones_like(tempos) * 0.5
+        else:
+            tempo_normalized = (tempos - tempos.min()) / tempo_range
+        
+        complexity_range = complexities.max() - complexities.min()
+        if complexity_range < 1.0:
+            complexity_normalized = np.ones_like(complexities) * 0.5
+        else:
+            complexity_normalized = (complexities - complexities.min()) / complexity_range
+        
+        # Combined energy metric (tempo + complexity + density)
+        energy = (tempo_normalized + complexity_normalized + densities / densities.max()) / 3.0
+        
+        # Find peak section (highest energy)
+        peak_idx = int(np.argmax(energy))
+        
+        # Assign phases
+        for i, section in enumerate(sections):
+            progress = i / len(sections)  # 0.0 to 1.0
+            
+            if progress < 0.15:
+                # Opening: First 15%
+                section['arc_phase'] = 'opening'
+                section['engagement_level'] = 0.3 + 0.2 * (progress / 0.15)
+            elif i < peak_idx:
+                # Development: Building toward peak
+                development_progress = (i - len(sections) * 0.15) / (peak_idx - len(sections) * 0.15)
+                section['arc_phase'] = 'development'
+                section['engagement_level'] = 0.5 + 0.3 * development_progress
+            elif i == peak_idx:
+                # Peak: Highest energy section
+                section['arc_phase'] = 'peak'
+                section['engagement_level'] = 0.9
+            elif progress < 0.85:
+                # Resolution: After peak, before closing
+                resolution_progress = (i - peak_idx) / (len(sections) * 0.85 - peak_idx)
+                section['arc_phase'] = 'resolution'
+                section['engagement_level'] = 0.8 - 0.3 * resolution_progress
+            else:
+                # Closing: Final 15%
+                closing_progress = (progress - 0.85) / 0.15
+                section['arc_phase'] = 'closing'
+                section['engagement_level'] = 0.5 - 0.3 * closing_progress
+        
+        # Print phase mapping
+        print("🎭 Arc phase mapping:")
+        for section in sections:
+            tempo_change_str = f" (→{section['tempo_change']:.2f}x)" if section['tempo_change'] else ""
+            print(f"   {section['start_time']:.0f}s: {section['arc_phase']:12s} "
+                  f"| {section['local_tempo']:5.1f} BPM{tempo_change_str:12s} "
+                  f"| engagement {section['engagement_level']:.2f}")
     
     def _json_serializer(self, obj):
         """Custom JSON serializer for numpy types"""
@@ -2046,6 +2192,10 @@ def main():
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
     parser.add_argument('--no-gpu', action='store_true',
                        help='Disable GPU for Wav2Vec (force CPU)')
+    parser.add_argument('--analyze-arc-structure', action='store_true',
+                       help='Analyze long-form arc structure (sections, tempo changes, phase mapping)')
+    parser.add_argument('--section-duration', type=float, default=60.0,
+                       help='Section duration for arc analysis in seconds (default: 60)')
     
     args = parser.parse_args()
     
@@ -2094,7 +2244,9 @@ def main():
         sampling_strategy=args.sampling_strategy,
         use_transformer=not args.no_transformer,
         use_hierarchical=not args.no_hierarchical,
-        use_rhythmic=not args.no_rhythmic
+        use_rhythmic=not args.no_rhythmic,
+        analyze_arc=args.analyze_arc_structure,
+        section_duration=args.section_duration
     )
     
     print(f"\n✅ Enhanced hybrid training complete!")

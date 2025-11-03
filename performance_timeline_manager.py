@@ -180,6 +180,157 @@ class PerformanceTimelineManager:
             dynamic_evolution=scaled_dynamic_evolution
         )
     
+    def initialize_from_training_audio(self, audio_file: str, section_duration: float = 60.0):
+        """
+        Learn arc structure from long training recordings (e.g., Daybreak.wav).
+        
+        This method analyzes long-form improvisation using Brandtsegg rhythm ratios
+        to detect natural section boundaries and tempo changes. It then maps these
+        sections to arc phases based on tempo trajectory and rhythmic complexity.
+        
+        Perfect for recordings like Daybreak.wav (19 min improvisation) where tempo
+        varies across sections instead of being globally constant.
+        
+        Args:
+            audio_file: Path to training audio file (10-20 min improvisation)
+            section_duration: Analysis window size in seconds (default 60s)
+        """
+        from rhythmic_engine.audio_file_learning.heavy_rhythmic_analyzer import HeavyRhythmicAnalyzer
+        
+        print(f"🎭 Learning performance arc structure from: {audio_file}")
+        
+        # Analyze long-form structure
+        analyzer = HeavyRhythmicAnalyzer()
+        sections = analyzer.analyze_long_form_improvisation(audio_file, section_duration)
+        
+        if len(sections) == 0:
+            print("⚠️  No sections detected, cannot learn arc structure")
+            return
+        
+        print(f"✅ Detected {len(sections)} sections")
+        
+        # Map sections to arc phases
+        self._map_sections_to_arc_phases(sections)
+        
+        # Store section data for runtime reference
+        self.learned_sections = sections
+        
+        print(f"🎭 Arc structure learned: {len(sections)} sections mapped to phases")
+    
+    def _map_sections_to_arc_phases(self, sections: List[Dict]):
+        """
+        Map detected sections to 5-phase arc structure.
+        
+        Uses tempo trajectory + rhythmic complexity to infer arc phases:
+        - Opening: Low tempo, stable, low complexity
+        - Development: Rising tempo/complexity
+        - Peak: Highest tempo/density
+        - Resolution: Decreasing tempo
+        - Closing: Return to opening feel
+        
+        Args:
+            sections: List of section dicts from analyze_long_form_improvisation()
+        """
+        if len(sections) == 0:
+            return
+        
+        # Extract tempo and complexity trajectories
+        tempos = np.array([s['local_tempo'] for s in sections])
+        complexities = np.array([s['rhythmic_complexity'] for s in sections])
+        densities = np.array([s['onset_density'] for s in sections])
+        
+        # Normalize to 0-1 range
+        tempo_range = tempos.max() - tempos.min()
+        if tempo_range < 10:  # Minimal tempo variation
+            tempo_normalized = np.ones_like(tempos) * 0.5
+        else:
+            tempo_normalized = (tempos - tempos.min()) / tempo_range
+        
+        complexity_range = complexities.max() - complexities.min()
+        if complexity_range < 1.0:
+            complexity_normalized = np.ones_like(complexities) * 0.5
+        else:
+            complexity_normalized = (complexities - complexities.min()) / complexity_range
+        
+        # Combined energy metric (tempo + complexity + density)
+        energy = (tempo_normalized + complexity_normalized + densities / densities.max()) / 3.0
+        
+        # Find peak section (highest energy)
+        peak_idx = int(np.argmax(energy))
+        
+        # Assign phases
+        for i, section in enumerate(sections):
+            progress = i / len(sections)  # 0.0 to 1.0
+            
+            if progress < 0.15:
+                # Opening: First 15%
+                section['arc_phase'] = 'opening'
+                section['engagement_level'] = 0.3 + 0.2 * (progress / 0.15)
+            elif i < peak_idx:
+                # Development: Building toward peak
+                development_progress = (i - len(sections) * 0.15) / (peak_idx - len(sections) * 0.15)
+                section['arc_phase'] = 'development'
+                section['engagement_level'] = 0.5 + 0.3 * development_progress
+            elif i == peak_idx:
+                # Peak: Highest energy section
+                section['arc_phase'] = 'peak'
+                section['engagement_level'] = 0.9
+            elif progress < 0.85:
+                # Resolution: After peak, before closing
+                resolution_progress = (i - peak_idx) / (len(sections) * 0.85 - peak_idx)
+                section['arc_phase'] = 'resolution'
+                section['engagement_level'] = 0.8 - 0.3 * resolution_progress
+            else:
+                # Closing: Final 15%
+                closing_progress = (progress - 0.85) / 0.15
+                section['arc_phase'] = 'closing'
+                section['engagement_level'] = 0.5 - 0.3 * closing_progress
+        
+        # Print phase mapping
+        print("🎭 Arc phase mapping:")
+        for section in sections:
+            tempo_change_str = f" (→{section['tempo_change']:.2f}x)" if section['tempo_change'] else ""
+            print(f"   {section['start_time']:.0f}s: {section['arc_phase']:12s} "
+                  f"| {section['local_tempo']:5.1f} BPM{tempo_change_str:12s} "
+                  f"| engagement {section['engagement_level']:.2f}")
+    
+    def get_section_context(self, elapsed_time: float) -> Optional[Dict]:
+        """
+        Get learned section context for current performance moment.
+        
+        Returns section-specific tempo + rhythmic character from training audio analysis.
+        Used to adapt behavioral modes to learned section structure.
+        
+        Args:
+            elapsed_time: Current elapsed time in performance (seconds)
+            
+        Returns:
+            Dict with arc_phase, local_tempo, dominant_ratios, onset_density, 
+            rhythmic_complexity, engagement_level, section_progress
+            OR None if no learned structure available
+        """
+        if not hasattr(self, 'learned_sections') or not self.learned_sections:
+            return None
+        
+        # Find current section
+        for section in self.learned_sections:
+            if section['start_time'] <= elapsed_time < section['end_time']:
+                section_progress = (elapsed_time - section['start_time']) / (section['end_time'] - section['start_time'])
+                
+                return {
+                    'arc_phase': section['arc_phase'],
+                    'local_tempo': section['local_tempo'],
+                    'dominant_ratios': section['dominant_ratios'],
+                    'onset_density': section['onset_density'],
+                    'rhythmic_complexity': section['rhythmic_complexity'],
+                    'engagement_level': section['engagement_level'],
+                    'section_progress': section_progress,
+                    'tempo_change': section['tempo_change']
+                }
+        
+        # Fallback if beyond learned structure
+        return None
+    
     def _initialize_performance_state(self):
         """Initialize the performance state"""
         self.performance_state = PerformanceState(

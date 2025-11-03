@@ -182,6 +182,52 @@ class GPTOSSClient:
             finally:
                 self.ollama_process = None
     
+    def analyze(self, prompt: str) -> str:
+        """
+        Simple text analysis (for live reflections).
+        
+        Args:
+            prompt: Analysis prompt
+            
+        Returns:
+            Analysis text from GPT-OSS
+        """
+        if not self.is_available:
+            return "GPT-OSS not available"
+        
+        try:
+            start_time = time.time()
+            
+            response = requests.post(
+                self.base_url,
+                json={
+                    'model': self.model,
+                    'prompt': prompt,
+                    'stream': False,
+                    'options': {
+                        'temperature': 0.7,
+                        'top_p': 0.9
+                    }
+                },
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                analysis = result.get('response', 'No response')
+                
+                processing_time = time.time() - start_time
+                print(f"✅ GPT-OSS analysis completed in {processing_time:.1f}s")
+                
+                return analysis
+            else:
+                print(f"❌ GPT-OSS error: {response.status_code}")
+                return f"Error: {response.status_code}"
+                
+        except Exception as e:
+            print(f"❌ GPT-OSS analysis failed: {e}")
+            return f"Error: {str(e)}"
+    
     def analyze_musical_events(self, events: List[Dict], 
                              harmonic_patterns: List = None,
                              rhythmic_patterns: List = None,

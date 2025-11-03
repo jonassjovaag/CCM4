@@ -168,56 +168,118 @@ class HeavyRhythmicAnalyzer:
             # This is the PRIMARY method - tag it so we can prioritize it later
             smart_tempo_detected = None
             try:
-                # Detect onset times
-                onsets = librosa.onset.onset_detect(
-                    y=audio, sr=sr, hop_length=self.hop_length, units='time'
+                # Compute onset strength envelope with higher threshold to reduce false positives
+                # The default onset_detect was finding spurious ~99.4 BPM patterns
+                onset_env = librosa.onset.onset_strength(
+                    y=audio, sr=sr, hop_length=self.hop_length
                 )
+                
+                # Use a moderate threshold to filter weak onsets (spurious detections)
+                # The 99.4 BPM false positive was caused by weak periodic noise
+                # Don't make it too aggressive or we lose all onsets
+                onset_threshold = 0.05  # Fixed threshold - librosa's default is too sensitive
+                
+                # Detect onsets with threshold
+                onset_frames = librosa.onset.onset_detect(
+                    onset_envelope=onset_env,
+                    sr=sr,
+                    hop_length=self.hop_length,
+                    units='frames',
+                    backtrack=True,  # Backtrack to find true onset position
+                    delta=onset_threshold  # Only detect onsets above this threshold
+                )
+                
+                # Convert to time
+                onsets = librosa.frames_to_time(onset_frames, sr=sr, hop_length=self.hop_length)
+                
+                # Debug: Print number of onsets detected
+                print(f"🎵 Detected {len(onsets)} onsets with threshold {onset_threshold}")
+                
+                # Extract onset strengths for weighting (strong onsets = structural pulse)
+                onset_strengths = onset_env[onset_frames]
                 
                 if len(onsets) >= 4:
                     # Calculate intervals between onsets
                     intervals = np.diff(onsets)
                     
+                    # CRITICAL FIX: Weight intervals by onset strength
+                    # Strong onset → strong onset = structural pulse (kick drums)
+                    # Weak onset → weak onset = surface rhythm (hi-hats)
+                    interval_weights = []
+                    for i in range(len(intervals)):
+                        # Geometric mean of consecutive onset strengths
+                        # Both onsets must be strong for the interval to be strong
+                        weight = np.sqrt(onset_strengths[i] * onset_strengths[i + 1])
+                        interval_weights.append(weight)
+                    
+                    interval_weights = np.array(interval_weights)
+                    
                     # Check SLOW TEMPO range (45-75 BPM = 0.8-1.35 second intervals)
-                    slow_intervals = intervals[(intervals >= 0.8) & (intervals <= 1.35)]
+                    slow_mask = (intervals >= 0.8) & (intervals <= 1.35)
+                    slow_intervals = intervals[slow_mask]
+                    slow_weights = interval_weights[slow_mask]
                     slow_tempo = None
                     slow_confidence = 0
                     
                     if len(slow_intervals) >= 3:
                         slow_bpms = 60.0 / slow_intervals
-                        valid_slow = slow_bpms[(slow_bpms >= 45) & (slow_bpms <= 75)]
+                        valid_mask = (slow_bpms >= 45) & (slow_bpms <= 75)
+                        valid_slow = slow_bpms[valid_mask]
+                        valid_slow_weights = slow_weights[valid_mask]
                         
                         if len(valid_slow) >= 3:
-                            slow_tempo = float(np.median(valid_slow))
-                            slow_confidence = len(slow_intervals)
-                            print(f"🎵 SLOW tempo candidate: {slow_tempo:.1f} BPM (confidence: {slow_confidence} intervals)")
+                            # Weighted confidence = sum of onset strengths
+                            slow_confidence = float(np.sum(valid_slow_weights))
+                            
+                            # Weighted median tempo - intervals with strong onsets count more
+                            sorted_idx = np.argsort(slow_intervals[valid_mask])
+                            cumsum = np.cumsum(valid_slow_weights[sorted_idx])
+                            median_idx = np.searchsorted(cumsum, cumsum[-1] / 2) if cumsum[-1] > 0 else 0
+                            median_interval = slow_intervals[valid_mask][sorted_idx[median_idx]]
+                            slow_tempo = float(60.0 / median_interval)
+                            
+                            print(f"🎵 SLOW tempo candidate: {slow_tempo:.1f} BPM (weighted confidence: {slow_confidence:.1f}, {len(valid_slow)} intervals)")
                     
                     # Check FAST TEMPO range (85-120 BPM = 0.5-0.7 second intervals)
-                    fast_intervals = intervals[(intervals >= 0.5) & (intervals <= 0.7)]
+                    fast_mask = (intervals >= 0.5) & (intervals <= 0.7)
+                    fast_intervals = intervals[fast_mask]
+                    fast_weights = interval_weights[fast_mask]
                     fast_tempo = None
                     fast_confidence = 0
                     
                     if len(fast_intervals) >= 3:
                         fast_bpms = 60.0 / fast_intervals
-                        valid_fast = fast_bpms[(fast_bpms >= 85) & (fast_bpms <= 120)]
+                        valid_mask = (fast_bpms >= 85) & (fast_bpms <= 120)
+                        valid_fast = fast_bpms[valid_mask]
+                        valid_fast_weights = fast_weights[valid_mask]
                         
                         if len(valid_fast) >= 3:
-                            fast_tempo = float(np.median(valid_fast))
-                            fast_confidence = len(fast_intervals)
-                            print(f"🎵 FAST tempo candidate: {fast_tempo:.1f} BPM (confidence: {fast_confidence} intervals)")
+                            # Weighted confidence = sum of onset strengths
+                            fast_confidence = float(np.sum(valid_fast_weights))
+                            
+                            # Weighted median tempo
+                            sorted_idx = np.argsort(fast_intervals[valid_mask])
+                            cumsum = np.cumsum(valid_fast_weights[sorted_idx])
+                            median_idx = np.searchsorted(cumsum, cumsum[-1] / 2) if cumsum[-1] > 0 else 0
+                            median_interval = fast_intervals[valid_mask][sorted_idx[median_idx]]
+                            fast_tempo = float(60.0 / median_interval)
+                            
+                            print(f"🎵 FAST tempo candidate: {fast_tempo:.1f} BPM (weighted confidence: {fast_confidence:.1f}, {len(valid_fast)} intervals)")
                     
-                    # Choose based on which has MORE EVIDENCE (higher confidence)
+                    # Choose based on WEIGHTED confidence (not just count!)
+                    # Bias toward slow tempo (structural pulse) by requiring fast to be 1.5x stronger
                     if slow_confidence > 0 and fast_confidence > 0:
-                        # Both detected - choose the one with more intervals
-                        if slow_confidence > fast_confidence:
-                            # Slow tempo has more or equal evidence
+                        # Both detected - choose based on weighted confidence with slow bias
+                        if slow_confidence > fast_confidence / 1.5:
+                            # Slow tempo wins (structural pulse usually stronger per-onset)
                             smart_tempo_detected = slow_tempo
                             tempo_candidates.append(slow_tempo)
-                            print(f"🎵 ✅ SMART method chose SLOW tempo ({slow_tempo:.1f} BPM) - {slow_confidence} vs {fast_confidence} intervals")
+                            print(f"🎵 ✅ SMART method chose SLOW tempo ({slow_tempo:.1f} BPM) - weighted confidence: {slow_confidence:.1f} vs {fast_confidence:.1f}")
                         else:
-                            # Fast tempo has more evidence
+                            # Fast tempo has significantly more weighted evidence
                             smart_tempo_detected = fast_tempo
                             tempo_candidates.append(fast_tempo)
-                            print(f"🎵 ✅ SMART method chose FAST tempo ({fast_tempo:.1f} BPM) - {fast_confidence} vs {slow_confidence} intervals")
+                            print(f"🎵 ✅ SMART method chose FAST tempo ({fast_tempo:.1f} BPM) - weighted confidence: {fast_confidence:.1f} vs {slow_confidence:.1f}")
                     elif slow_tempo:
                         smart_tempo_detected = slow_tempo
                         tempo_candidates.append(slow_tempo)
@@ -682,6 +744,198 @@ class HeavyRhythmicAnalyzer:
             import traceback
             traceback.print_exc()
             return None
+
+
+    def analyze_long_form_improvisation(self, 
+                                       audio_file: str,
+                                       section_duration: float = 60.0) -> List[Dict]:
+        """
+        Analyze long-form improvisation (10-20 minutes) with varied BPM across sections.
+        
+        Uses Brandtsegg rhythm ratios to detect tempo changes and section boundaries.
+        Perfect for recordings like Daybreak.wav where tempo varies throughout.
+        
+        Philosophy: Instead of global tempo (meaningless average), analyze local tempo
+        in each section and detect tempo relationships via rhythm ratios.
+        
+        Args:
+            audio_file: Path to audio file (long recording 10-20 min)
+            section_duration: Analysis window size in seconds (default 60s = 1-minute sections)
+            
+        Returns:
+            List of section dictionaries with:
+            - start_time, end_time: Section boundaries (seconds)
+            - local_tempo: BPM in this section
+            - dominant_ratios: Top 3 rhythm ratio patterns [[num, denom], ...]
+            - tempo_change: Ratio relative to previous section (e.g., 1.5 = tempo increased 50%)
+            - onset_density: Onsets per second
+            - rhythmic_complexity: Barlow indigestability score
+            - beat_strength: Average onset strength (structural pulse indicator)
+        """
+        from rhythmic_engine.ratio_analyzer import RatioAnalyzer
+        
+        if not os.path.exists(audio_file):
+            raise FileNotFoundError(f"Audio file not found: {audio_file}")
+        
+        print(f"🎭 Analyzing long-form structure: {audio_file}")
+        print(f"   Section duration: {section_duration}s")
+        
+        # Load audio
+        audio, sr = librosa.load(audio_file, sr=self.sample_rate)
+        total_duration = len(audio) / sr
+        
+        print(f"   Total duration: {total_duration:.1f}s ({total_duration/60:.1f} minutes)")
+        
+        # Detect onsets across entire track
+        onset_env = librosa.onset.onset_strength(
+            y=audio, sr=sr, hop_length=self.hop_length
+        )
+        
+        onset_frames = librosa.onset.onset_detect(
+            onset_envelope=onset_env,
+            sr=sr,
+            hop_length=self.hop_length,
+            units='frames',
+            backtrack=True,
+            delta=0.05  # Use same threshold as SMART tempo detection
+        )
+        
+        onset_times = librosa.frames_to_time(onset_frames, sr=sr, hop_length=self.hop_length)
+        onset_strengths = onset_env[onset_frames]
+        
+        print(f"   Detected {len(onset_times)} onsets across full recording")
+        
+        # Segment into analysis windows
+        sections = []
+        ratio_analyzer = RatioAnalyzer(complexity_weight=0.5, deviation_weight=0.5, div_limit=4)
+        
+        for start_time in np.arange(0, total_duration, section_duration):
+            end_time = min(start_time + section_duration, total_duration)
+            
+            # Get onsets in this window
+            window_mask = (onset_times >= start_time) & (onset_times < end_time)
+            window_onsets = onset_times[window_mask]
+            window_strengths = onset_strengths[window_mask]
+            
+            if len(window_onsets) < 5:
+                print(f"   Section {start_time:.0f}s-{end_time:.0f}s: Too sparse, skipping")
+                continue
+            
+            # Compute local tempo using SMART method (slow/fast clustering with structural pulse bias)
+            intervals = np.diff(window_onsets)
+            
+            # Weight intervals by onset strength
+            interval_weights = []
+            for i in range(len(intervals)):
+                weight = np.sqrt(window_strengths[i] * window_strengths[i + 1])
+                interval_weights.append(weight)
+            interval_weights = np.array(interval_weights)
+            
+            # SMART method: Check slow and fast ranges with structural pulse bias
+            # Slow tempo (45-75 BPM = 0.8-1.35s intervals)
+            slow_mask = (intervals >= 0.8) & (intervals <= 1.35)
+            slow_intervals = intervals[slow_mask]
+            slow_weights = interval_weights[slow_mask]
+            
+            # Fast tempo (85-120 BPM = 0.5-0.7s intervals)
+            fast_mask = (intervals >= 0.5) & (intervals <= 0.7)
+            fast_intervals = intervals[fast_mask]
+            fast_weights = interval_weights[fast_mask]
+            
+            local_tempo = 90.0  # Fallback
+            
+            if len(slow_intervals) >= 3:
+                slow_confidence = float(np.sum(slow_weights))
+                sorted_idx = np.argsort(slow_intervals)
+                cumsum = np.cumsum(slow_weights[sorted_idx])
+                median_idx = np.searchsorted(cumsum, cumsum[-1] / 2) if cumsum[-1] > 0 else 0
+                slow_tempo = 60.0 / slow_intervals[sorted_idx[median_idx]]
+            else:
+                slow_confidence = 0.0
+                slow_tempo = None
+            
+            if len(fast_intervals) >= 3:
+                fast_confidence = float(np.sum(fast_weights))
+                sorted_idx = np.argsort(fast_intervals)
+                cumsum = np.cumsum(fast_weights[sorted_idx])
+                median_idx = np.searchsorted(cumsum, cumsum[-1] / 2) if cumsum[-1] > 0 else 0
+                fast_tempo = 60.0 / fast_intervals[sorted_idx[median_idx]]
+            else:
+                fast_confidence = 0.0
+                fast_tempo = None
+            
+            # Apply structural pulse bias (favor slow tempo)
+            if slow_confidence > 0 and fast_confidence > 0:
+                if slow_confidence > fast_confidence / 1.5:
+                    local_tempo = slow_tempo
+                else:
+                    local_tempo = fast_tempo
+            elif slow_tempo:
+                local_tempo = slow_tempo
+            elif fast_tempo:
+                local_tempo = fast_tempo
+            
+            # Analyze rhythm ratios using Brandtsegg
+            dominant_ratios = []
+            rhythmic_complexity = 0.5  # Default
+            
+            try:
+                # Brandtsegg analysis requires at least 3 onsets with non-zero intervals
+                if len(window_onsets) >= 3:
+                    # Check for valid intervals
+                    test_intervals = np.diff(window_onsets)
+                    if len(test_intervals) > 0 and np.all(test_intervals > 0):
+                        ratio_result = ratio_analyzer.analyze(window_onsets)
+                        
+                        # Extract top 3 ratio suggestions
+                        for sug in ratio_result['all_suggestions'][:3]:
+                            # Duration pattern tells us the rhythmic structure
+                            # E.g., [2, 2, 3] = two equal durations then a longer one
+                            dominant_ratios.append(sug['duration_pattern'])
+                        
+                        rhythmic_complexity = ratio_result['complexity']
+                    else:
+                        dominant_ratios = [[1, 1]]  # Fallback: steady pulse
+            except (ZeroDivisionError, ValueError, RuntimeError) as e:
+                # Brandtsegg can fail on edge cases (sparse onsets, div-by-zero)
+                dominant_ratios = [[1, 1]]  # Fallback: steady pulse
+            
+            # Compute onset density
+            onset_density = len(window_onsets) / (end_time - start_time)
+            
+            # Compute average onset strength (structural pulse indicator)
+            beat_strength = float(np.mean(window_strengths)) if len(window_strengths) > 0 else 0.0
+            
+            # Compare to previous section (tempo change detection)
+            tempo_change = None
+            if sections:
+                prev_tempo = sections[-1]['local_tempo']
+                tempo_change = local_tempo / prev_tempo
+            
+            section_data = {
+                'start_time': float(start_time),
+                'end_time': float(end_time),
+                'local_tempo': float(local_tempo),
+                'dominant_ratios': dominant_ratios,
+                'tempo_change': float(tempo_change) if tempo_change else None,
+                'onset_density': float(onset_density),
+                'rhythmic_complexity': float(rhythmic_complexity),
+                'beat_strength': float(beat_strength),
+                'num_onsets': int(len(window_onsets))
+            }
+            
+            sections.append(section_data)
+            
+            # Progress indicator
+            tempo_change_str = f" (→{tempo_change:.2f}x)" if tempo_change else ""
+            print(f"   Section {len(sections)}: {start_time:.0f}s-{end_time:.0f}s: "
+                  f"{local_tempo:.1f} BPM{tempo_change_str}, "
+                  f"complexity {rhythmic_complexity:.2f}, "
+                  f"density {onset_density:.2f} onsets/s")
+        
+        print(f"✅ Long-form analysis complete: {len(sections)} sections detected")
+        
+        return sections
 
 
 def main():

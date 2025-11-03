@@ -17,6 +17,7 @@ from .phrase_memory_viewport import PhraseMemoryViewport
 from .audio_analysis_viewport import AudioAnalysisViewport
 from .timeline_viewport import TimelineViewport
 from .webcam_viewport import WebcamViewport
+from .gpt_reflection_viewport import GPTReflectionViewport
 
 
 class VisualizationManager:
@@ -60,7 +61,8 @@ class VisualizationManager:
                 'phrase_memory',
                 'audio_analysis',
                 'performance_timeline',
-                'webcam'
+                'webcam',
+                'gpt_reflection'
             ]
         
         self.viewports_config = viewports_config
@@ -80,7 +82,8 @@ class VisualizationManager:
             'phrase_memory': PhraseMemoryViewport,
             'audio_analysis': AudioAnalysisViewport,
             'performance_timeline': TimelineViewport,
-            'webcam': WebcamViewport
+            'webcam': WebcamViewport,
+            'gpt_reflection': GPTReflectionViewport
         }
         
         for viewport_id in self.viewports_config:
@@ -127,6 +130,13 @@ class VisualizationManager:
         if 'performance_timeline' in self.viewports:
             self.event_bus.timeline_update_signal.connect(
                 self.viewports['performance_timeline'].update_data,
+                Qt.QueuedConnection
+            )
+        
+        # GPT Reflection viewport
+        if 'gpt_reflection' in self.viewports:
+            self.event_bus.gpt_reflection_signal.connect(
+                self.viewports['gpt_reflection'].update_data,
                 Qt.QueuedConnection
             )
         

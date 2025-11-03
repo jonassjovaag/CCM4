@@ -48,11 +48,11 @@ class BehaviorController:
             BehaviorMode.SHADOW: {
                 'similarity_threshold': 0.95,  # EXTREME imitation
                 'request_weight': 0.98,        # Almost slavish following
-                'temperature': 0.3,            # VERY LOW = highly predictable
-                'phrase_variation': 0.05,      # Almost no variation
-                'response_delay': 0.1,         # IMMEDIATE response
-                'volume_factor': 0.6,          # Much quieter (shadow in background)
-                'note_density': 1.5,           # More notes (chatter)
+                'temperature': 0.2,            # ULTRA LOW = highly predictable (reduced from 0.3)
+                'phrase_variation': 0.02,      # Minimal variation (reduced from 0.05)
+                'response_delay': 0.05,        # ULTRA IMMEDIATE (reduced from 0.1)
+                'volume_factor': 0.5,          # Much quieter (reduced from 0.6 for more dramatic shadow)
+                'note_density': 1.8,           # Dense chatter (increased from 1.5)
                 'pitch_offset': 0              # Same register
             },
             BehaviorMode.MIRROR: {
@@ -67,12 +67,12 @@ class BehaviorController:
             },
             BehaviorMode.COUPLE: {
                 'similarity_threshold': 0.05,  # EXTREMELY independent
-                'request_weight': 0.2,         # Barely following
-                'temperature': 1.8,            # VERY HIGH = wild exploration
-                'phrase_variation': 0.9,       # Maximum variation
-                'response_delay': 3.0,         # LONG delay (own time)
-                'volume_factor': 1.2,          # LOUDER (equal partner)
-                'note_density': 0.6,           # Sparser (giving space)
+                'request_weight': 0.1,         # Almost independent (reduced from 0.2)
+                'temperature': 2.0,            # ULTRA HIGH = wild exploration (increased from 1.8)
+                'phrase_variation': 0.95,      # Maximum variation (increased from 0.9)
+                'response_delay': 4.0,         # VERY LONG delay (increased from 3.0)
+                'volume_factor': 1.3,          # LOUDER (increased from 1.2)
+                'note_density': 0.5,           # Sparser (reduced from 0.6 for more space)
                 'pitch_offset': 12             # Octave higher (distinct voice)
             },
             # Keep original modes for compatibility
@@ -87,13 +87,13 @@ class BehaviorController:
                 'pitch_offset': 0
             },
             BehaviorMode.CONTRAST: {
-                'similarity_threshold': 0.15,
-                'request_weight': 0.3,
-                'temperature': 1.5,
-                'phrase_variation': 0.85,
-                'response_delay': 1.5,
-                'volume_factor': 1.0,
-                'note_density': 0.7,
+                'similarity_threshold': 0.1,   # Very independent (reduced from 0.15)
+                'request_weight': 0.2,         # Low following (reduced from 0.3)
+                'temperature': 1.6,            # High exploration (increased from 1.5)
+                'phrase_variation': 0.9,       # Maximum variation (increased from 0.85)
+                'response_delay': 2.0,         # Longer delay (increased from 1.5)
+                'volume_factor': 1.1,          # Louder (increased from 1.0)
+                'note_density': 0.6,           # Sparser (reduced from 0.7)
                 'pitch_offset': -12            # Octave lower (bass counterpoint)
             },
             BehaviorMode.LEAD: {
@@ -263,10 +263,11 @@ class BehaviorEngine:
         }
         
         # Timing controls - STICKY MODES for sustained character
-        self.min_mode_duration = 30.0  # seconds (stay in mode longer)
-        self.max_mode_duration = 90.0  # seconds (sustained identity)
+        # Reduced from 30-90s to 15-45s for more dynamic variety (user feedback)
+        self.min_mode_duration = 15.0  # seconds (shorter for more transitions)
+        self.max_mode_duration = 45.0  # seconds (prevent single-mode dominance)
         self.mode_start_time = time.time()
-        self.current_mode_duration = random.uniform(30.0, 90.0)  # Target duration for current mode
+        self.current_mode_duration = random.uniform(15.0, 45.0)  # Target duration for current mode
         
         # Decision thresholds
         self.confidence_threshold = 0.5
@@ -323,20 +324,22 @@ class BehaviorEngine:
                     print(f"🎵 GPT-OSS: High silence detected, using longer pauses")
     
     def decide_behavior(self, current_event: Dict, 
-                       memory_buffer, clustering, activity_multiplier: float = 1.0) -> List[MusicalDecision]:
+                       memory_buffer, clustering, activity_multiplier: float = 1.0,
+                       arc_context: Optional[Dict] = None) -> List[MusicalDecision]:
         """Make musical decisions based on current context
         
         Args:
             activity_multiplier: Performance arc activity level (0.0-1.0) from timeline manager
+            arc_context: Performance arc context (phase, engagement_level, etc.)
         """
         current_time = time.time()
         
         # Store last event for drum-triggered evolution
         self._last_event = current_event
         
-        # Check if we should change mode
-        if self._should_change_mode(current_time):
-            self._select_new_mode(current_event, memory_buffer, clustering)
+        # Check if we should change mode (with arc context for dynamic durations)
+        if self._should_change_mode(current_time, arc_context):
+            self._select_new_mode(current_event, memory_buffer, clustering, arc_context)
         
         # Generate decisions based on current mode (melodic and bass) with activity multiplier
         decisions = self._generate_decision(
@@ -422,12 +425,38 @@ class BehaviorEngine:
         
         return decisions
     
-    def _should_change_mode(self, current_time: float) -> bool:
-        """Determine if we should change behavior mode"""
+    def _should_change_mode(self, current_time: float, arc_context: Optional[Dict] = None) -> bool:
+        """Determine if we should change behavior mode
+        
+        Args:
+            current_time: Current timestamp
+            arc_context: Performance arc context with phase info
+        """
         mode_duration = current_time - self.mode_start_time
         
+        # Get dynamic duration thresholds based on arc phase
+        min_duration = self.min_mode_duration
+        max_duration = self.max_mode_duration
+        
+        if arc_context:
+            performance_phase = arc_context.get('performance_phase', 'main')
+            
+            # Adjust duration based on arc phase
+            if performance_phase in ['buildup', 'ending']:
+                # Opening/Closing: Longer modes for stability
+                min_duration = self.min_mode_duration * 1.5  # 15s → 22.5s
+                max_duration = self.max_mode_duration * 1.3  # 45s → 58.5s
+                
+            elif performance_phase == 'main':
+                # Check if we're in peak energy
+                engagement = arc_context.get('engagement_level', 0.5)
+                if engagement > 0.7:
+                    # Peak: Shorter modes for variety
+                    min_duration = self.min_mode_duration * 0.7  # 15s → 10.5s
+                    max_duration = self.max_mode_duration * 0.7  # 45s → 31.5s
+        
         # Always change after max duration
-        if mode_duration >= self.max_mode_duration:
+        if mode_duration >= max_duration:
             return True
         
         # Check for drum-triggered evolution
@@ -439,15 +468,19 @@ class BehaviorEngine:
                     return random.random() < 0.6  # 60% chance with drums
                 return random.random() < 0.3  # Still some chance even early
         
-        # Sometimes change after min duration
-        if mode_duration >= self.min_mode_duration:
-            return random.random() < 0.3  # 30% chance
+        # Increased transition probability after min duration (from 30% to 50%)
+        # This creates more dynamic mode changes while maintaining coherence
+        if mode_duration >= min_duration:
+            # Progress-based probability (increases over time)
+            progress = (mode_duration - min_duration) / (max_duration - min_duration)
+            transition_prob = 0.5 + (0.3 * progress)  # 50% → 80% over duration range
+            return random.random() < transition_prob
         
         return False
     
     def _select_new_mode(self, current_event: Dict, 
-                        memory_buffer, clustering):
-        """Select a new behavior mode"""
+                        memory_buffer, clustering, arc_context: Optional[Dict] = None):
+        """Select a new behavior mode based on context and arc phase"""
         mode_change_start = time.time()
         
         # STICKY MODES: Check if we should persist with current mode
@@ -459,13 +492,31 @@ class BehaviorEngine:
         
         # Time to switch - weighted selection based on context
         modes = list(BehaviorMode)
-        weights = self._calculate_mode_weights(current_event, memory_buffer, clustering)
+        weights = self._calculate_mode_weights(current_event, memory_buffer, clustering, arc_context)
         
         # Select new mode based on weights
         new_mode = random.choices(modes, weights=weights)[0]
         self.current_mode = new_mode
         self.mode_start_time = time.time()
-        self.current_mode_duration = random.uniform(self.min_mode_duration, self.max_mode_duration)
+        
+        # Dynamic mode duration based on arc phase
+        min_dur = self.min_mode_duration
+        max_dur = self.max_mode_duration
+        
+        if arc_context:
+            performance_phase = arc_context.get('performance_phase', 'main')
+            engagement = arc_context.get('engagement_level', 0.5)
+            
+            if performance_phase in ['buildup', 'ending']:
+                # Opening/Closing: Longer modes
+                min_dur *= 1.5
+                max_dur *= 1.3
+            elif performance_phase == 'main' and engagement > 0.7:
+                # Peak: Shorter modes
+                min_dur *= 0.7
+                max_dur *= 0.7
+        
+        self.current_mode_duration = random.uniform(min_dur, max_dur)
         
         # Emit visualization event for mode change
         if self.visualization_manager:
@@ -494,38 +545,103 @@ class BehaviorEngine:
         print(f"🎭 Mode shift: {new_mode.value.upper()} (will persist for {self.current_mode_duration:.0f}s) [switch took {mode_change_duration*1000:.1f}ms]")
     
     def _calculate_mode_weights(self, current_event: Dict, 
-                              memory_buffer, clustering) -> List[float]:
-        """Calculate weights for mode selection based on context"""
-        # FIXED: Base weights for ALL 6 modes
-        # Order: [IMITATE, CONTRAST, LEAD, SHADOW, MIRROR, COUPLE]
-        weights = [0.15, 0.15, 0.15, 0.25, 0.20, 0.10]
+                              memory_buffer, clustering, arc_context: Optional[Dict] = None) -> List[float]:
+        """Calculate weights for mode selection based on context and arc phase
         
-        # Adjust based on recent activity
+        Args:
+            arc_context: Performance arc context with phase and engagement level
+            
+        Returns:
+            Weights for [IMITATE, CONTRAST, LEAD, SHADOW, MIRROR, COUPLE]
+        """
+        # BASE WEIGHTS (rebalanced from previous 0.4 shadow dominance)
+        # Order: [IMITATE, CONTRAST, LEAD, SHADOW, MIRROR, COUPLE]
+        base_weights = [0.05, 0.30, 0.30, 0.20, 0.10, 0.05]
+        
+        # === ACTIVITY-BASED ADJUSTMENTS (light touch when arc is active) ===
         recent_moments = memory_buffer.get_recent_moments(10.0)
+        
+        # Reduce influence of activity adjustments if arc context is provided
+        activity_influence = 0.5 if arc_context else 1.0
         
         if len(recent_moments) > 5:
             # High activity -> more MIRROR/COUPLE (phrase-aware, independent)
-            weights = [0.10, 0.15, 0.15, 0.15, 0.25, 0.20]
+            base_weights[4] += 0.10 * activity_influence  # MIRROR
+            base_weights[5] += 0.10 * activity_influence  # COUPLE
+            base_weights[3] -= 0.15 * activity_influence  # SHADOW
         elif len(recent_moments) < 2:
             # Low activity -> more SHADOW/IMITATE (follow closely)
-            weights = [0.20, 0.10, 0.10, 0.35, 0.15, 0.10]
+            base_weights[0] += 0.10 * activity_influence  # IMITATE
+            base_weights[3] += 0.15 * activity_influence  # SHADOW
+            base_weights[2] -= 0.15 * activity_influence  # LEAD
         
-        # Adjust based on onset activity
+        # === ONSET-BASED ADJUSTMENTS (reduced when arc is active) ===
         onset_count = sum(1 for moment in recent_moments 
                          if moment.event_data.get('onset', False))
         
         if onset_count > 3:
             # High onset activity -> more LEAD/COUPLE (take initiative)
-            weights = [0.10, 0.15, 0.25, 0.10, 0.15, 0.25]
+            base_weights[2] += 0.15 * activity_influence  # LEAD
+            base_weights[5] += 0.10 * activity_influence  # COUPLE
+            base_weights[3] -= 0.20 * activity_influence  # SHADOW
         
-        # DRUM-SPECIFIC: Drums trigger more contrast and lead evolution
+        # === DRUM-SPECIFIC EVOLUTION ===
         instrument = current_event.get('instrument', 'unknown')
         if instrument == 'drums':
             # Drums: prefer LEAD, COUPLE, CONTRAST
-            weights = [0.05, 0.25, 0.30, 0.10, 0.15, 0.15]
-            print(f"🥁 Drum evolution: weights={weights}")
+            base_weights = [0.05, 0.25, 0.30, 0.10, 0.15, 0.15]
+            print(f"🥁 Drum evolution: weights={base_weights}")
         
-        return weights
+        # === ARC-AWARE ADJUSTMENTS (APPLIED LAST - highest priority) ===
+        if arc_context:
+            performance_phase = arc_context.get('performance_phase', 'main')
+            engagement = arc_context.get('engagement_level', 0.5)
+            
+            if performance_phase == 'buildup':
+                # Opening: Learn and listen (imitate/shadow) - STRONG adjustments
+                base_weights[0] += 0.25  # IMITATE (increased from 0.15)
+                base_weights[3] += 0.30  # SHADOW (increased from 0.20)
+                base_weights[2] -= 0.35  # LEAD (stronger reduction)
+                base_weights[5] -= 0.15  # COUPLE
+                base_weights[1] -= 0.10  # CONTRAST
+                
+            elif performance_phase == 'ending':
+                # Closing: Gentle shadowing, fade out
+                base_weights[3] += 0.35  # SHADOW (increased from 0.25)
+                base_weights[0] += 0.15  # IMITATE
+                base_weights[2] -= 0.30  # LEAD (stronger reduction)
+                base_weights[5] -= 0.20  # COUPLE
+                
+            elif performance_phase == 'main':
+                # Main phase: Adjust based on engagement
+                if engagement > 0.7:
+                    # Peak energy: Maximum variety (lead/couple)
+                    base_weights[2] += 0.25  # LEAD (increased from 0.20)
+                    base_weights[5] += 0.20  # COUPLE (increased from 0.15)
+                    base_weights[3] -= 0.30  # SHADOW
+                    base_weights[0] -= 0.10  # IMITATE
+                elif engagement < 0.3:
+                    # Low engagement: Be supportive
+                    base_weights[3] += 0.20  # SHADOW
+                    base_weights[0] += 0.15  # IMITATE
+                    base_weights[2] -= 0.20  # LEAD
+                    base_weights[5] -= 0.15  # COUPLE
+        if instrument == 'drums':
+            # Drums: prefer LEAD, COUPLE, CONTRAST
+            base_weights = [0.05, 0.25, 0.30, 0.10, 0.15, 0.15]
+            print(f"🥁 Drum evolution: weights={base_weights}")
+        
+        # === AVOID IMMEDIATE REPETITION ===
+        current_mode_index = list(BehaviorMode).index(self.current_mode)
+        base_weights[current_mode_index] *= 0.5  # Halve probability of staying
+        
+        # === NORMALIZE ===
+        # Ensure non-negative and normalize to sum to 1.0
+        base_weights = [max(0.01, w) for w in base_weights]  # Floor at 0.01
+        total = sum(base_weights)
+        normalized_weights = [w / total for w in base_weights]
+        
+        return normalized_weights
     
     def _generate_decision(self, mode: BehaviorMode, current_event: Dict,
                           memory_buffer, clustering, activity_multiplier: float = 1.0) -> List[MusicalDecision]:

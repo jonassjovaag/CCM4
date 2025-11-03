@@ -52,11 +52,13 @@ class AIAgent:
         
         self.start_time = time.time()
     
-    def process_event(self, event_data: Dict, memory_buffer, clustering, activity_multiplier: float = 1.0) -> List[MusicalDecision]:
+    def process_event(self, event_data: Dict, memory_buffer, clustering, 
+                     activity_multiplier: float = 1.0, arc_context: Optional[Dict] = None) -> List[MusicalDecision]:
         """Process an audio event and make musical decisions
         
         Args:
             activity_multiplier: Performance arc activity level (0.0-1.0) from timeline manager
+            arc_context: Performance arc context (phase, engagement_level, etc.)
         """
         if not self.is_active:
             return []
@@ -73,9 +75,9 @@ class AIAgent:
         if not self.scheduler.should_make_decision():
             return []
         
-        # Make decisions (melodic and bass) with activity multiplier from performance arc
+        # Make decisions (melodic and bass) with activity multiplier and arc context
         decisions = self.behavior_engine.decide_behavior(
-            event_data, memory_buffer, clustering, activity_multiplier
+            event_data, memory_buffer, clustering, activity_multiplier, arc_context
         )
         
         # Record decisions

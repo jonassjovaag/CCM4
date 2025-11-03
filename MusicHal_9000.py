@@ -182,7 +182,8 @@ class EnhancedDriftEngineAI:
                  enable_live_training: bool = False,
                  wav2vec_model: str = "facebook/wav2vec2-base", use_gpu: bool = False,
                  gesture_window: float = 3.0, gesture_min_tokens: int = 3,
-                 debug_decisions: bool = False, enable_visualization: bool = False):
+                 debug_decisions: bool = False, enable_visualization: bool = False,
+                 enable_gpt_reflection: bool = True, reflection_interval: float = 60.0):
         # Core harmonic components (unchanged)
         self.listener: Optional[DriftListener] = None
         self.memory_buffer = MemoryBuffer()
@@ -302,6 +303,28 @@ class EnhancedDriftEngineAI:
         # Initialize AI Agent now that visualization_manager is available
         self.ai_agent = AIAgent(visualization_manager=self.visualization_manager)
         
+        # Initialize GPT-OSS live reflection engine (if enabled)
+        self.gpt_reflector = None
+        self.last_reflection_time = 0.0
+        self.enable_gpt_reflection = enable_gpt_reflection
+        self.reflection_interval = reflection_interval
+        self.decision_log: List[Dict] = []  # Track decisions for GPT reflection
+        
+        if self.enable_gpt_reflection and self.visualization_manager:
+            try:
+                from gpt_reflection_engine import AsyncGPTReflector
+                self.gpt_reflector = AsyncGPTReflector(interval=reflection_interval)
+                self.gpt_reflector.set_callback(self._on_reflection_ready)
+                print(f"🤖 GPT-OSS live reflection enabled (every {reflection_interval:.0f}s)")
+            except ImportError as e:
+                print(f"⚠️  GPT-OSS client not available, reflections disabled: {e}")
+                self.gpt_reflector = None
+            except Exception as e:
+                print(f"⚠️  Failed to initialize GPT reflector: {e}")
+                self.gpt_reflector = None
+        elif self.enable_gpt_reflection and not self.visualization_manager:
+            print("⚠️  GPT reflection requires visualization - enable with --visualize")
+        
         # Performance arc system
         self.timeline_manager: Optional[PerformanceTimelineManager] = None
         self.performance_duration = performance_duration
@@ -414,6 +437,30 @@ class EnhancedDriftEngineAI:
         }
         
         self.start_time = time.time()
+    
+    def _on_reflection_ready(self, reflection: str, timestamp: float):
+        """
+        Callback for GPT reflection completion (called from reflector thread).
+        
+        Args:
+            reflection: Reflection text from GPT-OSS
+            timestamp: Time of reflection completion
+        """
+        # Emit to visualization (thread-safe via Qt signals)
+        if self.visualization_manager:
+            self.visualization_manager.event_bus.emit_gpt_reflection(reflection, timestamp)
+        
+        # Log reflection for research
+        if self._conversation_log_file:
+            try:
+                self._conversation_log_file.write(f"{timestamp},{timestamp - self.start_time},gpt_reflection,,,,,,,,,,,\n")
+                self._conversation_log_file.flush()
+            except Exception:
+                pass  # Don't break on logging errors
+        
+        # Print to console (truncated)
+        reflection_preview = reflection[:150] + "..." if len(reflection) > 150 else reflection
+        print(f"🤖 GPT Reflection: {reflection_preview}")
     
     def _initialize_timeline_manager(self):
         """Initialize performance timeline manager"""
@@ -547,6 +594,10 @@ class EnhancedDriftEngineAI:
             else:
                 print("🎵 Rhythmic Analysis: Disabled")
             
+            # Start GPT reflector if enabled
+            if self.gpt_reflector:
+                self.gpt_reflector.start()
+            
             return True
             
         except Exception as e:
@@ -662,6 +713,10 @@ class EnhancedDriftEngineAI:
         if self.visualization_manager:
             self.visualization_manager.close()
             print("🎨 Visualization system closed")
+        
+        # Stop GPT reflector
+        if self.gpt_reflector:
+            self.gpt_reflector.stop()
         
         # Wait for main thread (only if we're NOT in it)
         if self.main_thread and self.main_thread.is_alive():
@@ -1038,13 +1093,21 @@ class EnhancedDriftEngineAI:
         
         # Get activity multiplier from timeline manager (for 3-phase arc)
         activity_multiplier = 1.0
+        arc_context = None
         if self.timeline_manager:
             guidance = self.timeline_manager.get_performance_guidance()
             activity_multiplier = guidance.get('activity_multiplier', 1.0)
+            # Build arc context for behavioral mode selection
+            arc_context = {
+                'performance_phase': self.timeline_manager.get_performance_phase(),
+                'engagement_level': guidance.get('engagement_level', 0.5),
+                'behavior_mode': guidance.get('behavior_mode', 'contrast'),
+                'silence_mode': guidance.get('silence_mode', False)
+            }
         
-        # Get all potential decisions (with activity multiplier for phrase length scaling)
+        # Get all potential decisions (with activity multiplier and arc context)
         all_decisions = self.ai_agent.process_event(
-            event_data, self.memory_buffer, self.clustering, activity_multiplier
+            event_data, self.memory_buffer, self.clustering, activity_multiplier, arc_context
         )
         
         # Filter decisions based on human activity and voice type
@@ -1098,6 +1161,19 @@ class EnhancedDriftEngineAI:
         
         if final_decisions:
             self.stats['decisions_made'] += len(final_decisions)
+            
+            # Log decisions for GPT reflection
+            for decision in final_decisions:
+                self.decision_log.append({
+                    'timestamp': time.time(),
+                    'mode': decision.mode.value,
+                    'voice_type': decision.voice_type,
+                    'confidence': decision.confidence
+                })
+            
+            # Keep only last 100 decisions
+            if len(self.decision_log) > 100:
+                self.decision_log = self.decision_log[-100:]
             
             # Process each decision (melodic and bass)
             for decision in final_decisions:
@@ -1769,6 +1845,22 @@ class EnhancedDriftEngineAI:
                 # Print status periodically (disabled - using live status bar)
                 # if int(current_time) % 60 == 0:  # Every minute
                 #     self._print_status()
+                
+                # Request GPT reflection if needed
+                if self.gpt_reflector and current_time - self.last_reflection_time > self.reflection_interval:
+                    # Get current mode from most recent decision
+                    current_mode = 'unknown'
+                    if self.decision_log and len(self.decision_log) > 0:
+                        current_mode = self.decision_log[-1].get('mode', 'unknown')
+                    
+                    reflection_data = {
+                        'memory_buffer': self.memory_buffer,
+                        'decision_log': self.decision_log[-50:],  # Last 50 decisions
+                        'current_mode': current_mode,
+                        'performance_time': current_time - self.start_time
+                    }
+                    self.gpt_reflector.request_reflection(reflection_data)
+                    self.last_reflection_time = current_time
                 
                 time.sleep(0.1)
                 
@@ -2665,6 +2757,10 @@ def main():
     parser.add_argument('--no-visualize', action='store_true', help='Disable multi-viewport visualization system - DEFAULT: ENABLED')
     parser.add_argument('--enable-live-training', action='store_true', 
                        help='Allow AudioOracle to learn from live input (may overwrite trained patterns)')
+    parser.add_argument('--no-gpt-reflection', action='store_true',
+                       help='Disable GPT-OSS live reflections (default: enabled)')
+    parser.add_argument('--reflection-interval', type=float, default=60.0,
+                       help='GPT reflection interval in seconds (default: 60)')
     
     args = parser.parse_args()
     
@@ -2683,7 +2779,9 @@ def main():
         gesture_window=args.gesture_window,
         gesture_min_tokens=args.gesture_min_tokens,
         debug_decisions=args.debug_decisions,
-        enable_visualization=not args.no_visualize
+        enable_visualization=not args.no_visualize,
+        enable_gpt_reflection=not args.no_gpt_reflection,
+        reflection_interval=args.reflection_interval
     )
     
     # Set parameters
