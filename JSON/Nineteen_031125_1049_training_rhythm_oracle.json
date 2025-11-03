@@ -1,0 +1,135 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "pattern_0",
+      "tempo": 60.09265988372109,
+      "density": 1.5905206853693183,
+      "syncopation": 0.239713774597495,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.27355218215371413,
+      "context": {
+        "start_time": 0.626938775510204,
+        "end_time": 8.800362811791382,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.7062058
+    },
+    {
+      "pattern_id": "pattern_1",
+      "tempo": 60.09265988372109,
+      "density": 3.31280048076923,
+      "syncopation": 0.30232558139534466,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.22148771078328994,
+      "context": {
+        "start_time": 11.261678004535147,
+        "end_time": 13.374693877551021,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.706212
+    },
+    {
+      "pattern_id": "pattern_2",
+      "tempo": 60.09265988372109,
+      "density": 2.0778966597077244,
+      "syncopation": 0.2503354203935675,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.24088118052313068,
+      "context": {
+        "start_time": 15.928888888888888,
+        "end_time": 116.0301133786848,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.706217
+    },
+    {
+      "pattern_id": "pattern_3",
+      "tempo": 60.09265988372109,
+      "density": 2.4204410601265827,
+      "syncopation": 0.24051958935682813,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.210454302647434,
+      "context": {
+        "start_time": 118.11990929705216,
+        "end_time": 209.83873015873016,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.7062201
+    },
+    {
+      "pattern_id": "pattern_4",
+      "tempo": 60.09265988372109,
+      "density": 2.16982988773275,
+      "syncopation": 0.2431749241657528,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.2337290563843823,
+      "context": {
+        "start_time": 212.25360544217688,
+        "end_time": 233.45342403628118,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.706223
+    },
+    {
+      "pattern_id": "pattern_5",
+      "tempo": 60.09265988372109,
+      "density": 2.0803183165300245,
+      "syncopation": 0.2418391295072192,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.17769839090321643,
+      "context": {
+        "start_time": 238.1902947845805,
+        "end_time": 342.9819501133787,
+        "complexity": 0.9441572347844753
+      },
+      "timestamp": 1762163378.7062259
+    }
+  ],
+  "transitions": {
+    "pattern_0": {
+      "pattern_1": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_1": {
+      "pattern_2": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_2": {
+      "pattern_3": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_3": {
+      "pattern_4": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_4": {
+      "pattern_5": {
+        "frequency": 1,
+        "context": {}
+      }
+    }
+  },
+  "frequency": {
+    "pattern_0": 1,
+    "pattern_1": 2,
+    "pattern_2": 2,
+    "pattern_3": 2,
+    "pattern_4": 2,
+    "pattern_5": 2
+  },
+  "timestamp": 1762164160.050724
+}

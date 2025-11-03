@@ -275,9 +275,14 @@ class EnhancedDriftEngineAI:
         self.rhythmic_analyzer = None
         self.ratio_analyzer = None
         
-        # Rhythm oracle and agent (not used for now, but initialized for compatibility)
-        self.rhythm_oracle = None
-        self.rhythmic_agent = None
+        # Rhythm oracle and agent - learns rhythmic phrasing patterns
+        # Purpose: Provides WHEN/HOW to phrase notes (complements AudioOracle's WHAT notes)
+        # Architecture: Harmonic (AudioOracle) + Rhythmic (RhythmOracle) = Complete musical intelligence
+        self.rhythm_oracle = RhythmOracle() if enable_rhythmic else None
+        self.rhythmic_agent = None  # Will be initialized if needed
+        
+        if self.rhythm_oracle:
+            print("🥁 RhythmOracle initialized - ready to learn rhythmic phrasing")
         
         # Unified decision engine for cross-modal intelligence
         self.unified_decision_engine = UnifiedDecisionEngine()
@@ -837,6 +842,37 @@ class EnhancedDriftEngineAI:
                         if self._gesture_token_count < 10:
                             print(f"🎵 Gesture token: {hybrid_result.symbolic_token} (smoothed), {hybrid_result.raw_gesture_token} (raw)")
                             self._gesture_token_count += 1
+                    
+                    # DUAL VOCABULARY: Extract harmonic and percussive tokens (if enabled)
+                    if hasattr(self.hybrid_perception, 'enable_dual_vocabulary') and self.hybrid_perception.enable_dual_vocabulary:
+                        if hasattr(hybrid_result, 'harmonic_token') and hybrid_result.harmonic_token is not None:
+                            event_data['harmonic_token'] = hybrid_result.harmonic_token
+                        if hasattr(hybrid_result, 'percussive_token') and hybrid_result.percussive_token is not None:
+                            event_data['percussive_token'] = hybrid_result.percussive_token
+                        
+                        # DUAL VOCABULARY: Detect content type for adaptive response
+                        if hasattr(hybrid_result, 'content_type') and hybrid_result.content_type:
+                            content_type = hybrid_result.content_type
+                            h_ratio = getattr(hybrid_result, 'harmonic_ratio', 0.0)
+                            p_ratio = getattr(hybrid_result, 'percussive_ratio', 0.0)
+                            
+                            event_data['content_type'] = content_type
+                            event_data['harmonic_ratio'] = h_ratio
+                            event_data['percussive_ratio'] = p_ratio
+                            
+                            # Debug: Log content detection (first 20 times)
+                            if not hasattr(self, '_content_detect_count'):
+                                self._content_detect_count = 0
+                            if self._content_detect_count < 20:
+                                harm_tok = event_data.get('harmonic_token', 'None')
+                                perc_tok = event_data.get('percussive_token', 'None')
+                                if content_type == "percussive":
+                                    print(f"🥁 Drums detected ({p_ratio:.1%}) → harm_tok={harm_tok}, perc_tok={perc_tok}")
+                                elif content_type == "harmonic":
+                                    print(f"🎸 Guitar detected ({h_ratio:.1%}) → harm_tok={harm_tok}, perc_tok={perc_tok}")
+                                elif content_type == "hybrid":
+                                    print(f"🎵 Hybrid input ({h_ratio:.1%}/{p_ratio:.1%}) → harm_tok={harm_tok}, perc_tok={perc_tok}")
+                                self._content_detect_count += 1
                     
                     # Extract chord label from ratio analysis (for visualization)
                     if hybrid_result.ratio_analysis:
@@ -2023,21 +2059,43 @@ class EnhancedDriftEngineAI:
                     
                     # Load gesture vocabulary (quantizer) if available
                     if self.hybrid_perception and self.enable_hybrid_perception:
-                        # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
-                        gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
-                        symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
-                        old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                        # DUAL VOCABULARY: Check for dual vocabulary files first
+                        harmonic_vocab_file = most_recent_file.replace('_model.json', '_harmonic_vocab.joblib')
+                        percussive_vocab_file = most_recent_file.replace('_model.json', '_percussive_vocab.joblib')
                         
-                        quantizer_file = None
-                        if os.path.exists(gesture_quantizer_file):
-                            quantizer_file = gesture_quantizer_file
-                            quantizer_type = "gesture (Wav2Vec)"
-                        elif os.path.exists(symbolic_quantizer_file):
-                            quantizer_file = symbolic_quantizer_file
-                            quantizer_type = "symbolic (traditional)"
-                        elif os.path.exists(old_quantizer_file):
-                            quantizer_file = old_quantizer_file
-                            quantizer_type = "legacy"
+                        # Check if this is a dual vocabulary model
+                        if os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file):
+                            try:
+                                # Load both vocabularies
+                                self.hybrid_perception.load_vocabulary(harmonic_vocab_file, vocabulary_type="harmonic")
+                                self.hybrid_perception.load_vocabulary(percussive_vocab_file, vocabulary_type="percussive")
+                                print(f"✅ Dual vocabulary loaded: harmonic + percussive (64 tokens each)")
+                                print(f"   🎸 Harmonic: {harmonic_vocab_file}")
+                                print(f"   🥁 Percussive: {percussive_vocab_file}")
+                                
+                                # Enable dual vocabulary mode
+                                if hasattr(self.hybrid_perception, 'enable_dual_vocabulary'):
+                                    self.hybrid_perception.enable_dual_vocabulary = True
+                                    print("✅ Dual vocabulary mode ENABLED")
+                            except Exception as e:
+                                print(f"⚠️  Could not load dual vocabularies: {e}")
+                        else:
+                            # Fall back to single vocabulary loading
+                            # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
+                            gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
+                            symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
+                            old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                            
+                            quantizer_file = None
+                            if os.path.exists(gesture_quantizer_file):
+                                quantizer_file = gesture_quantizer_file
+                                quantizer_type = "gesture (Wav2Vec)"
+                            elif os.path.exists(symbolic_quantizer_file):
+                                quantizer_file = symbolic_quantizer_file
+                                quantizer_type = "symbolic (traditional)"
+                            elif os.path.exists(old_quantizer_file):
+                                quantizer_file = old_quantizer_file
+                                quantizer_type = "legacy"
                         
                         if quantizer_file:
                             try:
@@ -2092,6 +2150,26 @@ class EnhancedDriftEngineAI:
                         else:
                             print(f"⚠️  No quantizer file found ({quantizer_file})")
                             print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
+                    
+                    # Load RhythmOracle if available and enabled
+                    if self.rhythm_oracle and self.enable_rhythmic:
+                        rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                        if os.path.exists(rhythm_oracle_file):
+                            try:
+                                print(f"🥁 Loading RhythmOracle from: {rhythm_oracle_file}")
+                                self.rhythm_oracle.load_patterns(rhythm_oracle_file)
+                                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                print(f"✅ RhythmOracle loaded successfully!")
+                                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                      f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                      f"transitions: {rhythm_stats['total_transitions']}")
+                            except Exception as e:
+                                print(f"⚠️  Could not load RhythmOracle: {e}")
+                                print(f"   Rhythmic phrasing will not be available")
+                        else:
+                            print(f"⚠️  No RhythmOracle file found ({rhythm_oracle_file})")
+                            print(f"   Rhythmic phrasing will not be available - retrain with --rhythmic flag")
                     
                     model_loaded = True
                 else:

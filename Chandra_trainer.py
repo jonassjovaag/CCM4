@@ -78,7 +78,8 @@ class EnhancedHybridTrainingPipeline:
                  symbolic_vocabulary_size: int = 64,
                  enable_wav2vec: bool = True,
                  wav2vec_model: str = "facebook/wav2vec2-base",
-                 use_gpu: bool = True):
+                 use_gpu: bool = True,
+                 enable_dual_vocabulary: bool = False):
         """
         Initialize enhanced hybrid training pipeline
         
@@ -94,6 +95,7 @@ class EnhancedHybridTrainingPipeline:
             enable_wav2vec: Enable Wav2Vec 2.0 neural encoding (replaces ratio+chroma)
             wav2vec_model: HuggingFace model name for Wav2Vec
             use_gpu: Use GPU for Wav2Vec (MPS/CUDA)
+            enable_dual_vocabulary: Enable dual harmonic/percussive vocabularies (for drums)
         """
         print("🎵 Initializing Enhanced Hybrid Training Pipeline...")
         
@@ -161,7 +163,8 @@ class EnhancedHybridTrainingPipeline:
                     vocabulary_size=symbolic_vocabulary_size,
                     wav2vec_model=wav2vec_model,
                     use_gpu=use_gpu,
-                    enable_symbolic=True
+                    enable_symbolic=True,
+                    enable_dual_vocabulary=enable_dual_vocabulary
                 )
                 self.hybrid_perception = None  # Not using old hybrid system
                 print(f"🎵 Dual perception enabled:")
@@ -169,6 +172,8 @@ class EnhancedHybridTrainingPipeline:
                 print(f"   Machine logic: Ratio analysis → consonance + frequency ratios")
                 print(f"   Human interface: Chord names for display only")
                 print(f"   ✨ Tokens ARE the patterns, not chord names!")
+                if enable_dual_vocabulary:
+                    print(f"   🥁 Dual vocabulary mode: {symbolic_vocabulary_size} harmonic + {symbolic_vocabulary_size} percussive tokens")
             else:
                 # Traditional hybrid perception (ratio + chroma)
                 from listener.hybrid_perception import HybridPerceptionModule
@@ -710,6 +715,20 @@ class EnhancedHybridTrainingPipeline:
                 else:
                     print(f"❌ Failed to save AudioOracle model")
         
+        # Save RhythmOracle model for rhythmic phrasing
+        rhythm_oracle_file = f"{model_base}_rhythm_oracle.json"
+        if self.rhythm_oracle:
+            print(f"🥁 Saving RhythmOracle model to {rhythm_oracle_file}...")
+            try:
+                self.rhythm_oracle.save_patterns(rhythm_oracle_file)
+                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                print(f"✅ RhythmOracle model saved successfully!")
+                print(f"📊 Model contains: {rhythm_stats['total_patterns']} rhythmic patterns, "
+                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                      f"avg density {rhythm_stats['avg_density']:.2f}")
+            except Exception as e:
+                print(f"❌ Failed to save RhythmOracle model: {e}")
+        
         # Save correlation patterns for live use (use same base name)
         correlation_file = f"{model_base}_correlation_patterns.json"
         if hasattr(self, 'correlation_analyzer') and self.correlation_analyzer.correlation_patterns:
@@ -746,14 +765,36 @@ class EnhancedHybridTrainingPipeline:
         
         # Save gesture vocabulary (Wav2Vec quantizer) for live use
         if self.dual_perception:
-            gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
-            try:
-                self.dual_perception.save_quantizer(gesture_quantizer_file)
-                print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
-            except Exception as e:
-                print(f"⚠️  Failed to save gesture quantizer: {e}")
-                import traceback
-                traceback.print_exc()
+            if self.dual_perception.enable_dual_vocabulary:
+                # Save BOTH harmonic and percussive vocabularies
+                harmonic_vocab_file = f"{model_base}_harmonic_vocab.joblib"
+                percussive_vocab_file = f"{model_base}_percussive_vocab.joblib"
+                
+                try:
+                    self.dual_perception.save_vocabulary(harmonic_vocab_file, "harmonic")
+                    print(f"✅ Saved harmonic vocabulary to {harmonic_vocab_file}")
+                except Exception as e:
+                    print(f"⚠️  Failed to save harmonic vocabulary: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                try:
+                    self.dual_perception.save_vocabulary(percussive_vocab_file, "percussive")
+                    print(f"✅ Saved percussive vocabulary to {percussive_vocab_file}")
+                except Exception as e:
+                    print(f"⚠️  Failed to save percussive vocabulary: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                # Save single gesture vocabulary (traditional mode)
+                gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
+                try:
+                    self.dual_perception.save_quantizer(gesture_quantizer_file)
+                    print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
+                except Exception as e:
+                    print(f"⚠️  Failed to save gesture quantizer: {e}")
+                    import traceback
+                    traceback.print_exc()
         
         # Save symbolic quantizer vocabulary (hybrid/traditional) if available
         if self.hybrid_perception:
@@ -1095,16 +1136,59 @@ class EnhancedHybridTrainingPipeline:
         # Load audio
         audio, sr = librosa.load(audio_file, sr=44100)
         
-        # Segment audio (350ms as per IRCAM paper)
-        segmenter = TemporalSegmenter(segment_duration_ms=350.0)
-        segments = segmenter.segment_audio(audio, sr)
-        
-        print(f"   Temporal segmentation: {len(segments)} segments (350ms each)")
-        print(f"   🤖 Machine: Extracting gesture tokens + ratios (NO chord names!)")
-        print(f"   👤 Human: Translating to chord labels (for display only)")
+        # DUAL VOCABULARY MODE: Apply HPSS to separate harmonic and percussive sources
+        if self.dual_perception.enable_dual_vocabulary:
+            print(f"   🎸🥁 Dual vocabulary mode: Applying HPSS separation...")
+            audio_harmonic, audio_percussive = librosa.effects.hpss(
+                audio,
+                kernel_size=31,  # Balance between separation quality and processing time
+                power=2.0,       # Standard power spectrogram
+                mask=True        # Use masking for cleaner separation
+            )
+            
+            # Calculate energy ratios for verification
+            harmonic_energy = np.sum(audio_harmonic ** 2)
+            percussive_energy = np.sum(audio_percussive ** 2)
+            total_energy = harmonic_energy + percussive_energy
+            harm_ratio = harmonic_energy / total_energy if total_energy > 0 else 0.5
+            perc_ratio = percussive_energy / total_energy if total_energy > 0 else 0.5
+            
+            print(f"      HPSS separation complete:")
+            print(f"      • Harmonic energy: {harm_ratio:.1%}")
+            print(f"      • Percussive energy: {perc_ratio:.1%}")
+            
+            # Segment both sources separately
+            segmenter_harmonic = TemporalSegmenter(segment_duration_ms=350.0)
+            segmenter_percussive = TemporalSegmenter(segment_duration_ms=350.0)
+            
+            harmonic_segments = segmenter_harmonic.segment_audio(audio_harmonic, sr)
+            percussive_segments = segmenter_percussive.segment_audio(audio_percussive, sr)
+            
+            print(f"      • Harmonic segments: {len(harmonic_segments)}")
+            print(f"      • Percussive segments: {len(percussive_segments)}")
+            
+            # Use combined audio for main processing (preserves correlations)
+            segments = segmenter_harmonic.segment_audio(audio, sr)
+            
+            print(f"   Temporal segmentation: {len(segments)} combined segments (350ms each)")
+            print(f"   🤖 Machine: Extracting dual gesture tokens (harmonic + percussive)")
+            print(f"   👤 Human: Translating to chord labels (for display only)")
+        else:
+            # Traditional mode: single vocabulary
+            # Segment audio (350ms as per IRCAM paper)
+            segmenter = TemporalSegmenter(segment_duration_ms=350.0)
+            segments = segmenter.segment_audio(audio, sr)
+            harmonic_segments = None
+            percussive_segments = None
+            
+            print(f"   Temporal segmentation: {len(segments)} segments (350ms each)")
+            print(f"   🤖 Machine: Extracting gesture tokens + ratios (NO chord names!)")
+            print(f"   👤 Human: Translating to chord labels (for display only)")
         
         # Extract dual features for each segment
         segment_features = []
+        harmonic_wav2vec_features = [] if self.dual_perception.enable_dual_vocabulary else None
+        percussive_wav2vec_features = [] if self.dual_perception.enable_dual_vocabulary else None
         
         for i, segment in enumerate(segments):
             # Get F0 from nearby events
@@ -1112,7 +1196,7 @@ class EnhancedHybridTrainingPipeline:
             nearest_event = min(events, key=lambda e: abs(e.get('t', 0) - segment_time))
             detected_f0 = nearest_event.get('f0', 0.0) if nearest_event.get('f0', 0.0) > 0 else None
             
-            # Extract dual features using existing API
+            # Extract dual features using existing API (from COMBINED audio)
             dual_result = self.dual_perception.extract_features(
                 audio=segment.audio,
                 sr=segment.sample_rate,
@@ -1133,14 +1217,54 @@ class EnhancedHybridTrainingPipeline:
                 'active_pcs': dual_result.active_pitch_classes
             })
             
+            # DUAL VOCABULARY MODE: Extract Wav2Vec features from separated sources
+            if self.dual_perception.enable_dual_vocabulary and harmonic_segments and percussive_segments:
+                # Extract from harmonic source
+                harmonic_segment = harmonic_segments[i]
+                harmonic_wav2vec_result = self.dual_perception.wav2vec_encoder.encode(
+                    audio=harmonic_segment.audio,
+                    sr=harmonic_segment.sample_rate,
+                    timestamp=harmonic_segment.start_time
+                )
+                if harmonic_wav2vec_result:
+                    harmonic_wav2vec_features.append(harmonic_wav2vec_result.features)
+                
+                # Extract from percussive source
+                percussive_segment = percussive_segments[i]
+                percussive_wav2vec_result = self.dual_perception.wav2vec_encoder.encode(
+                    audio=percussive_segment.audio,
+                    sr=percussive_segment.sample_rate,
+                    timestamp=percussive_segment.start_time
+                )
+                if percussive_wav2vec_result:
+                    percussive_wav2vec_features.append(percussive_wav2vec_result.features)
+            
             if (i + 1) % 50 == 0 or (i + 1) == len(segments):
                 print(f"   Processed {i + 1}/{len(segments)} segments")
         
-        # Train gesture vocabulary from Wav2Vec features
-        print(f"   🎓 Training gesture vocabulary from {len(segment_features)} segments...")
-        wav2vec_features_list = [sf['wav2vec_features'] for sf in segment_features]
-        self.dual_perception.train_gesture_vocabulary(wav2vec_features_list)
-        print(f"      ✅ Gesture tokens represent LEARNED PATTERNS, not chord names!")
+        # Train gesture vocabulary/vocabularies
+        if self.dual_perception.enable_dual_vocabulary:
+            print(f"   🎓 Training DUAL vocabularies from {len(segment_features)} segments...")
+            
+            # Train harmonic vocabulary
+            if harmonic_wav2vec_features:
+                print(f"      Training harmonic vocabulary ({len(harmonic_wav2vec_features)} features)...")
+                self.dual_perception.train_gesture_vocabulary(harmonic_wav2vec_features, "harmonic")
+                print(f"      ✅ Harmonic tokens capture guitar/bass/sustained tones")
+            
+            # Train percussive vocabulary
+            if percussive_wav2vec_features:
+                print(f"      Training percussive vocabulary ({len(percussive_wav2vec_features)} features)...")
+                self.dual_perception.train_gesture_vocabulary(percussive_wav2vec_features, "percussive")
+                print(f"      ✅ Percussive tokens capture drums/hi-hats/transients")
+            
+            print(f"      ✅ Dual vocabularies trained! System can now respond appropriately to drums OR guitar")
+        else:
+            # Traditional single vocabulary training
+            print(f"   🎓 Training gesture vocabulary from {len(segment_features)} segments...")
+            wav2vec_features_list = [sf['wav2vec_features'] for sf in segment_features]
+            self.dual_perception.train_gesture_vocabulary(wav2vec_features_list, "single")
+            print(f"      ✅ Gesture tokens represent LEARNED PATTERNS, not chord names!")
         
         # Map segments to events and augment with DUAL representations
         print(f"   Mapping to {len(events)} events...")
@@ -1171,15 +1295,42 @@ class EnhancedHybridTrainingPipeline:
             closest_segment = min(segment_features,
                                 key=lambda s: abs((s['start_time'] + s['end_time'])/2 - event_time))
             
-            # Extract gesture token for this segment (after vocabulary is trained)
+            # Extract gesture token(s) for this segment (after vocabulary is trained)
             wav2vec_feat = closest_segment['wav2vec_features'].astype(np.float64)
-            gesture_token = None
-            if self.dual_perception.quantizer and self.dual_perception.quantizer.is_fitted:
-                gesture_token = int(self.dual_perception.quantizer.transform(wav2vec_feat.reshape(1, -1))[0])
             
-            # === MACHINE REPRESENTATION (What AI actually works with) ===
-            # Gesture token: The learned pattern ID (0-63)
-            event['gesture_token'] = gesture_token
+            if self.dual_perception.enable_dual_vocabulary:
+                # DUAL VOCABULARY MODE: Assign both harmonic and percussive tokens
+                # Find corresponding harmonic and percussive features
+                segment_idx = min(range(len(harmonic_wav2vec_features)),
+                                key=lambda i: abs(len(harmonic_wav2vec_features[i]) - len(wav2vec_feat)))
+                
+                # Assign harmonic token
+                harmonic_token = None
+                if self.dual_perception.harmonic_quantizer and self.dual_perception.harmonic_quantizer.is_fitted:
+                    if segment_idx < len(harmonic_wav2vec_features):
+                        harmonic_feat = harmonic_wav2vec_features[segment_idx].astype(np.float64)
+                        harmonic_token = int(self.dual_perception.harmonic_quantizer.transform(harmonic_feat.reshape(1, -1))[0])
+                
+                # Assign percussive token
+                percussive_token = None
+                if self.dual_perception.percussive_quantizer and self.dual_perception.percussive_quantizer.is_fitted:
+                    if segment_idx < len(percussive_wav2vec_features):
+                        percussive_feat = percussive_wav2vec_features[segment_idx].astype(np.float64)
+                        percussive_token = int(self.dual_perception.percussive_quantizer.transform(percussive_feat.reshape(1, -1))[0])
+                
+                # === MACHINE REPRESENTATION (What AI actually works with) ===
+                event['harmonic_token'] = harmonic_token
+                event['percussive_token'] = percussive_token
+                event['gesture_token'] = harmonic_token  # Legacy compatibility (use harmonic as default)
+            else:
+                # TRADITIONAL MODE: Single gesture token
+                gesture_token = None
+                if self.dual_perception.quantizer and self.dual_perception.quantizer.is_fitted:
+                    gesture_token = int(self.dual_perception.quantizer.transform(wav2vec_feat.reshape(1, -1))[0])
+                
+                # === MACHINE REPRESENTATION (What AI actually works with) ===
+                # Gesture token: The learned pattern ID (0-63)
+                event['gesture_token'] = gesture_token
             
             # Wav2Vec features: The 768D neural encoding (for AudioOracle)
             event['features'] = closest_segment['wav2vec_features'].tolist()
@@ -2192,6 +2343,8 @@ def main():
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
     parser.add_argument('--no-gpu', action='store_true',
                        help='Disable GPU for Wav2Vec (force CPU)')
+    parser.add_argument('--no-dual-vocabulary', action='store_true',
+                       help='Disable dual vocabulary mode (separate harmonic/percussive tokens for drums)')
     parser.add_argument('--analyze-arc-structure', action='store_true',
                        help='Analyze long-form arc structure (sections, tempo changes, phase mapping)')
     parser.add_argument('--section-duration', type=float, default=60.0,
@@ -2232,7 +2385,8 @@ def main():
         symbolic_vocabulary_size=args.vocab_size,
         enable_wav2vec=not args.no_wav2vec,
         wav2vec_model=args.wav2vec_model,
-        use_gpu=not args.no_gpu
+        use_gpu=not args.no_gpu,
+        enable_dual_vocabulary=not args.no_dual_vocabulary
     )
     
     # Train from audio file
