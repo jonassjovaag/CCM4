@@ -131,8 +131,8 @@ class DualPerceptionModule:
                  wav2vec_model: str = "facebook/wav2vec2-base",
                  use_gpu: bool = False,
                  enable_symbolic: bool = True,
-                 gesture_window: float = 3.0,      # Temporal smoothing window
-                 gesture_min_tokens: int = 3,      # Min tokens for consensus
+                 gesture_window: float = 1.5,      # Reduced from 3.0s - more responsive to rapid changes
+                 gesture_min_tokens: int = 2,      # Reduced from 3 - faster consensus
                  enable_dual_vocabulary: bool = False):  # NEW: Enable dual vocab mode
         """
         Initialize dual perception module
@@ -143,7 +143,8 @@ class DualPerceptionModule:
             use_gpu: Use GPU for Wav2Vec (MPS/CUDA)
             enable_symbolic: Enable gesture token quantization
             gesture_window: Temporal smoothing window for gesture tokens (seconds)
-            gesture_min_tokens: Minimum tokens needed for consensus
+                          1.5s balances phrase coherence with rhythmic responsiveness
+            gesture_min_tokens: Minimum tokens needed for consensus (2 = faster response)
             enable_dual_vocabulary: Enable dual harmonic/percussive vocabularies (for drums)
         """
         print("🔬 Initializing Dual Perception Module...")
@@ -171,7 +172,7 @@ class DualPerceptionModule:
         self.gesture_smoother = GestureTokenSmoother(
             window_duration=gesture_window,
             min_tokens=gesture_min_tokens,
-            decay_time=1.0  # 1-second decay for recent token priority
+            decay_time=0.5  # Faster decay (0.5s) - more responsive to recent tokens
         )
         
         # Ratio-based harmonic pathway
@@ -181,7 +182,7 @@ class DualPerceptionModule:
         print("✅ Dual perception initialized:")
         print(f"   Wav2Vec model: {wav2vec_model}")
         print(f"   Vocabulary size: {vocabulary_size} gesture tokens")
-        print(f"   Gesture smoothing: {gesture_window}s window")
+        print(f"   Gesture smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens, 0.5s decay")
         print(f"   GPU: {'Yes' if use_gpu else 'No'}")
         print(f"   Dual vocabulary: {'Yes' if enable_dual_vocabulary else 'No'}")
     
@@ -228,6 +229,17 @@ class DualPerceptionModule:
         
         # Use smoothed token as the primary gesture_token for AI
         gesture_token = smoothed_gesture_token if smoothed_gesture_token is not None else raw_gesture_token
+        
+        # DEBUG: Log gesture token diversity (every 10th call to avoid spam)
+        if hasattr(self, '_gesture_debug_counter'):
+            self._gesture_debug_counter += 1
+        else:
+            self._gesture_debug_counter = 1
+            
+        if self._gesture_debug_counter % 10 == 0:
+            smoother_stats = self.gesture_smoother.get_statistics()
+            print(f"🎯 Gesture tokens - Raw: {raw_gesture_token}, Smoothed: {gesture_token}, "
+                  f"Window: {smoother_stats['tokens_in_window']}, Changes: {smoother_stats['consensus_changes']}")
         
         # === PATHWAY 2: Ratio-Based Harmonic Analysis (for context + display) ===
         

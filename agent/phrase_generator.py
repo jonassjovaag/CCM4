@@ -152,6 +152,19 @@ class PhraseGenerator:
         if len(human_events) > 0 and len(tokens) == 0:
             print(f"🔍 DEBUG: Found {len(human_events)} human events but no gesture tokens")
         
+        # DEBUG: Check for gesture token homogeneity
+        if len(tokens) > 0:
+            unique_tokens = len(set(tokens))
+            total_tokens = len(tokens)
+            diversity_ratio = unique_tokens / total_tokens
+            print(f"🎯 GESTURE DIVERSITY: {unique_tokens}/{total_tokens} unique tokens (diversity: {diversity_ratio:.2f})")
+            if diversity_ratio < 0.3:
+                print(f"⚠️ LOW GESTURE DIVERSITY: Most tokens are similar ({tokens})")
+            elif diversity_ratio < 0.6:
+                print(f"🔍 MODERATE GESTURE DIVERSITY: Some variety ({tokens})")
+            else:
+                print(f"✅ GOOD GESTURE DIVERSITY: Varied tokens ({tokens})")
+        
         return tokens[-n:] if len(tokens) > n else tokens
     
     def _calculate_avg_consonance(self, n: int = 10) -> float:
@@ -715,12 +728,12 @@ class PhraseGenerator:
                 self.current_arc = PhraseArc.CONTEMPLATION
             else:
                 # Normal flow - varied arcs, NO SILENCE
-                weights = [0.3, 0.3, 0.4, 0.0, 0.0]  # buildup, peak, RELEASE, contemplation, NO SILENCE
+                weights = [0.0, 0.3, 0.3, 0.4, 0.0]  # NO SILENCE, buildup, peak, RELEASE, contemplation
                 self.current_arc = random.choices(list(PhraseArc), weights=weights)[0]
             
             self.arc_start_time = current_time
             self.arc_duration = random.uniform(10.0, 20.0)  # Shorter arc cycles (10-20 seconds)
-            
+        
         return self.current_arc
     
     def _update_harmonic_context(self, harmonic_context: Dict):

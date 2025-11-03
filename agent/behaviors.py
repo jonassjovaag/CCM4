@@ -762,7 +762,7 @@ class BehaviorEngine:
                         # Generated phrase (silent)
         
         else:
-            print(f"🎹 No phrase generator - using fallback single notes")
+            print("🎹 No phrase generator - using fallback single notes")
             # Fallback to single note generation if no phrase generator
             time_since_melody = current_time - self.last_melody_time
             time_since_bass = current_time - self.last_bass_time
