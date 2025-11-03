@@ -221,7 +221,10 @@ class PhraseGenerator:
         Returns:
             Dict with rhythmic phrasing parameters or None if unavailable
         """
+        print(f"🥁 DEBUG: _get_rhythmic_phrasing_from_oracle called, rhythm_oracle={self.rhythm_oracle is not None}")
+        
         if self.rhythm_oracle is None:
+            print(f"🥁 DEBUG: RhythmOracle is None, returning None")
             return None
         
         # Build query context from recent events if not provided
@@ -243,10 +246,12 @@ class PhraseGenerator:
         
         # Query RhythmOracle for similar patterns
         try:
+            print(f"🥁 DEBUG: Querying RhythmOracle with context: {current_context}")
             similar_patterns = self.rhythm_oracle.find_similar_patterns(
                 current_context, 
                 threshold=0.6  # 60% similarity threshold
             )
+            print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
             
             if similar_patterns:
                 # Use most similar pattern (first in sorted list)
@@ -401,6 +406,9 @@ class PhraseGenerator:
                 rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
                 if rhythmic_phrasing:
                     request['rhythmic_phrasing'] = rhythmic_phrasing
+                    print(f"🥁 Added rhythmic phrasing to shadow request: {rhythmic_phrasing}")
+                else:
+                    print(f"🥁 No rhythmic phrasing available for shadow request")
                 
                 return request
         
