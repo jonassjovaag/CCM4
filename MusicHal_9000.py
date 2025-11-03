@@ -2063,20 +2063,28 @@ class EnhancedDriftEngineAI:
                         harmonic_vocab_file = most_recent_file.replace('_model.json', '_harmonic_vocab.joblib')
                         percussive_vocab_file = most_recent_file.replace('_model.json', '_percussive_vocab.joblib')
                         
+                        quantizer_file = None  # Initialize here to avoid unbound variable errors
+                        
                         # Check if this is a dual vocabulary model
                         if os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file):
                             try:
-                                # Load both vocabularies
-                                self.hybrid_perception.load_vocabulary(harmonic_vocab_file, vocabulary_type="harmonic")
-                                self.hybrid_perception.load_vocabulary(percussive_vocab_file, vocabulary_type="percussive")
-                                print(f"✅ Dual vocabulary loaded: harmonic + percussive (64 tokens each)")
-                                print(f"   🎸 Harmonic: {harmonic_vocab_file}")
-                                print(f"   🥁 Percussive: {percussive_vocab_file}")
-                                
-                                # Enable dual vocabulary mode
-                                if hasattr(self.hybrid_perception, 'enable_dual_vocabulary'):
-                                    self.hybrid_perception.enable_dual_vocabulary = True
-                                    print("✅ Dual vocabulary mode ENABLED")
+                                # Check if module supports dual vocabulary
+                                if hasattr(self.hybrid_perception, 'load_vocabulary'):
+                                    # Load both vocabularies
+                                    self.hybrid_perception.load_vocabulary(harmonic_vocab_file, vocabulary_type="harmonic")
+                                    self.hybrid_perception.load_vocabulary(percussive_vocab_file, vocabulary_type="percussive")
+                                    print(f"✅ Dual vocabulary loaded: harmonic + percussive (64 tokens each)")
+                                    print(f"   🎸 Harmonic: {harmonic_vocab_file}")
+                                    print(f"   🥁 Percussive: {percussive_vocab_file}")
+                                    
+                                    # Enable dual vocabulary mode
+                                    if hasattr(self.hybrid_perception, 'enable_dual_vocabulary'):
+                                        self.hybrid_perception.enable_dual_vocabulary = True
+                                        print("✅ Dual vocabulary mode ENABLED")
+                                else:
+                                    print(f"⚠️  Dual vocabulary files found but module doesn't support load_vocabulary()")
+                                    print(f"   Use DualPerceptionModule instead of HybridPerceptionModule")
+                                    print(f"   Continuing without dual vocabulary support...")
                             except Exception as e:
                                 print(f"⚠️  Could not load dual vocabularies: {e}")
                         else:
@@ -2086,7 +2094,6 @@ class EnhancedDriftEngineAI:
                             symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
                             old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
                             
-                            quantizer_file = None
                             if os.path.exists(gesture_quantizer_file):
                                 quantizer_file = gesture_quantizer_file
                                 quantizer_type = "gesture (Wav2Vec)"
@@ -2148,7 +2155,8 @@ class EnhancedDriftEngineAI:
                             except Exception as e:
                                 print(f"⚠️  Could not load quantizer: {e}")
                         else:
-                            print(f"⚠️  No quantizer file found ({quantizer_file})")
+                            print(f"⚠️  No quantizer file found")
+                            print(f"   Tried: gesture_training_quantizer, symbolic_training_quantizer, _quantizer.joblib")
                             print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
                     
                     # Load RhythmOracle if available and enabled
