@@ -683,7 +683,7 @@ class PolyphonicAudioProcessor:
         
         for i in range(0, len(audio_data) - self.frame_length, self.hop_length):
             frame = audio_data[i:i + self.frame_length]
-            timestamp = time.time() + (i / self.sample_rate)
+            timestamp = i / self.sample_rate  # FIXED: Use relative time from audio start, not absolute Unix time
             
             # Process frame
             multi_pitch_frame = self.process_audio_frame(frame, timestamp)
