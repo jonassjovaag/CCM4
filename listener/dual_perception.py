@@ -236,7 +236,9 @@ class DualPerceptionModule:
         else:
             self._gesture_debug_counter = 1
             
-        if self._gesture_debug_counter % 10 == 0:
+        # Suppress debug output during training (tokens not assigned yet)
+        # Only print during live performance when quantizer is fitted
+        if self._gesture_debug_counter % 10 == 0 and gesture_token is not None:
             smoother_stats = self.gesture_smoother.get_statistics()
             print(f"🎯 Gesture tokens - Raw: {raw_gesture_token}, Smoothed: {gesture_token}, "
                   f"Window: {smoother_stats['tokens_in_window']}, Changes: {smoother_stats['consensus_changes']}")
