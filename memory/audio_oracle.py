@@ -609,7 +609,11 @@ class AudioOracle:
                 'stream_id': audio_data.get('stream_id', 0),
                 'stream_confidence': audio_data.get('stream_confidence', 0.5),
                 'chord': audio_data.get('chord', 'C'),  # Extract chord from transformer insights
-                'key_signature': audio_data.get('key_signature', 'C major')
+                'key_signature': audio_data.get('key_signature', 'C major'),
+                # DUAL VOCABULARY: Store both harmonic and percussive tokens
+                'harmonic_token': audio_data.get('harmonic_token'),
+                'percussive_token': audio_data.get('percussive_token'),
+                'gesture_token': audio_data.get('gesture_token')  # Legacy compatibility
             }
             
             # Store frame

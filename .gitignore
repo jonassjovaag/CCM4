@@ -152,7 +152,6 @@ input_audio/*.m4a
 
 # Training Data and Results
 ai_learning_data/
-hybrid_training/
 **/training_data/
 **/validation_data/
 **/test_data/

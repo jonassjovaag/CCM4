@@ -518,6 +518,12 @@ class PolyphonicAudioOracle(AudioOracle):
         This enables goal-directed generation where you can ask for specific
         qualities (e.g., high consonance, specific gesture tokens, ascending motion).
         
+        DUAL VOCABULARY SUPPORT:
+        When request includes 'response_mode', filters states based on dual tokens:
+        - 'harmonic': User plays drums → AI finds harmonic responses that co-occurred
+        - 'percussive': User plays guitar → AI finds rhythmic responses that co-occurred
+        - 'hybrid': Contextual filling based on both tokens
+        
         Args:
             current_context: List of frame IDs for context
             request: Request specification dict with:
@@ -525,6 +531,9 @@ class PolyphonicAudioOracle(AudioOracle):
                 - type: Request type ('==', '>', '<', 'gradient', etc.)
                 - value: Target value or gradient shape
                 - weight: Blend weight (0.0-1.0), 1.0 = hard constraint
+                - harmonic_token: (DUAL VOCAB) Harmonic token from current input
+                - percussive_token: (DUAL VOCAB) Percussive token from current input
+                - response_mode: (DUAL VOCAB) 'harmonic' | 'percussive' | 'hybrid'
             temperature: Sampling temperature (lower = more deterministic)
             max_length: Maximum sequence length to generate
             
@@ -572,8 +581,61 @@ class PolyphonicAudioOracle(AudioOracle):
             if not next_frames:
                 break
             
+            # DUAL VOCABULARY FILTERING: Apply response_mode filter if specified
+            if request and 'response_mode' in request:
+                response_mode = request['response_mode']
+                input_harmonic_token = request.get('harmonic_token')
+                input_percussive_token = request.get('percussive_token')
+                
+                filtered_frames = []
+                
+                for frame_id in next_frames:
+                    if frame_id >= len(self.audio_frames):
+                        continue
+                    
+                    # Get frame metadata (contains dual tokens)
+                    frame_metadata = self.audio_frames[frame_id].metadata
+                    frame_harmonic = frame_metadata.get('harmonic_token')
+                    frame_percussive = frame_metadata.get('percussive_token')
+                    
+                    # Filter based on response_mode
+                    if response_mode == 'harmonic':
+                        # User plays drums (percussive input) → respond with harmony
+                        # Match: input percussive token matches frame percussive token
+                        # AND frame has harmonic content
+                        if (input_percussive_token is not None and 
+                            frame_percussive == input_percussive_token and 
+                            frame_harmonic is not None):
+                            filtered_frames.append(frame_id)
+                    
+                    elif response_mode == 'percussive':
+                        # User plays guitar (harmonic input) → respond with rhythm
+                        # Match: input harmonic token matches frame harmonic token
+                        # AND frame has percussive content
+                        if (input_harmonic_token is not None and 
+                            frame_harmonic == input_harmonic_token and 
+                            frame_percussive is not None):
+                            filtered_frames.append(frame_id)
+                    
+                    elif response_mode == 'hybrid':
+                        # Hybrid input → contextual filling
+                        # Match either token
+                        if ((input_harmonic_token is not None and frame_harmonic == input_harmonic_token) or
+                            (input_percussive_token is not None and frame_percussive == input_percussive_token)):
+                            filtered_frames.append(frame_id)
+                
+                # Use filtered frames if any found, otherwise fall back to all frames
+                if filtered_frames:
+                    next_frames = filtered_frames
+                    # Debug logging (can be removed in production)
+                    if len(filtered_frames) < len(list(self.states[current_state]['next'].keys())):
+                        pass  # Filtering is working
+                else:
+                    # No matches found - fall back to unfiltered
+                    pass
+            
             # If no request, choose uniformly
-            if request is None:
+            if request is None or 'response_mode' not in request:
                 # Temperature-based sampling
                 probabilities = np.ones(len(next_frames))
                 probabilities = probabilities / np.sum(probabilities)

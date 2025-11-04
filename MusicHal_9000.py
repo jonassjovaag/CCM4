@@ -181,7 +181,7 @@ class EnhancedDriftEngineAI:
                  enable_hybrid_perception: bool = False, enable_wav2vec: bool = False,
                  enable_live_training: bool = False,
                  wav2vec_model: str = "facebook/wav2vec2-base", use_gpu: bool = False,
-                 gesture_window: float = 3.0, gesture_min_tokens: int = 3,
+                 gesture_window: float = 1.5, gesture_min_tokens: int = 2,
                  debug_decisions: bool = False, enable_visualization: bool = False,
                  enable_gpt_reflection: bool = True, reflection_interval: float = 60.0):
         # Core harmonic components (unchanged)
@@ -210,16 +210,15 @@ class EnhancedDriftEngineAI:
         self.enable_live_training = enable_live_training
         
         if enable_hybrid_perception:
-            from listener.hybrid_perception import HybridPerceptionModule
-            self.hybrid_perception = HybridPerceptionModule(
+            from listener.dual_perception import DualPerceptionModule
+            self.hybrid_perception = DualPerceptionModule(
                 vocabulary_size=64,
-                enable_ratio_analysis=True,  # ALWAYS enable ratio analysis for chord detection
-                enable_symbolic=True,  # Enable symbolic quantization for gesture tokens
-                enable_wav2vec=enable_wav2vec,
                 wav2vec_model=wav2vec_model,
                 use_gpu=use_gpu,
+                enable_symbolic=True,  # Enable symbolic quantization for gesture tokens
                 gesture_window=gesture_window,  # Temporal smoothing window
-                gesture_min_tokens=gesture_min_tokens  # Min tokens for consensus
+                gesture_min_tokens=gesture_min_tokens,  # Min tokens for consensus
+                enable_dual_vocabulary=True  # Enable dual harmonic/percussive vocabularies
             )
             print(f"🔄 Gesture token smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens")
             if enable_wav2vec:
@@ -275,9 +274,14 @@ class EnhancedDriftEngineAI:
         self.rhythmic_analyzer = None
         self.ratio_analyzer = None
         
-        # Rhythm oracle and agent (not used for now, but initialized for compatibility)
-        self.rhythm_oracle = None
-        self.rhythmic_agent = None
+        # Rhythm oracle and agent - learns rhythmic phrasing patterns
+        # Purpose: Provides WHEN/HOW to phrase notes (complements AudioOracle's WHAT notes)
+        # Architecture: Harmonic (AudioOracle) + Rhythmic (RhythmOracle) = Complete musical intelligence
+        self.rhythm_oracle = RhythmOracle() if enable_rhythmic else None
+        self.rhythmic_agent = None  # Will be initialized if needed
+        
+        if self.rhythm_oracle:
+            print("🥁 RhythmOracle initialized - ready to learn rhythmic phrasing")
         
         # Unified decision engine for cross-modal intelligence
         self.unified_decision_engine = UnifiedDecisionEngine()
@@ -349,6 +353,9 @@ class EnhancedDriftEngineAI:
         self.last_human_event_time = 0.0
         self.silence_timeout = 1.5  # Seconds of silence before switching to autonomous mode
         self.was_in_autonomous_mode = False  # Track mode transitions
+        
+        # CRITICAL: Voice coordination to prevent doubling
+        self._autonomous_generation_blocked = False  # Prevents simultaneous generation
         
         # Voice-specific autonomous behavior
         self.bass_accompaniment_probability = 0.2  # Probability bass plays during human activity (reduced for sparsity)
@@ -749,6 +756,10 @@ class EnhancedDriftEngineAI:
         # Track human activity for autonomous generation adjustment
         self._track_human_activity(event_data, current_time)
         
+        # CRITICAL: Block autonomous generation while processing human input
+        # This prevents double generation (both event processing AND autonomous tick)
+        self._autonomous_generation_blocked = True
+        
         # Log human input (every second)
         self._log_conversation_input(event_data, current_time)
         
@@ -777,8 +788,10 @@ class EnhancedDriftEngineAI:
                     
                     # Store hybrid analysis in event data
                     event_data['hybrid_consonance'] = hybrid_result.consonance
-                    event_data['hybrid_chroma'] = hybrid_result.chroma.tolist()
-                    event_data['hybrid_active_pcs'] = hybrid_result.active_pitch_classes.tolist()
+                    if hybrid_result.chroma is not None:
+                        event_data['hybrid_chroma'] = hybrid_result.chroma.tolist()
+                    if hybrid_result.active_pitch_classes is not None:
+                        event_data['hybrid_active_pcs'] = hybrid_result.active_pitch_classes.tolist()
                     
                     # Add ratio analysis if available
                     if hybrid_result.ratio_analysis:
@@ -806,37 +819,50 @@ class EnhancedDriftEngineAI:
                             event_data['hybrid_barlow_complexity'] = barlow_approx
                     
                     # Replace standard features with hybrid features for AudioOracle
-                    event_data['features'] = hybrid_result.features.tolist()
+                    event_data['features'] = hybrid_result.wav2vec_features.tolist()
                     
                     # Store Wav2Vec features for chord classification (if available)
                     # When using Wav2Vec mode, the main features ARE the Wav2Vec features (768D)
-                    if self.enable_wav2vec and hybrid_result.features is not None and len(hybrid_result.features) == 768:
-                        event_data['hybrid_wav2vec_features'] = hybrid_result.features  # Use numpy array directly for classifier
+                    if self.enable_wav2vec and hybrid_result.wav2vec_features is not None and len(hybrid_result.wav2vec_features) == 768:
+                        event_data['hybrid_wav2vec_features'] = hybrid_result.wav2vec_features  # Use numpy array directly for classifier
                     
                     # IRCAM Phase 1.2: Extract symbolic token for AudioOracle pattern matching
-                    if hasattr(hybrid_result, 'symbolic_token') and hybrid_result.symbolic_token is not None:
-                        # Store smoothed token for AI memory/generation
-                        event_data['gesture_token'] = hybrid_result.symbolic_token
-                        # Store raw token for visualization (shows rapid onset-level changes)
-                        event_data['raw_gesture_token'] = hybrid_result.raw_gesture_token
+                    if hybrid_result.gesture_token is not None:
+                        # Store gesture token for AI memory/generation
+                        event_data['gesture_token'] = hybrid_result.gesture_token
+                        # Store raw token for visualization (if available)
+                        if hasattr(hybrid_result, 'raw_gesture_token') and hybrid_result.raw_gesture_token is not None:
+                            event_data['raw_gesture_token'] = hybrid_result.raw_gesture_token
+                        else:
+                            event_data['raw_gesture_token'] = hybrid_result.gesture_token  # Fallback to gesture_token
                         
-                        # Emit pattern matching visualization with RAW token (shows rapid changes)
-                        if self.visualization_manager and hybrid_result.raw_gesture_token is not None:
+                        # Emit pattern matching visualization with token
+                        if self.visualization_manager:
                             # Estimate a pattern match score based on consonance (placeholder logic)
                             match_score = hybrid_result.consonance * 100 if hybrid_result.consonance else 50.0
                             self.visualization_manager.emit_pattern_match(
                                 score=match_score,
                                 state_id=0,  # Would need actual AudioOracle state ID
-                                gesture_token=hybrid_result.raw_gesture_token,  # Use RAW for rapid visualization
+                                gesture_token=hybrid_result.gesture_token,
                                 context={'consonance': hybrid_result.consonance}
                             )
                         
-                        # Debug log (first 10 times) - show both tokens
+                        # Debug log (first 10 times) - show token
                         if not hasattr(self, '_gesture_token_count'):
                             self._gesture_token_count = 0
                         if self._gesture_token_count < 10:
-                            print(f"🎵 Gesture token: {hybrid_result.symbolic_token} (smoothed), {hybrid_result.raw_gesture_token} (raw)")
+                            print(f"🎵 Gesture token: {hybrid_result.gesture_token}")
                             self._gesture_token_count += 1
+                    
+                    # DUAL VOCABULARY: Extract harmonic and percussive tokens (if enabled)
+                    if hasattr(self.hybrid_perception, 'enable_dual_vocabulary') and self.hybrid_perception.enable_dual_vocabulary:
+                        if hasattr(hybrid_result, 'harmonic_token') and hybrid_result.harmonic_token is not None:
+                            event_data['harmonic_token'] = hybrid_result.harmonic_token
+                        if hasattr(hybrid_result, 'percussive_token') and hybrid_result.percussive_token is not None:
+                            event_data['percussive_token'] = hybrid_result.percussive_token
+                        
+                        # DUAL VOCABULARY: Store harmonic and percussive tokens (if available)
+                        # Content type detection is handled by the perception module internally
                     
                     # Extract chord label from ratio analysis (for visualization)
                     if hybrid_result.ratio_analysis:
@@ -1045,6 +1071,9 @@ class EnhancedDriftEngineAI:
         # Update statistics
         self.stats['events_processed'] += 1
         self.stats['last_event_time'] = current_time
+        
+        # CRITICAL: Unblock autonomous generation after human input processing is complete
+        self._autonomous_generation_blocked = False
         
         # Update performance timeline if available
         if self.timeline_manager:
@@ -2023,21 +2052,50 @@ class EnhancedDriftEngineAI:
                     
                     # Load gesture vocabulary (quantizer) if available
                     if self.hybrid_perception and self.enable_hybrid_perception:
-                        # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
-                        gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
-                        symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
-                        old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                        # DUAL VOCABULARY: Check for dual vocabulary files first
+                        harmonic_vocab_file = most_recent_file.replace('_model.json', '_harmonic_vocab.joblib')
+                        percussive_vocab_file = most_recent_file.replace('_model.json', '_percussive_vocab.joblib')
                         
-                        quantizer_file = None
-                        if os.path.exists(gesture_quantizer_file):
-                            quantizer_file = gesture_quantizer_file
-                            quantizer_type = "gesture (Wav2Vec)"
-                        elif os.path.exists(symbolic_quantizer_file):
-                            quantizer_file = symbolic_quantizer_file
-                            quantizer_type = "symbolic (traditional)"
-                        elif os.path.exists(old_quantizer_file):
-                            quantizer_file = old_quantizer_file
-                            quantizer_type = "legacy"
+                        quantizer_file = None  # Initialize here to avoid unbound variable errors
+                        
+                        # Check if this is a dual vocabulary model
+                        if os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file):
+                            try:
+                                # Check if module supports dual vocabulary
+                                if hasattr(self.hybrid_perception, 'load_vocabulary'):
+                                    # Load both vocabularies
+                                    self.hybrid_perception.load_vocabulary(harmonic_vocab_file, vocabulary_type="harmonic")
+                                    self.hybrid_perception.load_vocabulary(percussive_vocab_file, vocabulary_type="percussive")
+                                    print(f"✅ Dual vocabulary loaded: harmonic + percussive (64 tokens each)")
+                                    print(f"   🎸 Harmonic: {harmonic_vocab_file}")
+                                    print(f"   🥁 Percussive: {percussive_vocab_file}")
+                                    
+                                    # Enable dual vocabulary mode
+                                    if hasattr(self.hybrid_perception, 'enable_dual_vocabulary'):
+                                        self.hybrid_perception.enable_dual_vocabulary = True
+                                        print("✅ Dual vocabulary mode ENABLED")
+                                else:
+                                    print(f"⚠️  Dual vocabulary files found but module doesn't support load_vocabulary()")
+                                    print(f"   Use DualPerceptionModule instead of HybridPerceptionModule")
+                                    print(f"   Continuing without dual vocabulary support...")
+                            except Exception as e:
+                                print(f"⚠️  Could not load dual vocabularies: {e}")
+                        else:
+                            # Fall back to single vocabulary loading
+                            # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
+                            gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
+                            symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
+                            old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                            
+                            if os.path.exists(gesture_quantizer_file):
+                                quantizer_file = gesture_quantizer_file
+                                quantizer_type = "gesture (Wav2Vec)"
+                            elif os.path.exists(symbolic_quantizer_file):
+                                quantizer_file = symbolic_quantizer_file
+                                quantizer_type = "symbolic (traditional)"
+                            elif os.path.exists(old_quantizer_file):
+                                quantizer_file = old_quantizer_file
+                                quantizer_type = "legacy"
                         
                         if quantizer_file:
                             try:
@@ -2090,8 +2148,29 @@ class EnhancedDriftEngineAI:
                             except Exception as e:
                                 print(f"⚠️  Could not load quantizer: {e}")
                         else:
-                            print(f"⚠️  No quantizer file found ({quantizer_file})")
+                            print(f"⚠️  No quantizer file found")
+                            print(f"   Tried: gesture_training_quantizer, symbolic_training_quantizer, _quantizer.joblib")
                             print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
+                    
+                    # Load RhythmOracle if available and enabled
+                    if self.rhythm_oracle and self.enable_rhythmic:
+                        rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                        if os.path.exists(rhythm_oracle_file):
+                            try:
+                                print(f"🥁 Loading RhythmOracle from: {rhythm_oracle_file}")
+                                self.rhythm_oracle.load_patterns(rhythm_oracle_file)
+                                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                print(f"✅ RhythmOracle loaded successfully!")
+                                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                      f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                      f"transitions: {rhythm_stats['total_transitions']}")
+                            except Exception as e:
+                                print(f"⚠️  Could not load RhythmOracle: {e}")
+                                print(f"   Rhythmic phrasing will not be available")
+                        else:
+                            print(f"⚠️  No RhythmOracle file found ({rhythm_oracle_file})")
+                            print(f"   Rhythmic phrasing will not be available - retrain with --rhythmic flag")
                     
                     model_loaded = True
                 else:
@@ -2601,6 +2680,11 @@ class EnhancedDriftEngineAI:
     
     def _autonomous_generation_tick(self, current_time: float):
         """Generate music autonomously, adjusting to human activity"""
+        # CRITICAL: Don't generate autonomously if human input is being processed
+        # This prevents MIDI doubling from parallel voice generation
+        if self._autonomous_generation_blocked:
+            return
+        
         # IRCAM Phase 3: Check if we should respond based on behavior mode
         delay = self.behavior_controller.get_response_delay(self.phrase_detector)
         
@@ -2742,10 +2826,10 @@ def main():
                        help='Wav2Vec model name (default: facebook/wav2vec2-base)')
     parser.add_argument('--no-gpu', action='store_true',
                        help='Disable GPU for Wav2Vec (use CPU) - DEFAULT: GPU ENABLED')
-    parser.add_argument('--gesture-window', type=float, default=3.0,
-                       help='Gesture token smoothing window in seconds (default: 3.0, range: 1.0-5.0)')
-    parser.add_argument('--gesture-min-tokens', type=int, default=3,
-                       help='Minimum tokens before gesture consensus (default: 3)')
+    parser.add_argument('--gesture-window', type=float, default=1.5,
+                       help='Gesture token smoothing window in seconds (default: 1.5, range: 0.5-3.0)')
+    parser.add_argument('--gesture-min-tokens', type=int, default=2,
+                       help='Minimum tokens before gesture consensus (default: 2)')
     parser.add_argument('--performance-duration', type=int, default=0, help='Performance duration in minutes (0 = no timeline)')
     parser.add_argument('--learn-target', type=str, help='Learn target fingerprint (description)')
     parser.add_argument('--load-target', type=str, help='Load target fingerprint from file')

@@ -44,6 +44,7 @@ Based on:
 """
 
 import numpy as np
+import librosa  # For HPSS content detection
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass
 
@@ -60,29 +61,44 @@ class DualPerceptionResult:
     
     # Neural gesture representation (for machine learning)
     wav2vec_features: np.ndarray  # 768D neural encoding
-    gesture_token: Optional[int]  # Quantized token (0-63)
+    gesture_token: Optional[int]  # Quantized token (0-63) - LEGACY: use harmonic_token or percussive_token instead
+    
+    # Dual vocabulary tokens (for percussion-aware listening)
+    harmonic_token: Optional[int] = None  # Token from harmonic vocabulary (0-63)
+    percussive_token: Optional[int] = None  # Token from percussive vocabulary (0-63)
     
     # Ratio-based harmonic analysis (mathematical truth)
-    ratio_analysis: Optional[ChordAnalysis]
-    consonance: float
-    detected_frequencies: List[float]
+    ratio_analysis: Optional[ChordAnalysis] = None
+    consonance: float = 0.5
+    detected_frequencies: Optional[List[float]] = None
     
     # Chroma (for compatibility and display)
-    chroma: np.ndarray  # 12D
-    active_pitch_classes: np.ndarray
+    chroma: Optional[np.ndarray] = None  # 12D
+    active_pitch_classes: Optional[np.ndarray] = None
     
     # Human-friendly labels (derived from ratios, for display only)
-    chord_label: str  # "Cmaj", "E7", "Am7", etc.
-    chord_confidence: float
+    chord_label: str = "---"  # "Cmaj", "E7", "Am7", etc.
+    chord_confidence: float = 0.0
     
     # Metadata
-    timestamp: float
+    timestamp: float = 0.0
+    
+    def __post_init__(self):
+        """Ensure default values for mutable fields"""
+        if self.detected_frequencies is None:
+            self.detected_frequencies = []
+        if self.chroma is None:
+            self.chroma = np.zeros(12)
+        if self.active_pitch_classes is None:
+            self.active_pitch_classes = np.array([])
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for storage"""
         return {
             'wav2vec_features': self.wav2vec_features.tolist(),
-            'gesture_token': self.gesture_token,
+            'gesture_token': self.gesture_token,  # LEGACY
+            'harmonic_token': self.harmonic_token,  # Dual vocabulary
+            'percussive_token': self.percussive_token,  # Dual vocabulary
             'ratio_analysis': {
                 'fundamental': float(self.ratio_analysis.fundamental) if self.ratio_analysis else 0.0,
                 'ratios': self.ratio_analysis.ratios if self.ratio_analysis else [],
@@ -91,8 +107,8 @@ class DualPerceptionResult:
             } if self.ratio_analysis else None,
             'consonance': self.consonance,
             'detected_frequencies': self.detected_frequencies,
-            'chroma': self.chroma.tolist(),
-            'active_pitch_classes': self.active_pitch_classes.tolist(),
+            'chroma': self.chroma.tolist() if self.chroma is not None else [],
+            'active_pitch_classes': self.active_pitch_classes.tolist() if self.active_pitch_classes is not None else [],
             'chord_label': self.chord_label,
             'chord_confidence': self.chord_confidence,
             'timestamp': self.timestamp
@@ -115,8 +131,9 @@ class DualPerceptionModule:
                  wav2vec_model: str = "facebook/wav2vec2-base",
                  use_gpu: bool = False,
                  enable_symbolic: bool = True,
-                 gesture_window: float = 3.0,      # Temporal smoothing window
-                 gesture_min_tokens: int = 3):     # Min tokens for consensus
+                 gesture_window: float = 1.5,      # Reduced from 3.0s - more responsive to rapid changes
+                 gesture_min_tokens: int = 2,      # Reduced from 3 - faster consensus
+                 enable_dual_vocabulary: bool = False):  # NEW: Enable dual vocab mode
         """
         Initialize dual perception module
         
@@ -126,13 +143,28 @@ class DualPerceptionModule:
             use_gpu: Use GPU for Wav2Vec (MPS/CUDA)
             enable_symbolic: Enable gesture token quantization
             gesture_window: Temporal smoothing window for gesture tokens (seconds)
-            gesture_min_tokens: Minimum tokens needed for consensus
+                          1.5s balances phrase coherence with rhythmic responsiveness
+            gesture_min_tokens: Minimum tokens needed for consensus (2 = faster response)
+            enable_dual_vocabulary: Enable dual harmonic/percussive vocabularies (for drums)
         """
         print("🔬 Initializing Dual Perception Module...")
         
         # Neural gesture pathway
         self.wav2vec_encoder = Wav2VecMusicEncoder(wav2vec_model, use_gpu)
-        self.quantizer = SymbolicQuantizer(vocabulary_size) if enable_symbolic else None
+        self.enable_dual_vocabulary = enable_dual_vocabulary
+        
+        if enable_dual_vocabulary:
+            # Dual vocabulary mode: separate harmonic and percussive quantizers
+            self.harmonic_quantizer = SymbolicQuantizer(vocabulary_size) if enable_symbolic else None
+            self.percussive_quantizer = SymbolicQuantizer(vocabulary_size) if enable_symbolic else None
+            self.quantizer = None  # LEGACY - not used in dual mode
+            print(f"   Dual vocabulary mode: {vocabulary_size} harmonic + {vocabulary_size} percussive tokens")
+        else:
+            # Traditional mode: single quantizer
+            self.quantizer = SymbolicQuantizer(vocabulary_size) if enable_symbolic else None
+            self.harmonic_quantizer = None
+            self.percussive_quantizer = None
+        
         self.vocabulary_size = vocabulary_size
         self.enable_symbolic = enable_symbolic
         
@@ -140,18 +172,19 @@ class DualPerceptionModule:
         self.gesture_smoother = GestureTokenSmoother(
             window_duration=gesture_window,
             min_tokens=gesture_min_tokens,
-            decay_time=1.0  # 1-second decay for recent token priority
+            decay_time=0.5  # Faster decay (0.5s) - more responsive to recent tokens
         )
         
         # Ratio-based harmonic pathway
         self.ratio_analyzer = FrequencyRatioAnalyzer()
         self.chroma_extractor = HarmonicAwareChromaExtractor()
         
-        print(f"✅ Dual perception initialized:")
+        print("✅ Dual perception initialized:")
         print(f"   Wav2Vec model: {wav2vec_model}")
         print(f"   Vocabulary size: {vocabulary_size} gesture tokens")
-        print(f"   Gesture smoothing: {gesture_window}s window")
+        print(f"   Gesture smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens, 0.5s decay")
         print(f"   GPU: {'Yes' if use_gpu else 'No'}")
+        print(f"   Dual vocabulary: {'Yes' if enable_dual_vocabulary else 'No'}")
     
     def extract_features(self,
                         audio: np.ndarray,
@@ -196,6 +229,19 @@ class DualPerceptionModule:
         
         # Use smoothed token as the primary gesture_token for AI
         gesture_token = smoothed_gesture_token if smoothed_gesture_token is not None else raw_gesture_token
+        
+        # DEBUG: Log gesture token diversity (every 10th call to avoid spam)
+        if hasattr(self, '_gesture_debug_counter'):
+            self._gesture_debug_counter += 1
+        else:
+            self._gesture_debug_counter = 1
+            
+        # Suppress debug output during training (tokens not assigned yet)
+        # Only print during live performance when quantizer is fitted
+        if self._gesture_debug_counter % 10 == 0 and gesture_token is not None:
+            smoother_stats = self.gesture_smoother.get_statistics()
+            print(f"🎯 Gesture tokens - Raw: {raw_gesture_token}, Smoothed: {gesture_token}, "
+                  f"Window: {smoother_stats['tokens_in_window']}, Changes: {smoother_stats['consensus_changes']}")
         
         # === PATHWAY 2: Ratio-Based Harmonic Analysis (for context + display) ===
         
@@ -260,7 +306,56 @@ class DualPerceptionModule:
             timestamp=timestamp
         )
     
-    def train_gesture_vocabulary(self, wav2vec_features_list: List[np.ndarray]):
+    def detect_content_type(self, audio: np.ndarray, sr: int = 44100) -> Tuple[str, float, float]:
+        """
+        Detect whether audio is primarily harmonic, percussive, or hybrid
+        using HPSS (Harmonic-Percussive Source Separation).
+        
+        This enables the system to respond appropriately:
+        - Percussive input (drums) → AI generates harmonic response
+        - Harmonic input (guitar/keys) → AI generates rhythmic response
+        - Hybrid input → AI fills in contextually
+        
+        Args:
+            audio: Audio signal
+            sr: Sample rate
+            
+        Returns:
+            Tuple of (content_type, harmonic_ratio, percussive_ratio)
+            where content_type is "harmonic", "percussive", or "hybrid"
+        """
+        # Apply HPSS to separate harmonic and percussive components
+        y_harmonic, y_percussive = librosa.effects.hpss(
+            audio,
+            kernel_size=31,  # Larger = better separation but more latency
+            power=2.0,       # Standard power spectrogram
+            mask=True        # Use masking for cleaner separation
+        )
+        
+        # Calculate energy in each component
+        harmonic_energy = np.sum(y_harmonic ** 2)
+        percussive_energy = np.sum(y_percussive ** 2)
+        total_energy = harmonic_energy + percussive_energy
+        
+        if total_energy < 1e-6:
+            # Silence or noise
+            return "hybrid", 0.5, 0.5
+        
+        # Normalize to ratios
+        harmonic_ratio = harmonic_energy / total_energy
+        percussive_ratio = percussive_energy / total_energy
+        
+        # Classify based on dominant component
+        # Threshold: 0.7 means 70% of energy in one component
+        if percussive_ratio > 0.7:
+            return "percussive", harmonic_ratio, percussive_ratio
+        elif harmonic_ratio > 0.7:
+            return "harmonic", harmonic_ratio, percussive_ratio
+        else:
+            return "hybrid", harmonic_ratio, percussive_ratio
+    
+    def train_gesture_vocabulary(self, wav2vec_features_list: List[np.ndarray],
+                                 vocabulary_type: str = "single"):
         """
         Train gesture token vocabulary from Wav2Vec features
         
@@ -268,37 +363,80 @@ class DualPerceptionModule:
         
         Args:
             wav2vec_features_list: List of 768D feature vectors
+            vocabulary_type: "single" (traditional), "harmonic", or "percussive"
         """
         if not self.enable_symbolic:
             print("⚠️ Symbolic quantization not enabled")
             return
         
-        print(f"🎯 Training gesture vocabulary ({self.vocabulary_size} tokens)...")
+        print(f"🎯 Training {vocabulary_type} gesture vocabulary ({self.vocabulary_size} tokens)...")
         print(f"   Using {len(wav2vec_features_list)} feature vectors")
         
         # Convert to float64 array for sklearn
         features_array = np.array([f.astype(np.float64) for f in wav2vec_features_list])
         
+        # Select appropriate quantizer
+        if vocabulary_type == "harmonic":
+            if self.harmonic_quantizer is None:
+                print("⚠️ Harmonic quantizer not initialized (enable_dual_vocabulary=False)")
+                return
+            quantizer = self.harmonic_quantizer
+        elif vocabulary_type == "percussive":
+            if self.percussive_quantizer is None:
+                print("⚠️ Percussive quantizer not initialized (enable_dual_vocabulary=False)")
+                return
+            quantizer = self.percussive_quantizer
+        else:  # "single" or default
+            if self.quantizer is None:
+                print("⚠️ Single quantizer not initialized (enable_dual_vocabulary=True)")
+                return
+            quantizer = self.quantizer
+        
         # Train quantizer
-        self.quantizer.fit(features_array)
+        quantizer.fit(features_array)
         
         # Print stats
-        stats = self.quantizer.get_codebook_statistics()
-        print(f"✅ Gesture vocabulary trained!")
+        stats = quantizer.get_codebook_statistics()
+        print(f"✅ {vocabulary_type.capitalize()} gesture vocabulary trained!")
         print(f"   Active tokens: {stats['active_tokens']}/{stats['vocabulary_size']}")
         print(f"   Entropy: {stats['entropy']:.2f} bits")
     
-    def save_vocabulary(self, filepath: str):
-        """Save trained gesture vocabulary"""
-        if self.quantizer and self.quantizer.is_fitted:
+    def save_vocabulary(self, filepath: str, vocabulary_type: str = "single"):
+        """
+        Save trained gesture vocabulary
+        
+        Args:
+            filepath: Path to save vocabulary
+            vocabulary_type: "single", "harmonic", or "percussive"
+        """
+        if vocabulary_type == "harmonic" and self.harmonic_quantizer and self.harmonic_quantizer.is_fitted:
+            self.harmonic_quantizer.save(filepath)
+        elif vocabulary_type == "percussive" and self.percussive_quantizer and self.percussive_quantizer.is_fitted:
+            self.percussive_quantizer.save(filepath)
+        elif vocabulary_type == "single" and self.quantizer and self.quantizer.is_fitted:
             self.quantizer.save(filepath)
-            # Note: self.quantizer.save() already prints its own message
+        else:
+            print(f"⚠️ Cannot save {vocabulary_type} vocabulary (not fitted or not initialized)")
     
-    def load_vocabulary(self, filepath: str):
-        """Load trained gesture vocabulary"""
-        if self.quantizer:
+    def load_vocabulary(self, filepath: str, vocabulary_type: str = "single"):
+        """
+        Load trained gesture vocabulary
+        
+        Args:
+            filepath: Path to load vocabulary from
+            vocabulary_type: "single", "harmonic", or "percussive"
+        """
+        if vocabulary_type == "harmonic" and self.harmonic_quantizer:
+            self.harmonic_quantizer.load(filepath)
+            print(f"📂 Harmonic gesture vocabulary loaded: {filepath}")
+        elif vocabulary_type == "percussive" and self.percussive_quantizer:
+            self.percussive_quantizer.load(filepath)
+            print(f"📂 Percussive gesture vocabulary loaded: {filepath}")
+        elif vocabulary_type == "single" and self.quantizer:
             self.quantizer.load(filepath)
             print(f"📂 Gesture vocabulary loaded: {filepath}")
+        else:
+            print(f"⚠️ Cannot load {vocabulary_type} vocabulary (quantizer not initialized)")
     
     # Aliases for consistency with HybridPerceptionModule
     def save_quantizer(self, filepath: str):

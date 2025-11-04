@@ -152,6 +152,19 @@ class PhraseGenerator:
         if len(human_events) > 0 and len(tokens) == 0:
             print(f"🔍 DEBUG: Found {len(human_events)} human events but no gesture tokens")
         
+        # DEBUG: Check for gesture token homogeneity
+        if len(tokens) > 0:
+            unique_tokens = len(set(tokens))
+            total_tokens = len(tokens)
+            diversity_ratio = unique_tokens / total_tokens
+            print(f"🎯 GESTURE DIVERSITY: {unique_tokens}/{total_tokens} unique tokens (diversity: {diversity_ratio:.2f})")
+            if diversity_ratio < 0.3:
+                print(f"⚠️ LOW GESTURE DIVERSITY: Most tokens are similar ({tokens})")
+            elif diversity_ratio < 0.6:
+                print(f"🔍 MODERATE GESTURE DIVERSITY: Some variety ({tokens})")
+            else:
+                print(f"✅ GOOD GESTURE DIVERSITY: Varied tokens ({tokens})")
+        
         return tokens[-n:] if len(tokens) > n else tokens
     
     def _calculate_avg_consonance(self, n: int = 10) -> float:
@@ -209,10 +222,150 @@ class PhraseGenerator:
                      if 'deviation_polarity' in e]
         return float(np.mean(polarities)) if polarities else 0.0
     
+    def _get_rhythmic_phrasing_from_oracle(self, current_context: Dict = None) -> Optional[Dict]:
+        """
+        Query RhythmOracle for rhythmic phrasing pattern based on current context
+        
+        This provides WHEN/HOW to phrase notes (complements AudioOracle's WHAT notes)
+        
+        Args:
+            current_context: Dict with tempo, density, syncopation from Brandtsegg analysis
+            
+        Returns:
+            Dict with rhythmic phrasing parameters or None if unavailable
+        """
+        print(f"🥁 DEBUG: _get_rhythmic_phrasing_from_oracle called, rhythm_oracle={self.rhythm_oracle is not None}")
+        
+        if self.rhythm_oracle is None:
+            print(f"🥁 DEBUG: RhythmOracle is None, returning None")
+            return None
+        
+        # Build query context from recent events if not provided
+        if current_context is None:
+            human_events = self._get_recent_human_events(n=5)
+            if not human_events:
+                return None
+            
+            # Extract rhythmic features from recent input
+            tempos = [e.get('tempo', 120.0) for e in human_events if 'tempo' in e]
+            densities = [e.get('density', 0.5) for e in human_events if 'density' in e]
+            syncopations = [e.get('syncopation', 0.0) for e in human_events if 'syncopation' in e]
+            
+            current_context = {
+                'tempo': float(np.mean(tempos)) if tempos else 120.0,
+                'density': float(np.mean(densities)) if densities else 0.5,
+                'syncopation': float(np.mean(syncopations)) if syncopations else 0.0
+            }
+        
+        # Query RhythmOracle for similar patterns
+        try:
+            print(f"🥁 DEBUG: Querying RhythmOracle with context: {current_context}")
+            similar_patterns = self.rhythm_oracle.find_similar_patterns(
+                current_context, 
+                threshold=0.6  # 60% similarity threshold
+            )
+            print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
+            
+            if similar_patterns:
+                # Use most similar pattern (first in sorted list)
+                best_pattern, similarity = similar_patterns[0]
+                
+                rhythmic_phrasing = {
+                    'tempo': best_pattern.tempo,
+                    'density': best_pattern.density,
+                    'syncopation': best_pattern.syncopation,
+                    'pattern_type': best_pattern.pattern_type,
+                    'pattern_id': best_pattern.pattern_id,
+                    'confidence': best_pattern.confidence * similarity,  # Scale by similarity
+                    'meter': best_pattern.meter
+                }
+                
+                print(f"🥁 RhythmOracle phrasing: pattern={best_pattern.pattern_id}, "
+                      f"tempo={best_pattern.tempo:.1f}, density={best_pattern.density:.2f}, "
+                      f"similarity={similarity:.2f}")
+                
+                return rhythmic_phrasing
+            else:
+                print(f"🥁 RhythmOracle: No similar patterns found for context {current_context}")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️ RhythmOracle query failed: {e}")
+            return None
+    
+    def _apply_rhythmic_phrasing_to_timing(self, rhythmic_phrasing: Dict, num_notes: int, 
+                                          voice_type: str = "melodic") -> List[float]:
+        """
+        Convert rhythmic phrasing parameters into actual note timing array
+        
+        This is where RhythmOracle patterns become actual MIDI timing!
+        
+        Args:
+            rhythmic_phrasing: Dict with tempo, density, syncopation from RhythmOracle
+            num_notes: Number of notes to generate timings for
+            voice_type: "melodic" or "bass" for context
+            
+        Returns:
+            List of timing values (inter-onset intervals in seconds)
+        """
+        if not rhythmic_phrasing:
+            # Fallback to default timing
+            base = 0.5 if voice_type == "melodic" else 1.0
+            return [base] * num_notes
+        
+        # Extract rhythmic parameters
+        tempo = rhythmic_phrasing.get('tempo', 120.0)
+        density = rhythmic_phrasing.get('density', 0.5)
+        syncopation = rhythmic_phrasing.get('syncopation', 0.0)
+        
+        # Calculate base inter-onset interval from tempo
+        # tempo = BPM = beats per minute
+        # IOI in seconds = 60 / tempo
+        beat_duration = 60.0 / tempo  # e.g., 120 BPM = 0.5 seconds per beat
+        
+        # Density affects note spacing:
+        # High density (0.8-1.0) → notes closer together (0.5x-0.75x beat)
+        # Medium density (0.4-0.6) → notes on beat (1.0x beat)
+        # Low density (0.0-0.3) → notes spread out (1.5x-2.0x beat)
+        if density > 0.7:
+            spacing_multiplier = random.uniform(0.5, 0.75)  # Dense
+        elif density > 0.4:
+            spacing_multiplier = random.uniform(0.75, 1.25)  # Medium
+        else:
+            spacing_multiplier = random.uniform(1.5, 2.0)  # Sparse
+        
+        base_ioi = beat_duration * spacing_multiplier
+        
+        # Apply syncopation as timing variation
+        # High syncopation → more varied timing offsets
+        # Low syncopation → steady, on-beat timing
+        syncopation_amount = syncopation * 0.3  # Max 30% deviation
+        
+        timings = []
+        for i in range(num_notes):
+            # Apply syncopation as random offset
+            if syncopation > 0.3:
+                # Syncopated: add random offsets
+                offset = random.uniform(-syncopation_amount, syncopation_amount) * beat_duration
+            else:
+                # Straight: minimal variation
+                offset = random.uniform(-0.05, 0.05) * beat_duration
+            
+            timing = max(0.1, base_ioi + offset)  # Ensure minimum 0.1s
+            timings.append(timing)
+        
+        print(f"🥁 Applied rhythmic phrasing: tempo={tempo:.0f}, density={density:.2f}, "
+              f"syncopation={syncopation:.2f} → avg_IOI={np.mean(timings):.3f}s")
+        
+        return timings
+    
     def _build_shadowing_request(self, mode_params: Dict = None) -> Dict:
         """
         Enhanced SHADOW: Close imitation using multiple parameters
         Combines gesture tokens, consonance, and rhythmic complexity
+        
+        DUAL VOCABULARY: If input has dual tokens (harmonic/percussive),
+        build adaptive request based on content type
         """
         if mode_params is None:
             mode_params = {}
@@ -223,8 +376,56 @@ class PhraseGenerator:
         
         print(f"🎯 Shadow: recent_tokens={recent_tokens}, consonance={avg_consonance:.2f}, barlow={barlow_complexity:.1f}")  # DEBUG
         
-        # Use primary parameter in AudioOracle-compatible format
-        # Focus on gesture token matching for shadow mode
+        # DUAL VOCABULARY: Check if recent events have dual tokens
+        recent_human_events = self._get_recent_human_events(n=1)
+        if recent_human_events:
+            latest_event = recent_human_events[-1]
+            content_type = latest_event.get('content_type')
+            harmonic_token = latest_event.get('harmonic_token')
+            percussive_token = latest_event.get('percussive_token')
+            
+            # If dual vocabulary is active and content type detected
+            if content_type and (harmonic_token is not None or percussive_token is not None):
+                # Build adaptive request based on content
+                if content_type == "percussive":
+                    # Drums input → request harmonic response
+                    request = {
+                        'percussive_token': percussive_token,
+                        'response_mode': 'harmonic',
+                        'consonance': avg_consonance,
+                        'weight': mode_params.get('request_weight', 0.85)
+                    }
+                    print(f"🥁→🎸 Dual vocab: Drums detected → requesting harmony (perc_tok={percussive_token})")
+                elif content_type == "harmonic":
+                    # Guitar input → request rhythmic response
+                    request = {
+                        'harmonic_token': harmonic_token,
+                        'response_mode': 'percussive',
+                        'weight': mode_params.get('request_weight', 0.85)
+                    }
+                    print(f"🎸→🥁 Dual vocab: Guitar detected → requesting rhythm (harm_tok={harmonic_token})")
+                else:  # hybrid
+                    # Both present → request contextual filling
+                    request = {
+                        'harmonic_token': harmonic_token,
+                        'percussive_token': percussive_token,
+                        'response_mode': 'hybrid',
+                        'consonance': avg_consonance,
+                        'weight': mode_params.get('request_weight', 0.75)
+                    }
+                    print(f"🎵 Dual vocab: Hybrid input → contextual filling (harm={harmonic_token}, perc={percussive_token})")
+                
+                # Add rhythmic phrasing if RhythmOracle available
+                rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+                if rhythmic_phrasing:
+                    request['rhythmic_phrasing'] = rhythmic_phrasing
+                    print(f"🥁 Added rhythmic phrasing to shadow request: {rhythmic_phrasing}")
+                else:
+                    print(f"🥁 No rhythmic phrasing available for shadow request")
+                
+                return request
+        
+        # Fallback: Use standard gesture token matching (single vocabulary mode)
         request = {
             'parameter': 'gesture_token',
             'type': '==',
@@ -232,19 +433,65 @@ class PhraseGenerator:
             'weight': mode_params.get('request_weight', 0.95)
         }
         
+        # Add rhythmic phrasing if RhythmOracle available
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        if rhythmic_phrasing:
+            request['rhythmic_phrasing'] = rhythmic_phrasing
+        
         return request
     
     def _build_mirroring_request(self, mode_params: Dict = None) -> Dict:
         """
         Enhanced MIRROR: Phrase-aware complementary variation
         Contrasts melodic direction while matching harmonic character
+        
+        DUAL VOCABULARY: Mirrors content type - drums get harmony, guitar gets rhythm
         """
         if mode_params is None:
             mode_params = {}
         
         avg_consonance = self._calculate_avg_consonance(n=10)
         
-        # Focus on consonance matching for mirror mode
+        # DUAL VOCABULARY: Check for dual tokens
+        recent_human_events = self._get_recent_human_events(n=1)
+        if recent_human_events:
+            latest_event = recent_human_events[-1]
+            content_type = latest_event.get('content_type')
+            harmonic_token = latest_event.get('harmonic_token')
+            percussive_token = latest_event.get('percussive_token')
+            
+            if content_type and (harmonic_token is not None or percussive_token is not None):
+                # Mirror mode: complement the input
+                if content_type == "percussive":
+                    request = {
+                        'percussive_token': percussive_token,
+                        'response_mode': 'harmonic',
+                        'consonance': avg_consonance,
+                        'weight': mode_params.get('request_weight', 0.7)
+                    }
+                elif content_type == "harmonic":
+                    request = {
+                        'harmonic_token': harmonic_token,
+                        'response_mode': 'percussive',
+                        'weight': mode_params.get('request_weight', 0.7)
+                    }
+                else:  # hybrid
+                    request = {
+                        'harmonic_token': harmonic_token,
+                        'percussive_token': percussive_token,
+                        'response_mode': 'hybrid',
+                        'consonance': avg_consonance,
+                        'weight': mode_params.get('request_weight', 0.6)
+                    }
+                
+                # Add rhythmic phrasing if RhythmOracle available
+                rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+                if rhythmic_phrasing:
+                    request['rhythmic_phrasing'] = rhythmic_phrasing
+                
+                return request
+        
+        # Fallback: Focus on consonance matching for mirror mode
         request = {
             'parameter': 'consonance',
             'type': '==',
@@ -252,23 +499,60 @@ class PhraseGenerator:
             'weight': mode_params.get('request_weight', 0.7)
         }
         
+        # Add rhythmic phrasing if RhythmOracle available
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        if rhythmic_phrasing:
+            request['rhythmic_phrasing'] = rhythmic_phrasing
+        
         return request
     
     def _build_coupling_request(self, mode_params: Dict = None) -> Dict:
         """
         Enhanced COUPLE: Independent but rhythmically/harmonically aware
         High consonance with complementary rhythm
+        
+        DUAL VOCABULARY: Loosely coupled - hybrid mode with high consonance
         """
         if mode_params is None:
             mode_params = {}
         
-        # High consonance constraint for couple mode
+        # DUAL VOCABULARY: Check for dual tokens
+        recent_human_events = self._get_recent_human_events(n=1)
+        if recent_human_events:
+            latest_event = recent_human_events[-1]
+            content_type = latest_event.get('content_type')
+            harmonic_token = latest_event.get('harmonic_token')
+            percussive_token = latest_event.get('percussive_token')
+            
+            if content_type and (harmonic_token is not None or percussive_token is not None):
+                # Couple mode: hybrid with high consonance constraint
+                request = {
+                    'harmonic_token': harmonic_token,
+                    'percussive_token': percussive_token,
+                    'response_mode': 'hybrid',
+                    'consonance': 0.7,  # High consonance
+                    'weight': mode_params.get('request_weight', 0.3)  # Loose constraint
+                }
+                
+                # Add rhythmic phrasing if RhythmOracle available
+                rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+                if rhythmic_phrasing:
+                    request['rhythmic_phrasing'] = rhythmic_phrasing
+                
+                return request
+        
+        # Fallback: High consonance constraint for couple mode
         request = {
             'parameter': 'consonance',
             'type': '>',
             'value': 0.7,
             'weight': mode_params.get('request_weight', 0.3)  # Loose constraint
         }
+        
+        # Add rhythmic phrasing if RhythmOracle available
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        if rhythmic_phrasing:
+            request['rhythmic_phrasing'] = rhythmic_phrasing
         
         return request
     
@@ -444,12 +728,12 @@ class PhraseGenerator:
                 self.current_arc = PhraseArc.CONTEMPLATION
             else:
                 # Normal flow - varied arcs, NO SILENCE
-                weights = [0.3, 0.3, 0.4, 0.0, 0.0]  # buildup, peak, RELEASE, contemplation, NO SILENCE
+                weights = [0.0, 0.3, 0.3, 0.4, 0.0]  # NO SILENCE, buildup, peak, RELEASE, contemplation
                 self.current_arc = random.choices(list(PhraseArc), weights=weights)[0]
             
             self.arc_start_time = current_time
             self.arc_duration = random.uniform(10.0, 20.0)  # Shorter arc cycles (10-20 seconds)
-            
+        
         return self.current_arc
     
     def _update_harmonic_context(self, harmonic_context: Dict):
@@ -531,6 +815,7 @@ class PhraseGenerator:
         
         # Query AudioOracle with request parameters (proper suffix link traversal)
         oracle_notes = None
+        request = None  # Initialize request variable for later rhythmic phrasing check
         print(f"🔍 AudioOracle check: audio_oracle={self.audio_oracle is not None}, has_method={hasattr(self.audio_oracle, 'generate_with_request') if self.audio_oracle else False}")  # DEBUG
         if self.audio_oracle and hasattr(self.audio_oracle, 'generate_with_request'):
             try:
@@ -601,10 +886,30 @@ class PhraseGenerator:
             notes = oracle_notes[:phrase_length]
             print(f"   Phrase notes: {notes}")
             
-            # Generate timings/velocities/durations for oracle notes
+            # RHYTHMIC PHRASING: Check if request has rhythmic_phrasing from RhythmOracle
+            rhythmic_phrasing = None
+            if request and 'rhythmic_phrasing' in request:
+                rhythmic_phrasing = request['rhythmic_phrasing']
+                print(f"🥁 Using RhythmOracle phrasing for timing generation")
+            
+            # Generate timings using rhythmic phrasing if available
+            if rhythmic_phrasing:
+                timings = self._apply_rhythmic_phrasing_to_timing(
+                    rhythmic_phrasing, 
+                    len(notes), 
+                    voice_type
+                )
+            else:
+                # Fallback to default timing
+                timings = []
+                for i in range(len(notes)):
+                    timing = base_timing + random.uniform(-timing_variation, timing_variation)
+                    timings.append(max(0.3, timing))
+            
+            # Generate velocities and durations
+            velocities = []
+            durations = []
             for i in range(len(notes)):
-                timing = base_timing + random.uniform(-timing_variation, timing_variation)
-                timings.append(max(0.3, timing))
                 velocity = random.randint(60, 100) if voice_type == "melodic" else random.randint(70, 110)
                 velocities.append(velocity)
                 # Melody: longer sustained notes; Bass: shorter punchy notes

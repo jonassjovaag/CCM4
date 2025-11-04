@@ -11,6 +11,7 @@ import subprocess
 import os
 import signal
 import psutil
+import shutil
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
@@ -70,6 +71,41 @@ class GPTOSSClient:
         else:
             print(f"⚠️ GPT-OSS client initialized but Ollama not available")
     
+    def _find_ollama_executable(self) -> Optional[str]:
+        """Find the Ollama executable path cross-platform"""
+        # Try common Windows locations first
+        if os.name == 'nt':
+            possible_paths = [
+                os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Ollama', 'ollama.exe'),
+                os.path.join(os.environ.get('PROGRAMFILES', ''), 'Ollama', 'ollama.exe'),
+                os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'Ollama', 'ollama.exe'),
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    return path
+        
+        # Try to find in PATH using where/which command
+        try:
+            if os.name == 'nt':
+                result = subprocess.run(['where', 'ollama'], capture_output=True, text=True)
+            else:
+                result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                return result.stdout.strip().split('\n')[0]
+        except:
+            pass
+        
+        # Try direct command (might be in PATH but where/which failed)
+        try:
+            result = subprocess.run(['ollama', '--version'], capture_output=True, text=True)
+            if result.returncode == 0:
+                return 'ollama'  # Available in PATH
+        except:
+            pass
+        
+        return None
+    
     def _check_availability(self) -> bool:
         """Check if Ollama is running and model is available"""
         try:
@@ -93,15 +129,15 @@ class GPTOSSClient:
         try:
             print("🚀 Starting Ollama server...")
             
-            # Check if ollama command exists
-            result = subprocess.run(['which', 'ollama'], capture_output=True, text=True)
-            if result.returncode != 0:
-                print("❌ Ollama not found in PATH. Please install Ollama first.")
+            # Find Ollama executable
+            ollama_path = self._find_ollama_executable()
+            if not ollama_path:
+                print("❌ Ollama not found. Please install Ollama first.")
                 return False
             
             # Start Ollama server in background
             self.ollama_process = subprocess.Popen(
-                ['ollama', 'serve'],
+                [ollama_path, 'serve'],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 preexec_fn=os.setsid if os.name != 'nt' else None
@@ -136,14 +172,25 @@ class GPTOSSClient:
             
             # If model not found, try to pull it
             print(f"📥 Model {self.model} not found, attempting to pull...")
-            result = subprocess.run(['ollama', 'pull', self.model], 
-                                  capture_output=True, text=True, timeout=300)
             
-            if result.returncode == 0:
-                print(f"✅ Model {self.model} pulled successfully!")
-                return True
-            else:
-                print(f"❌ Failed to pull model {self.model}: {result.stderr}")
+            # Find Ollama executable
+            ollama_path = self._find_ollama_executable()
+            if not ollama_path:
+                print("❌ Ollama not found. Please install Ollama first.")
+                return False
+            
+            try:
+                result = subprocess.run([ollama_path, 'pull', self.model], 
+                                      capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    print(f"✅ Model {self.model} pulled successfully!")
+                    return True
+                else:
+                    print(f"❌ Failed to pull model {self.model}: {result.stderr}")
+                    return False
+            except subprocess.TimeoutExpired:
+                print(f"❌ Timeout pulling model {self.model}")
                 return False
                 
         except Exception as e:
