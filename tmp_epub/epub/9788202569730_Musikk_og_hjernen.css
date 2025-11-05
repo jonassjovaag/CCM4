@@ -1,0 +1,375 @@
+@font-face {
+  font-family: DejaVuSerif;
+  font-weight: normal;
+  font-style: normal;
+  src: url(fonts/dejavuserif.ttf);
+}
+
+@font-face {
+  font-family: DejaVuSerif;
+  font-weight: normal;
+  font-style: italic;
+  src: url(fonts/dejavuserif-italic.ttf);
+}
+
+@font-face {
+  font-family: DejaVuSerif;
+  font-weight: bold;
+  font-style: normal;
+  src: url(fonts/dejavuserif-bold.ttf);
+}
+
+@font-face {
+  font-family: DejaVuSerif;
+  font-weight: bold;
+  font-style: italic;
+  src: url(fonts/dejavuserif-bolditalic.ttf);
+}
+
+/** Generelle tags **/
+@page {
+  margin-top: 8pt;
+  margin-bottom: 8pt;
+}
+body {
+  font-family: "DejaVuSerif", serif;
+  font-size: 0.9em;
+  line-height: 1.28em;
+  margin-left: 14pt;
+  margin-right: 14pt;
+}
+p {margin-top:0em; margin-bottom:0em}
+table {
+  margin: 0.9em 0 0.9em 0;
+}
+td {
+  padding: 2px;
+  vertical-align: top;
+}
+
+h1 {font-weight: normal; text-align: left; margin:0; padding-top: 2em; padding-bottom: 0em; padding-left: 8em; color:#ffffff; line-height:1.3em;}
+h2 {font-weight: normal; text-align: left; margin:0; padding-top: 2em; padding-bottom: 0em; padding-left: 10em; color:#ffffff; line-height:1.3em;}
+h3 {font-weight: normal; margin:0; padding:0;}
+h4 {font-weight: normal; margin:0; padding:0;}
+h5 {font-weight: normal; margin:0; padding:0;}
+
+.smallcaps {font-variant: small-caps;}
+.underline {text-decoration: underline;}
+.center {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0.9em; margin-bottom:0.9em;}
+.center_1 {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0em; margin-bottom:0.9em;}
+.center_2 {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+.centera {font-size: 1.2em; text-align: center; text-indent:0em; margin-top:0.9em; margin-bottom:0.9em;}
+.centerb {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0.9em; margin-bottom:0em; color:#231F20;}
+.centera2 {font-size: 1em; text-align: center; text-indent:0em; margin-top:0.9em; margin-bottom:0.9em;}
+.centera1 {font-size: 1em; text-align: center; text-indent:0em; margin-top:0.9em; margin-bottom:0.9em;}
+h1 {padding-top: 40pt}
+h2 {padding-top: 40pt}
+h3 {padding-top: 40pt}
+h1.pagebreak {page-break-before: always; padding-top: 40pt}
+h2.pagebreak {page-break-before: always; padding-top: 40pt}
+h3.pagebreak {page-break-before: always; padding-top: 40pt}
+div.pagebreak {page-break-before: always;}
+
+h3.footnotes {font-size: 0.80em; padding-top: 2em;}
+.foot-note {font-size:0.9em; margin-left: 2.5em; text-align:left;}
+.note {float:left; margin-left:-2.5em;}
+.foot-note1 {font-size: 0.80em; padding-top: 0em;}
+.foot-note2 {font-size: 0.80em; padding-top: 6em;}
+
+.elogo {font-size: 0.8em; margin-top: 24em; padding-bottom: 0em; text-align: left;}
+p.noindents {text-indent:0em}
+p.extraspace {padding-top: 0em;}
+p.kile {padding-top: 35pt}
+
+p.rcentre {text-align: center; text-indent:0em;}
+p.jcentre {text-align: center; text-indent:0em;}
+p.jright {text-align: right; text-indent:0em;}
+p.right {font-size: 0.9em;  text-align: right; margin-right:0em;margin-top:0.3em; text-indent:0em;}
+p.rightc {font-size: 0.8em;  text-align: right; margin-right:0em;margin-top:0.3em; text-indent:0em;}
+p.right1 {font-size: 0.9em;  text-align: right; margin-right:0em;margin-top:1.3em; text-indent:0em;}
+p.rright1 {text-align: right; margin-right:0em; text-indent:0em;}
+p.jleft {text-align: left; text-indent:0em;}
+p.rleft {text-align: left; margin-left:0.5em; text-indent:0em;}
+p.rleft1 {text-align: left; margin-top:0.9em; margin-left:2.5em; margin-right:2.5em; text-indent:0em;}
+p.rleft2 {text-align: left; margin-left:2.5em; margin-right:2.5em; text-indent: 0.9em;}
+
+p.Hspace {text-indent: 0.9em}
+p.indent1 {text-indent: 0.9em}
+p.pause {padding-top: 0.9em; padding-bottom: 0.9em; text-align: center}
+p.hang {font-size: 0.9em;  text-align: left; margin-left:1.5em; text-indent:-1.5em; margin-top:0em;}
+p.hanga {font-size: 0.9em;  text-align: left; margin-left:2em; text-indent:-1.5em; margin-top:0em;}
+p.hang_1 {font-size: 0.9em;  text-align: left; margin-left:3em; text-indent:-1.5em; margin-top:0em;}
+p.hang-1 {font-size: 0.9em;  text-align: left; margin-left:1.5em; margin-top:0.1em; text-indent:-1.5em;}
+p.hang-2 {font-size: 0.9em;  text-align: left; margin-left:1.5em; margin-top:0.9em; text-indent:-1.5em;}
+
+.bl {padding-top:1em}
+.blny {padding-top:1em}
+
+.forlag {text-align: center}
+
+
+ul {margin-top: 0; margin-bottom: 0}
+ol {margin-top: 0; margin-bottom: 0}
+li {list-style-position: outside}
+.list-none {list-style-type: none;}
+.list-disc {list-style-type: disc;}
+.list-decimal {list-style-type: decimal;}
+.list-lower-alpha {list-style-type: lower-alpha;}
+.list-upper-alpha {list-style-type: upper-alpha;}
+.list-lower-roman {list-style-type: lower-roman;}
+.list-upper-roman {list-style-type: upper-roman;}
+
+img
+{
+max-height:100%;
+max-width:100%;
+}
+.image-A {padding-top:3em; padding-bottom:0em; text-align: center; }
+.image1 {padding-top:0.9em; padding-bottom:0em; text-align: center; }
+.imageA {padding-top:0.5em; padding-bottom:0em; text-align: center; }
+.imageA1 {padding-top:0.5em; padding-bottom:0em; text-align: center; }
+.image {padding-top:1.5em; padding-bottom:1.5em; text-align: center; }
+.imagecaption {font-size: 0.8em; text-align: left; padding-top:0.2em; padding-bottom:0em;}
+.imagecaption1 {font-size: 0.8em; text-align: left; padding-top:0.2em; padding-bottom:0.9em;}
+.imagecredit {font-size: 0.8em; text-align: right; padding-top:0em; padding-bottom:0.9em;}
+.credit1 {font-size: 0.8em; text-align: left;}
+.image_1 {font-size: 0.9em; text-align: left; padding-top:0.9em; padding-bottom:0.1em;}
+
+table.rulers {
+	border-width: thin;
+	border-style: solid;
+	border-color: #aca292;
+	border-collapse: collapse;
+}
+table.rulers th {
+	border-width: thin;
+	border-style: solid;
+	border-color: #aca292;
+	padding: 0.4em 0.2em;
+}
+table.rulers td {
+	border-width: thin;
+	border-style: solid;
+	border-color: #aca292;
+	padding: 0.5em 0.3em;
+}
+
+
+
+/** a, a:link, a:visited {text-decoration:none;} **/
+a
+{
+text-decoration:none;
+}
+
+/** Egne tags for '9788202597283_Nattafortellinger_for_rebelske_jenter' **/
+.kolofon {font-size: 0.79em; line-height: 1.12em; text-align: center; text-indent:0em;}
+.dedikasjon {font-size: 0.9em; text-align: left; margin-right: 0em; margin-left:5em; margin-top:5em;}
+.dedikasjon1 {font-size: 0.9em; text-align: left; margin-right: 0.9em; margin-left:7em; margin-top:0.5em;}
+.rright {}
+.right {font-size: 0.9em; text-align: right; margin-top:0.9em;}
+.right1 {font-size: 0.79em; text-align: right; line-height:1.3em; margin-right: 13em; margin-left:0.9em;}
+.half-title {font-size: 1.2em; font-weight: normal; text-align: center; text-indent:0em; padding-top:3em; padding-bottom:4em;}
+.section-1 {font-weight:bold; font-size: 1.2em; text-align: center; text-indent:0em; margin-top:2.2em; padding-bottom:0.7em;}
+.section-1a {font-size: 1.3em; text-align: center; text-indent:0em; margin-top:0em; padding-bottom:0.3em;}
+.section-2 {font-size: 1.1em; text-align: left; text-indent:0em; padding-top:1.5em; padding-bottom:0em; color:#971c29;}
+.section-2a {font-size: 1.1em; text-align: left; text-indent:0em; margin-top:1.5em; padding-bottom:0.5em;}
+.heading-1 {font-size: 1.4em; font-weight: bold; text-align: center; text-indent:0em; padding-top:3em; padding-bottom:3.5em;}
+.heading-1a {font-size: 2em; text-align: center; text-indent:0em; padding-top:3em; padding-bottom:0.5em;}
+.heading-1b {font-size: 0.9em; text-align: center; text-indent:0em; padding-top:0.5em; padding-bottom:1.5em; page-break-after:always;}
+.heading-2 {font-size: 1.1em; text-align: left; text-indent:0em; text-indent:0em; padding-top:2em; padding-bottom:0.5em;}
+.heading-2a {font-size: 0.9em;  text-align: left; text-indent:0em; text-indent:0em; padding-top:3.5em; padding-bottom:0.5em; font-weight:bold;}
+.heading-3 {font-size: 0.8em; font-weight: normal; text-align: left; text-indent:0em; margin-top:0.9em; margin-bottom:0em;}
+.heading-3a {font-size: 0.8em; font-weight: normal; text-align: left; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+.tekst {font-size: 0.9em;  text-align: left; text-indent: 2em; margin-top:0em; margin-left:0em;}
+.tekst-1 {font-size: 0.8em;  text-align: left; text-indent: 2em; margin-top:0em; margin-bottom:0em; margin-left:0em;}
+.tekst-2 {font-size: 0.8em;  text-align: left; text-indent: 0.9em; margin-top:0em; margin-bottom:0em; margin-left:0em;}
+.tekst-2a {font-size: 0.8em;  text-align: left; text-indent: 0em; margin-top:0.9em; margin-bottom:0em; margin-left:2em;}
+.tekst1 {font-size: 0.9em; text-align: left; text-indent: 0.9em; margin-top:0.9em; margin-left:0em;}
+
+.tab-txt {font-size: 0.8em;  text-align: left; text-indent: 0em; margin-top:0.1em; margin-left:0em;}
+.h-title {font-size: 1.1em;  text-align: center; text-indent: 0em; margin-top:10em; margin-left:0em;}
+.h-title1 {font-size: 0.8em;  text-align: center; text-indent: 0em; margin-top:0.2em; margin-left:0em;}
+
+
+.tekst2 {font-size: 0.8em; text-align: left; text-indent: 0.9em; margin-top:0em; margin-left:0em;}
+.tekst3 {font-size: 0.8em; text-align: center; text-indent: 0em; margin-top:0.9em; margin-left:0em;}
+.left_1 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0.9em; margin-left:3em;}
+.left_2 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:3em;}
+.left_3 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:2em;}
+.left_3_1 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:2.3em;}
+.left_3_2 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:1.8em;}
+
+.left_4 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:2.5em;}
+.left_5 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:2.8em;}
+.left_6 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:5em;}
+.left_7 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:5.2em;}
+.left_8 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:3em;}
+.left_9 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:3.5em;}
+.left_10 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:4.5em;}
+.caption {font-size:0.87em; text-align:left; text-indent:0em; margin-top:0em; margin-left:0em; padding-top:0em;}
+.tekst-noindent {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0em; margin-left:0em; padding-top:0em;}
+.tekst-noindent1 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:0.9em; margin-left:0em; margin-right:0em;}
+.tekst-noindent1a {font-size:0.8em; text-align:left; text-indent:0em; margin-top:0em; margin-left:0em; margin-right:0em;}
+.tekst-noindent2 {font-size:0.9em; text-align:left; text-indent:0em; margin-top:5em; margin-left:0em;}
+.tekst-noindent3 {font-size:0.9em; text-align:left; text-indent:0em; padding-top:5em; margin-left:0em; page-break-before:always;}
+
+span.color {color:#E584B6;}
+.color1 {font-size: 0.9em; background-color:#EFD0DC; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.color2 {font-size: 0.9em; background-color:#FFFFFF; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.color3 {font-size: 0.9em; background-color:#AEC3E5; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.svg {max-width:100%; max-height:100%;}
+.svg1 {max-width:100%; height:90%;}
+
+div.boxnote { border:3px solid #000000; margin-top:0.9em; padding:0.5em;}
+div.boxnote1 { border:0.05em solid #E584B6; margin-top:0.9em; background-color:#47769D; padding-top:5em; padding-bottom:16em;}
+.bordertopleftright1 {font-size: 0.9em; border-top:0.2em solid #DD93B0; border-left:0.2em solid #DD93B0; border-right:0.2em solid #DD93B0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.bordertopleftright2 {font-size: 0.9em; border-top:0.2em solid #9BB7E0; border-left:0.2em solid #9BB7E0; border-right:0.2em solid #9BB7E0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.borderleftright1 {font-size: 0.9em; border-left:0.2em solid #DD93B0; border-right:0.2em solid #DD93B0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.borderleftright2 {font-size: 0.9em; border-left:0.2em solid #9BB7E0; border-right:0.2em solid #9BB7E0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.borderleftrightbottom1 {font-size: 0.9em; border-bottom:0.2em solid #DD93B0; border-left:0.2em solid #DD93B0; border-right:0.2em solid #DD93B0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+.borderleftrightbottom2 {font-size: 0.9em; border-bottom:0.2em solid #9BB7E0; border-left:0.2em solid #9BB7E0; border-right:0.2em solid #9BB7E0; text-align: Left; text-indent:0em; padding-left:0.2em;}
+
+
+
+/** Cappelen Damm tittelsider **/
+.forlag {margin-top: 50pt}
+.ekolofon_pagebreak {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:3em;}
+.ekolofon {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:0.9em;}
+.ekolofon1 {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:0em;}
+.ekolofon1a {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:0.25em;}
+/** Cappelen Damm marger **/
+@page {
+  margin-top: 6pt;
+  margin-bottom: 6pt;
+}
+
+sup
+{
+font-size:80%;
+margin-top:0em;
+vertical-align:super;
+line-height:0;
+}
+span.space
+{
+margin-left:0.6em;
+}
+.toc-title {font-size: 1.4em;  text-align: center; text-indent: 0em; padding-top:2em; margin-bottom:1.5em; font-weight:normal; color:#000000;}
+.toc-text {font-size: 0.9em;  text-align: left; text-indent: 0em; margin-top:0.2em; margin-left:1.5em;}
+.toc-head {font-size: 0.9em;  text-align: left; text-indent: 0em; margin-top:0.9em; margin-left:1.5em; color:#971c29;}
+.toc-text1 {font-size: 0.9em;  text-align: left; text-indent: 0em; margin-top:1.2em; margin-left:1.5em;}
+.toc-text2 {font-size: 0.8em;  text-align: center; text-indent: 0em; margin-top:0.9em; margin-left:0em; color:#88888b;}
+.toc-text2a {font-size: 0.8em;  text-align: center; text-indent: 0em; margin-top:0em; margin-left:0em; color:#88888b;}
+.fm-heading {font-size: 1.3em; text-align: left; text-indent:0em; padding-top:0.9em; padding-bottom:0.3em;}
+.fm-center {font-size: 1.3em; text-align: center; text-indent:0em; padding-top:4em; padding-bottom:2.3em;}
+.blq-normal {font-size: 0.9em;  text-align: left; text-indent: 0em; margin-top:0.9em; margin-left:0.9em; margin-right:0.9em;}
+.blq-normal1 {font-size: 0.9em;  text-align: left; text-indent: 0em; margin-top:0em; margin-left:0.9em; margin-right:0.9em;}
+.blq-indent {font-size: 0.9em;  text-align: left; text-indent: 0.9em; margin-top:0.9em; margin-left:0.9em; margin-right:0.9em;}
+
+p.hang1 {font-size: 0.9em;  text-align: left; margin-left:2em; text-indent:-1.5em; margin-top:0em;}
+p.hang2 {font-size: 0.8em;  text-align: left; margin-left:2em; text-indent:-2em; margin-top:0em;}
+p.hang3 {font-size: 0.8em;  text-align: left; margin-left:0.9em; text-indent:-1.8em; margin-top:0em;}
+
+.tekst-noindent-1 {font-size:0.8em; text-align:left; text-indent:0em; margin-top:0em; margin-left:0em; padding-top:2em;}
+.tekst-noindent-2 {font-size:0.8em; text-align:left; text-indent:0em; margin-top:0em; margin-left:0em;}
+.tekst-quote {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:6em;}
+.tekst-quote1 {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0.9em;}
+.tekst-quote2 {font-size: 0.9em; text-align: center; text-indent:0em; margin-top:0em;}
+.tekst-quote4 {font-size: 0.9em; text-align: right; text-indent:0em; margin-top:0em;}
+.ch-no {font-size: 1.2em; font-weight: normal; text-align: center; text-indent:0em; padding-top:2em; padding-bottom:0.5em;}
+.ch-title {font-size: 1.8em; text-align: center; text-indent:0em; padding-top:2em; padding-bottom:2.5em; font-weight:bold;line-height:1.3em;}
+.ch-title1 {font-size: 1.4em; text-align: center; text-indent:0em; padding-top:2em; padding-bottom:1.5em; font-weight:bold; color:#ef4023;}
+.ch-sub {font-size: 1.1em; text-align: center; text-indent:0em; padding-top:0.2em; padding-bottom:2em;}
+.ch-head {font-size: 0.9em; text-align: center; text-indent:0em; padding-top:2em; padding-bottom:3em; color:#ef4023;}
+
+.bm-title {font-size: 1.4em; font-weight: normal; text-align: center; text-indent:0em; padding-top:4em; padding-bottom:1.5em;}
+span.dropcap{font-size:250%; float:left; height:0.9em; margin-top:0em; margin-bottom:0em; margin-left:0em; text-indent: 0em; color:#971c29; font-weight: bold;}
+span.smallcaps
+{
+font-size: 0.75em;
+}
+span.color_1
+{
+color:#ef4023;
+}
+span.color_2
+{
+color:#ffde00;
+}
+span.line
+{
+border-top: solid #ffde00;
+border-bottom: solid #ffde00;
+  margin-top: 0.2em;
+  margin-bottom: 0.2em;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+}
+.line
+{
+border-top: solid #ffde00;
+  margin-left: 3em;
+  margin-right: 3em;
+margin-top: 0.5em;
+}
+.fig-tekst1 {font-size: 0.8em; text-align: right; text-indent:0em; margin-top:0.9em; padding-top:0.9em; margin-bottom:0em; page-break-before:always;}
+.fig-tekst1a {font-size: 0.8em; text-align: left; text-indent:0em; margin-top:0.9em; padding-top:0.9em; margin-bottom:0em; page-break-before:always;}
+.fig-tekst2 {font-size: 0.8em; text-align: right; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+.fig-tekst2a {font-size: 0.8em; text-align: left; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+.fig-tekst3 {font-size: 0.8em; text-align: left; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+.fig-tekst4 {font-size: 0.8em; text-align: right; text-indent:0em; margin-top:0em; margin-bottom:0em;}
+
+span.color_3
+{
+font-size:0.6em;
+color:#ffde00;
+}
+.fig-tekst_1 {font-size: 0.8em; text-align: right; text-indent:0em; margin-top:0em; margin-bottom:0em; margin-right:0em;}
+.fig-tekst_2 {font-size: 0.8em; text-align: right; text-indent:0em; margin-top:0em; margin-bottom:0em; margin-right:0em;}
+.line1
+{
+border-top: solid;
+margin-top: 0.2em;
+}
+.line2
+{
+border-top: 0.1em solid #a7a9ac;
+margin-top: 2.5em;
+}
+span.color_4 {color:#939598;}
+
+div.pullquote { margin-top:0.9em; padding-left:0.9em; padding-bottom:0.9em;}
+.partbg {background-color:#E1D5C4;}
+.part-heading {font-size: 2.5em; text-align: center; text-indent:0em; padding-top:0.9em; padding-bottom:0.9em;line-height:1.2em;}
+.tdbg{background-color:#f2eee6;}
+p.list {font-size: 0.9em;  text-align: left; margin-left:1.5em; margin-top:0em;}
+.label{float:left; margin-left:-1.5em;color:#aca292;}
+p.idx {font-size: 0.9em;  text-align: left; margin-left:1.5em; text-indent:-1.5em; margin-top:0em;}
+p.idx-1 {font-size: 0.9em;  text-align: left; margin-left:1.5em; margin-top:0.9em; text-indent:-1.5em;}
+
+
+.bk-title {font-size: 1.1em;  text-align: center; text-indent: 0em; margin-top:0.5em; margin-left:0em;}
+.bk-title1 {font-size: 2.2em;  text-align: center; text-indent: 0em; margin-top:1.3em; margin-left:0em;}
+.bk-subtitle {font-size: 1.1em;  text-align: center; text-indent: 0em; margin-top:2.2em; margin-left:0em; line-height:1.4em;}
+.bk-author {font-size: 0.8em;  text-align: center; text-indent: 0em; margin-bottom:1em; margin-top:0.2em; margin-left:0em;}
+
+
+.copy_pagebreak {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:3em;}
+.copy {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:1em;}
+.copy1 {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:0em;}
+.copy1a {font-size: 0.80em; text-align: left; text-indent:0em; margin-top:3em;}
+
+
+
+.idxa
+{
+	font-size:0.9em;
+	margin-left:1.5em;
+	margin-right:0em;
+	text-indent:0em;
+	margin-top:0em;
+	margin-bottom:0em;
+	font-weight:normal;
+	text-align:justify;
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="no">
+<head>
+	<meta name="dtb:uid" content="EXCERPT-e02017a5-b252-4d54-b5c6-db4d7161b10a"/>
+	<meta name="dtb:depth" content="1"/>
+	<meta name="dtb:totalPageCount" content="0"/>
+	<meta name="dtb:maxPageNumber" content="0"/>
+</head>
+<docTitle><text>Musikk og Hjernen</text></docTitle>
+<navMap>
+<navPoint id="toc-1" playOrder="1"><navLabel><text>Forside</text></navLabel><content src="Coverpage.xhtml"/></navPoint>
+<navPoint id="toc-2" playOrder="2"><navLabel><text>Tittelside</text></navLabel><content src="Titlepage.xhtml"/></navPoint>
+<navPoint id="toc-3" playOrder="3"><navLabel><text>Innhold</text></navLabel><content src="Innhold.xhtml"/></navPoint>
+<navPoint id="toc-4" playOrder="4"><navLabel><text>Innledning</text></navLabel><content src="Chapter01.xhtml#C1"/></navPoint>
+<navPoint id="toc-5" playOrder="5"><navLabel><text>Hva hjernen gjør med musikk</text></navLabel><content src="Part01.xhtml#P1"/>
+<navPoint id="toc-6" playOrder="6"><navLabel><text>Når oppsto musikken?</text></navLabel><content src="Chapter02.xhtml#C2"/></navPoint>
+
+
+
+
+</navPoint>
+
+
+
+
+
+
+
+</navMap>
+</ncx>
