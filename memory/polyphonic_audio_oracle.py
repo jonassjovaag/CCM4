@@ -800,6 +800,114 @@ class PolyphonicAudioOracle(AudioOracle):
             print(f"❌ Error saving polyphonic AudioOracle: {e}")
             return False
     
+    def save_to_pickle(self, filepath: str) -> bool:
+        """
+        Save AudioOracle to compressed pickle format (MUCH faster than JSON)
+        
+        This saves the entire object state using pickle + gzip compression.
+        Typical speedup: 10-50x faster loading than JSON for large models.
+        
+        Args:
+            filepath: Path to save (should end in .pkl or .pkl.gz)
+        
+        Returns:
+            True if successful
+        """
+        try:
+            import pickle
+            import gzip
+            
+            # Prepare data dictionary
+            data = {
+                'distance_threshold': self.distance_threshold,
+                'distance_function': self.distance_function,
+                'max_pattern_length': self.max_pattern_length,
+                'feature_dimensions': self.feature_dimensions,
+                'adaptive_threshold': self.adaptive_threshold,
+                'chord_similarity_weight': self.chord_similarity_weight,
+                'size': self.size,
+                'last': self.last,
+                'frame_counter': self.frame_counter,
+                'sequence_length': self.sequence_length,
+                'is_trained': self.is_trained,
+                'last_update': self.last_update,
+                'stats': self.stats,
+                'chord_progressions': dict(self.chord_progressions),
+                'harmonic_patterns': dict(self.harmonic_patterns),
+                'distance_history': list(self.distance_history),
+                'threshold_adjustments': self.threshold_adjustments,
+                'transitions': self.transitions,
+                'suffix_links': self.suffix_links,
+                'states': self.states,
+                'audio_frames': self.audio_frames,
+                'format_version': '2.0',  # Pickle format
+            }
+            
+            # Save with gzip compression
+            with gzip.open(filepath, 'wb', compresslevel=6) as f:
+                pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
+            file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+            print(f"✅ AudioOracle saved to pickle: {filepath} ({file_size_mb:.1f} MB)")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error saving to pickle: {e}")
+            return False
+    
+    def load_from_pickle(self, filepath: str) -> bool:
+        """
+        Load AudioOracle from compressed pickle format (MUCH faster than JSON)
+        
+        Args:
+            filepath: Path to pickle file
+            
+        Returns:
+            True if successful
+        """
+        try:
+            import pickle
+            import gzip
+            import os
+            
+            file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+            print(f"📂 Loading AudioOracle from pickle ({file_size_mb:.1f} MB)...")
+            
+            start_time = time.time()
+            with gzip.open(filepath, 'rb') as f:
+                data = pickle.load(f)
+            load_time = time.time() - start_time
+            
+            # Restore all attributes
+            self.distance_threshold = data['distance_threshold']
+            self.distance_function = data['distance_function']
+            self.max_pattern_length = data['max_pattern_length']
+            self.feature_dimensions = data['feature_dimensions']
+            self.adaptive_threshold = data['adaptive_threshold']
+            self.chord_similarity_weight = data['chord_similarity_weight']
+            self.size = data['size']
+            self.last = data['last']
+            self.frame_counter = data['frame_counter']
+            self.sequence_length = data['sequence_length']
+            self.is_trained = data['is_trained']
+            self.last_update = data['last_update']
+            self.stats = data['stats']
+            self.chord_progressions = defaultdict(int, data['chord_progressions'])
+            self.harmonic_patterns = defaultdict(int, data['harmonic_patterns'])
+            self.distance_history = deque(data['distance_history'], maxlen=1000)
+            self.threshold_adjustments = data['threshold_adjustments']
+            self.transitions = data['transitions']
+            self.suffix_links = data['suffix_links']
+            self.states = data['states']
+            self.audio_frames = data['audio_frames']
+            
+            print(f"✅ Loaded in {load_time:.2f}s: {len(self.states)} states, {len(self.audio_frames)} frames")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error loading from pickle: {e}")
+            return False
+    
     def load_from_file(self, filepath: str) -> bool:
         """
         Load polyphonic AudioOracle from file
@@ -811,10 +919,17 @@ class PolyphonicAudioOracle(AudioOracle):
             True if successful
         """
         try:
+            import os
+            file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+            print(f"📂 Loading AudioOracle model ({file_size_mb:.1f} MB)...")
+            
+            print("   ⏳ Reading JSON file...")
             with open(filepath, 'r') as f:
                 data = json.load(f)
+            print(f"   ✅ JSON parsed")
             
             # Load basic parameters
+            print("   ⏳ Loading parameters...")
             self.distance_threshold = data.get('distance_threshold', 0.15)
             self.distance_function = data.get('distance_function', 'euclidean')
             self.max_pattern_length = data.get('max_pattern_length', 50)
@@ -831,6 +946,7 @@ class PolyphonicAudioOracle(AudioOracle):
             self.last_update = data.get('last_update', time.time())
             
             # Load statistics
+            print("   ⏳ Loading statistics...")
             self.stats = data.get('stats', {})
             self.chord_progressions = defaultdict(int, data.get('chord_progressions', {}))
             self.harmonic_patterns = defaultdict(int, data.get('harmonic_patterns', {}))
@@ -838,17 +954,20 @@ class PolyphonicAudioOracle(AudioOracle):
             self.threshold_adjustments = data.get('threshold_adjustments', 0)
             
             # Load transitions
+            print("   ⏳ Loading transitions...")
             self.transitions = {}
             for key, target_state in data.get('transitions', {}).items():
                 state, symbol = key.split('_', 1)
                 self.transitions[(int(state), symbol)] = target_state
             
             # Load suffix links
+            print("   ⏳ Loading suffix links...")
             self.suffix_links = {}
             for state, link_state in data.get('suffix_links', {}).items():
                 self.suffix_links[int(state)] = link_state
             
             # Load states
+            print(f"   ⏳ Loading {len(data.get('states', {}))} states...")
             self.states = {}
             for state_id, state_data in data.get('states', {}).items():
                 self.states[int(state_id)] = {
@@ -858,10 +977,15 @@ class PolyphonicAudioOracle(AudioOracle):
                 }
             
             # Load audio_frames (CRITICAL for note generation!)
+            print(f"   ⏳ Loading {len(data.get('audio_frames', {}))} audio frames (this may take a while)...")
             self.audio_frames = {}
             if 'audio_frames' in data:
                 from .audio_oracle import AudioFrame
-                for frame_id_str, frame_data in data['audio_frames'].items():
+                frame_data_dict = data['audio_frames']
+                total_frames = len(frame_data_dict)
+                progress_step = max(1, total_frames // 10)  # Report every 10%
+                
+                for idx, (frame_id_str, frame_data) in enumerate(frame_data_dict.items()):
                     frame_id = int(frame_id_str)
                     self.audio_frames[frame_id] = AudioFrame(
                         timestamp=frame_data['timestamp'],
@@ -869,9 +993,15 @@ class PolyphonicAudioOracle(AudioOracle):
                         audio_data=frame_data['audio_data'],
                         frame_id=frame_data['frame_id']
                     )
-                print(f"✅ Loaded {len(self.audio_frames)} audio_frames")
+                    
+                    # Progress indicator
+                    if (idx + 1) % progress_step == 0 or idx == total_frames - 1:
+                        progress_pct = ((idx + 1) / total_frames) * 100
+                        print(f"      {progress_pct:.0f}% ({idx + 1}/{total_frames} frames)")
+                
+                print(f"   ✅ Loaded {len(self.audio_frames)} audio_frames")
             else:
-                print(f"⚠️  No audio_frames in saved file (old model format)")
+                print(f"   ⚠️  No audio_frames in saved file (old model format)")
             
             print(f"✅ Polyphonic AudioOracle loaded from: {filepath}")
             return True

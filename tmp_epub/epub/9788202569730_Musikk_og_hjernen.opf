@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="no.bokbasen.PrimaryID">
+ <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+  <dc:title>Musikk og Hjernen</dc:title>
+  <dc:identifier id="ISBN" opf:scheme="ISBN">9788202569730</dc:identifier>
+  <dc:language>no</dc:language>
+  <dc:creator opf:role="aut">Are Brean og Geir Olve Skeie</dc:creator>
+  <dc:publisher>CAPPELEN DAMM AS</dc:publisher>
+  <dc:contributor opf:role="bkp">Iben Sandemose</dc:contributor>
+  <dc:date opf:event="original-publication">2018</dc:date>
+  <dc:date opf:event="epub-creation">2018-12-10</dc:date>
+ <dc:identifier id="no.bokbasen.PrimaryID" opf:scheme="URN">EXCERPT-e02017a5-b252-4d54-b5c6-db4d7161b10a</dc:identifier></metadata>
+<manifest>
+<item id="cover" href="Coverpage.xhtml" media-type="application/xhtml+xml"/>
+<item id="font1" href="fonts/dejavuserif.ttf" media-type="application/x-font-ttf"/>
+<item id="font2" href="fonts/dejavuserif-italic.ttf" media-type="application/x-font-ttf"/>
+<item id="font3" href="fonts/dejavuserif-bold.ttf" media-type="application/x-font-ttf"/>
+<item id="font4" href="fonts/dejavuserif-bolditalic.ttf" media-type="application/x-font-ttf"/>
+<item id="titlepage" href="Titlepage.xhtml" media-type="application/xhtml+xml"/>
+<item id="Page4" href="Page4.xhtml" media-type="application/xhtml+xml"/>
+<item id="Contents" href="Innhold.xhtml" media-type="application/xhtml+xml"/>
+<item id="Page6" href="Page6.xhtml" media-type="application/xhtml+xml"/>
+<item id="Chapter01" href="Chapter01.xhtml" media-type="application/xhtml+xml"/>
+<item id="Part01" href="Part01.xhtml" media-type="application/xhtml+xml"/>
+<item id="Chapter02" href="Chapter02.xhtml" media-type="application/xhtml+xml"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<item id="img-cappelendamm-logo-dobbel" href="cappelendamm-logo-dobbel.jpg" media-type="image/jpeg"/>
+
+
+
+
+
+
+
+
+<item id="img08" href="p13-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+<item id="img13" href="p15-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+
+
+
+
+
+
+<item id="img24" href="p21-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+
+<item id="img30" href="p3-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+<item id="img35" href="p4-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+<item id="img40" href="p6-01.jpg" media-type="image/jpeg"/>
+
+
+
+
+
+<item id="img46" href="p9-01.jpg" media-type="image/jpeg"/>
+
+<item id="img47a" href="rose180.jpg" media-type="image/jpeg"/>
+
+
+<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+<item id="css" href="9788202569730_Musikk_og_hjernen.css" media-type="text/css"/>
+</manifest>
+<spine toc="ncx">
+<itemref idref="cover"/>
+<itemref idref="titlepage"/>
+<itemref idref="Page4"/>
+<itemref idref="Contents"/>
+<itemref idref="Page6"/>
+<itemref idref="Chapter01"/>
+<itemref idref="Part01"/>
+<itemref idref="Chapter02"/>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</spine>
+<guide>
+<reference href="Coverpage.xhtml" type="text" title="Cover"/>
+<reference type="text1" title="Tittelside" href="Titlepage.xhtml"/>
+</guide>
+</package>

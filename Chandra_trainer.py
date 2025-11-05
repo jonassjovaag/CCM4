@@ -807,6 +807,17 @@ class EnhancedHybridTrainingPipeline:
                     print(f"📊 Model contains: {stats.get('total_patterns', 0)} patterns, "
                           f"{stats.get('harmonic_patterns', 0)} harmonic patterns, "
                           f"{stats.get('polyphonic_patterns', 0)} polyphonic patterns")
+                    
+                    # Also save as pickle for faster loading
+                    pickle_file = f"{model_base}_model.pkl.gz"
+                    print(f"💾 Saving AudioOracle model to pickle format: {pickle_file}...")
+                    try:
+                        pickle_size = audio_oracle.save_to_pickle(pickle_file)
+                        print(f"✅ Pickle model saved successfully! ({pickle_size:.1f} MB)")
+                        print(f"💡 Pickle format loads 10-50× faster than JSON")
+                    except Exception as e:
+                        print(f"⚠️  Failed to save pickle format: {e}")
+                        print(f"   (JSON model is still available)")
                 else:
                     print(f"❌ Failed to save AudioOracle model")
         
@@ -823,6 +834,28 @@ class EnhancedHybridTrainingPipeline:
                       f"avg density {rhythm_stats['avg_density']:.2f}")
             except Exception as e:
                 print(f"❌ Failed to save RhythmOracle model: {e}")
+        
+        # Save PerformanceArc for timeline/structured performances
+        if performance_arc:
+            # Determine arc filename (use ai_learning_data/ directory for persistent models)
+            import os
+            base_name = os.path.basename(audio_file).replace('.wav', '').replace('.mp3', '').replace('.flac', '')
+            arc_file = f"ai_learning_data/{base_name}_performance_arc.json"
+            
+            print(f"🎭 Saving PerformanceArc to {arc_file}...")
+            try:
+                arc_dict = performance_arc.to_dict()
+                with open(arc_file, 'w') as f:
+                    import json
+                    json.dump(arc_dict, f, indent=2)
+                print(f"✅ PerformanceArc saved successfully!")
+                print(f"📊 Arc contains: {len(performance_arc.phases)} phases, "
+                      f"{performance_arc.total_duration:.1f}s duration, "
+                      f"{len(performance_arc.silence_patterns)} silence patterns")
+            except Exception as e:
+                print(f"❌ Failed to save PerformanceArc: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Save correlation patterns for live use (use same base name)
         correlation_file = f"{model_base}_correlation_patterns.json"

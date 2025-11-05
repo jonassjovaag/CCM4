@@ -1,0 +1,179 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "pattern_0",
+      "tempo": 99.38401442307782,
+      "density": 4.222196691176471,
+      "syncopation": 0.2179487179487181,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.26095171923245697,
+      "context": {
+        "start_time": 0.06965986394557823,
+        "end_time": 3.622312925170068,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.7726169
+    },
+    {
+      "pattern_id": "pattern_1",
+      "tempo": 99.38401442307782,
+      "density": 4.507060996993988,
+      "syncopation": 0.25261865793787225,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.214059627606086,
+      "context": {
+        "start_time": 4.829750566893424,
+        "end_time": 109.11056689342404,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.772631
+    },
+    {
+      "pattern_id": "pattern_2",
+      "tempo": 99.38401442307782,
+      "density": 4.16065280720339,
+      "syncopation": 0.2793522267205503,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.19967736059056915,
+      "context": {
+        "start_time": 111.0378231292517,
+        "end_time": 124.73759637188209,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.772636
+    },
+    {
+      "pattern_id": "pattern_3",
+      "tempo": 99.38401442307782,
+      "density": 4.006177325581449,
+      "syncopation": 0.317307692307695,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.3848895937603171,
+      "context": {
+        "start_time": 129.6370068027211,
+        "end_time": 130.6354648526077,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.772639
+    },
+    {
+      "pattern_id": "pattern_4",
+      "tempo": 99.38401442307782,
+      "density": 2.7965198863636376,
+      "syncopation": 0.3846153846141896,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.4822905131439246,
+      "context": {
+        "start_time": 132.56272108843538,
+        "end_time": 134.3506575963719,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.7726421
+    },
+    {
+      "pattern_id": "pattern_5",
+      "tempo": 99.38401442307782,
+      "density": 3.39221693065069,
+      "syncopation": 0.2876254180604737,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.15657708517798866,
+      "context": {
+        "start_time": 136.8584126984127,
+        "end_time": 143.6386394557823,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.7726452
+    },
+    {
+      "pattern_id": "pattern_6",
+      "tempo": 99.38401442307782,
+      "density": 3.4486770629882764,
+      "syncopation": 0.28611632270109344,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.2268111652034732,
+      "context": {
+        "start_time": 146.44825396825397,
+        "end_time": 158.33687074829933,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.7726479
+    },
+    {
+      "pattern_id": "pattern_7",
+      "tempo": 99.38401442307782,
+      "density": 2.5299357476635507,
+      "syncopation": 0.28321678321836946,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.4908250364199131,
+      "context": {
+        "start_time": 159.63718820861678,
+        "end_time": 177.02893424036282,
+        "complexity": 1.0
+      },
+      "timestamp": 1762371571.772651
+    }
+  ],
+  "transitions": {
+    "pattern_0": {
+      "pattern_1": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_1": {
+      "pattern_2": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_2": {
+      "pattern_3": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_3": {
+      "pattern_4": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_4": {
+      "pattern_5": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_5": {
+      "pattern_6": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_6": {
+      "pattern_7": {
+        "frequency": 1,
+        "context": {}
+      }
+    }
+  },
+  "frequency": {
+    "pattern_0": 1,
+    "pattern_1": 2,
+    "pattern_2": 2,
+    "pattern_3": 2,
+    "pattern_4": 2,
+    "pattern_5": 2,
+    "pattern_6": 2,
+    "pattern_7": 2
+  },
+  "timestamp": 1762372915.0657122
+}

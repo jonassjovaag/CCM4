@@ -3,13 +3,14 @@
 GPT Reflection Viewport - Display AI's live musical reflections
 """
 
-from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QTextEdit, QSizePolicy
+from PyQt5.QtWidgets import QLabel, QVBoxLayout, QTextEdit, QSizePolicy
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QTextOption
+from .base_viewport import BaseViewport
 import time
 
 
-class GPTReflectionViewport(QWidget):
+class GPTReflectionViewport(BaseViewport):
     """
     Viewport for displaying GPT-OSS live reflections on musical interaction.
     
@@ -22,7 +23,7 @@ class GPTReflectionViewport(QWidget):
     
     def __init__(self, parent=None):
         """Initialize GPT reflection viewport"""
-        super().__init__(parent)
+        super().__init__(viewport_id="gpt_reflection", title="GPT-OSS Live Reflection")
         
         # State
         self.current_reflection = "Initializing GPT-OSS live reflection engine...\n\nWaiting for first reflection..."
@@ -38,22 +39,10 @@ class GPTReflectionViewport(QWidget):
         
     def _init_ui(self):
         """Initialize the user interface"""
+        # Use BaseViewport's content_widget instead of creating new layout
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
-        
-        # Title
-        title = QLabel("🤖 GPT-OSS Live Reflection")
-        title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                background-color: #2d2d30;
-                padding: 5px;
-            }
-        """)
-        title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        layout.addWidget(title)
+        self.content_widget.setLayout(layout)
         
         # Reflection text area (read-only, word wrap)
         self.reflection_text = QTextEdit()
@@ -90,17 +79,8 @@ class GPTReflectionViewport(QWidget):
             }
         """)
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
-        
-        self.setLayout(layout)
-        
-        # Dark theme for widget
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e1e;
-            }
-        """)
         
     def update_reflection(self, reflection_text: str, timestamp: float):
         """

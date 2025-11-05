@@ -124,8 +124,19 @@ class AsyncGPTReflector:
         for task in pending:
             task.cancel()
         
-        # Stop the loop
-        self.loop.stop()
+        # Create a task to wait for all cancellations to complete
+        async def wait_for_cancellations():
+            # Gather all tasks (will raise CancelledError, but that's ok)
+            await asyncio.gather(*pending, return_exceptions=True)
+        
+        # Schedule the wait and then stop
+        if pending:
+            self.loop.create_task(wait_for_cancellations()).add_done_callback(
+                lambda _: self.loop.stop()
+            )
+        else:
+            # No pending tasks, stop immediately
+            self.loop.stop()
             
     def set_callback(self, callback_fn: Callable[[str, float], None]):
         """

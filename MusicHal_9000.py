@@ -32,6 +32,7 @@ from typing import Dict, Optional, List
 import joblib
 import signal
 import sys
+import glob
 
 # Existing harmonic components (unchanged)
 from listener.jhs_listener_core import DriftListener, Event
@@ -178,6 +179,7 @@ class EnhancedDriftEngineAI:
     
     def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None, 
                  enable_rhythmic: bool = True, enable_mpe: bool = True, performance_duration: int = 0,
+                 performance_arc_path: Optional[str] = None,
                  enable_hybrid_perception: bool = False, enable_wav2vec: bool = False,
                  enable_live_training: bool = False,
                  wav2vec_model: str = "facebook/wav2vec2-base", use_gpu: bool = False,
@@ -332,6 +334,7 @@ class EnhancedDriftEngineAI:
         # Performance arc system
         self.timeline_manager: Optional[PerformanceTimelineManager] = None
         self.performance_duration = performance_duration
+        self.performance_arc_path = performance_arc_path
         
         # Status bar state
         self._last_status_update = 0.0
@@ -415,7 +418,7 @@ class EnhancedDriftEngineAI:
         
         # Initialize timeline manager if performance duration is specified
         if self.performance_duration > 0:
-            self._initialize_timeline_manager()
+            self._initialize_timeline_manager(self.performance_arc_path)
         
         # Initialize conversation logging
         self._initialize_conversation_logging()
@@ -469,12 +472,28 @@ class EnhancedDriftEngineAI:
         reflection_preview = reflection[:150] + "..." if len(reflection) > 150 else reflection
         print(f"🤖 GPT Reflection: {reflection_preview}")
     
-    def _initialize_timeline_manager(self):
+    def _initialize_timeline_manager(self, arc_file_path: Optional[str] = None):
         """Initialize performance timeline manager"""
         try:
+            # If no arc path specified, try to find most recent arc file
+            if arc_file_path is None:
+                arc_dir = "ai_learning_data"
+                arc_pattern = os.path.join(arc_dir, "*_performance_arc.json")
+                arc_files = glob.glob(arc_pattern)
+                
+                if arc_files:
+                    # Sort by modification time, most recent first
+                    arc_files.sort(key=os.path.getmtime, reverse=True)
+                    arc_file_path = arc_files[0]
+                    print(f"🎭 Using most recent performance arc: {os.path.basename(arc_file_path)}")
+                else:
+                    print(f"⚠️  No performance arc files found in {arc_dir}/")
+                    print(f"   Performance will use simple duration-based timeline")
+                    arc_file_path = None  # Proceed without arc
+            
             config = PerformanceConfig(
                 duration_minutes=self.performance_duration,
-                arc_file_path="ai_learning_data/itzama_performance_arc.json",  # Default arc
+                arc_file_path=arc_file_path,  # Can be None for simple timeline
                 engagement_profile="balanced",
                 silence_tolerance=5.0,
                 adaptation_rate=0.1
@@ -1988,19 +2007,42 @@ class EnhancedDriftEngineAI:
         # Load memory buffer
         memory_loaded = self.memory_buffer.load_from_file(self.memory_file)
         
-        # Automatically find the most recent JSON file
+        # Automatically find the most recent model file (prefer pickle over JSON)
         json_dir = "JSON"
         if os.path.exists(json_dir):
-            # Look for model files first (AudioOracle models)
-            model_files = [f for f in os.listdir(json_dir) if f.endswith('_model.json')]
-            if model_files:
-                # Sort by modification time (most recent first)
-                model_files.sort(key=lambda x: os.path.getmtime(os.path.join(json_dir, x)), reverse=True)
-                most_recent_file = os.path.join(json_dir, model_files[0])
-                print(f"🎓 Loading most recent AudioOracle model: {most_recent_file}")
-                
+            # Look for pickle files first (much faster)
+            pickle_files = [f for f in os.listdir(json_dir) if f.endswith('_model.pkl.gz') or f.endswith('_model.pkl')]
+            json_files = [f for f in os.listdir(json_dir) if f.endswith('_model.json')]
+            
+            # Prefer pickle files if available
+            if pickle_files:
+                pickle_files.sort(key=lambda x: os.path.getmtime(os.path.join(json_dir, x)), reverse=True)
+                most_recent_file = os.path.join(json_dir, pickle_files[0])
+                use_pickle = True
+                print(f"🎓 Loading most recent AudioOracle model (pickle): {most_recent_file}")
+            elif json_files:
+                json_files.sort(key=lambda x: os.path.getmtime(os.path.join(json_dir, x)), reverse=True)
+                most_recent_file = os.path.join(json_dir, json_files[0])
+                use_pickle = False
+                print(f"🎓 Loading most recent AudioOracle model (JSON): {most_recent_file}")
+                print(f"💡 Tip: Convert to pickle format for 10-50x faster loading!")
+            else:
+                most_recent_file = None
+                use_pickle = False
+            
+            if most_recent_file:
                 # Load model configuration first to initialize clustering with correct parameters
-                model_config = self._load_model_config(most_recent_file)
+                # For pickle files, we'll load config from a companion JSON if it exists
+                if use_pickle:
+                    json_config_file = most_recent_file.replace('.pkl.gz', '.json').replace('.pkl', '.json')
+                    if os.path.exists(json_config_file):
+                        model_config = self._load_model_config(json_config_file)
+                    else:
+                        # Try to extract config from pickle metadata (if available)
+                        model_config = None
+                else:
+                    model_config = self._load_model_config(most_recent_file)
+                
                 if model_config:
                     # Initialize clustering with parameters from the saved model
                     self.clustering = PolyphonicAudioOracle(
@@ -2034,8 +2076,12 @@ class EnhancedDriftEngineAI:
                         chord_similarity_weight=0.3
                     )
                 
-                # Now load the actual model data
-                polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                # Now load the actual model data (pickle or JSON)
+                if use_pickle:
+                    polyphonic_oracle_loaded = self.clustering.load_from_pickle(most_recent_file)
+                else:
+                    polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                
                 if polyphonic_oracle_loaded:
                     print("✅ Successfully loaded AudioOracle model!")
                     # Get model statistics
@@ -2053,10 +2099,12 @@ class EnhancedDriftEngineAI:
                     # Load gesture vocabulary (quantizer) if available
                     if self.hybrid_perception and self.enable_hybrid_perception:
                         # DUAL VOCABULARY: Check for dual vocabulary files first
-                        harmonic_vocab_file = most_recent_file.replace('_model.json', '_harmonic_vocab.joblib')
-                        percussive_vocab_file = most_recent_file.replace('_model.json', '_percussive_vocab.joblib')
+                        # Use base filename without extension for vocab files
+                        base_filename = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '').replace('_model.json', '')
+                        harmonic_vocab_file = base_filename + '_harmonic_vocab.joblib'
+                        percussive_vocab_file = base_filename + '_percussive_vocab.joblib'
                         
-                        quantizer_file = None  # Initialize here to avoid unbound variable errors
+                        quantizer_loaded = False  # Track if ANY vocabulary was loaded
                         
                         # Check if this is a dual vocabulary model
                         if os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file):
@@ -2074,19 +2122,24 @@ class EnhancedDriftEngineAI:
                                     if hasattr(self.hybrid_perception, 'enable_dual_vocabulary'):
                                         self.hybrid_perception.enable_dual_vocabulary = True
                                         print("✅ Dual vocabulary mode ENABLED")
+                                    
+                                    quantizer_loaded = True  # Mark as successfully loaded
                                 else:
                                     print(f"⚠️  Dual vocabulary files found but module doesn't support load_vocabulary()")
                                     print(f"   Use DualPerceptionModule instead of HybridPerceptionModule")
                                     print(f"   Continuing without dual vocabulary support...")
                             except Exception as e:
                                 print(f"⚠️  Could not load dual vocabularies: {e}")
-                        else:
+                        
+                        # Only try single vocabulary if dual vocabulary failed
+                        if not quantizer_loaded:
                             # Fall back to single vocabulary loading
                             # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
                             gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
                             symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
                             old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
                             
+                            quantizer_file = None
                             if os.path.exists(gesture_quantizer_file):
                                 quantizer_file = gesture_quantizer_file
                                 quantizer_type = "gesture (Wav2Vec)"
@@ -2097,64 +2150,74 @@ class EnhancedDriftEngineAI:
                                 quantizer_file = old_quantizer_file
                                 quantizer_type = "legacy"
                         
-                        if quantizer_file:
-                            try:
-                                self.hybrid_perception.load_quantizer(quantizer_file)
-                                print(f"✅ Vocabulary loaded: {quantizer_type} quantizer")
-                                
-                                # CRITICAL FIX: Monkey-patch transform to convert ALL intermediate dtypes to float32
-                                # The pickled quantizer uses sklearn normalize() which returns float64
-                                import numpy as np
-                                from sklearn.preprocessing import normalize as sklearn_normalize
-                                quantizer = self.hybrid_perception.quantizer
-                                if quantizer is not None:
-                                    # Patch transform to ensure float32 throughout
-                                    original_transform = quantizer.transform
-                                    def fixed_transform(features):
-                                        try:
-                                            # Ensure input features are float32
-                                            if len(features) == 0:
-                                                return np.array([])
-                                            if features.ndim == 1:
-                                                features = features.reshape(1, -1)
-                                            if features.dtype != np.float32:
-                                                features = features.astype(np.float32)
-                                            
-                                            # Manually do what transform does, but with float32
-                                            if quantizer.use_l2_norm:
-                                                # sklearn normalize returns float64, so we need to convert
-                                                features_scaled = sklearn_normalize(features, norm='l2', axis=1)
-                                                if features_scaled.dtype != np.float32:
-                                                    features_scaled = features_scaled.astype(np.float32)
-                                            else:
-                                                features_scaled = quantizer.scaler.transform(features)
-                                                if features_scaled.dtype != np.float32:
-                                                    features_scaled = features_scaled.astype(np.float32)
-                                            
-                                            # Ensure kmeans centroids are also float32
-                                            if hasattr(quantizer.kmeans, 'cluster_centers_'):
-                                                if quantizer.kmeans.cluster_centers_.dtype != np.float32:
-                                                    quantizer.kmeans.cluster_centers_ = quantizer.kmeans.cluster_centers_.astype(np.float32)
-                                            
-                                            # Now call kmeans.predict with float32
-                                            tokens = quantizer.kmeans.predict(features_scaled)
-                                            return tokens
-                                        except Exception as e:
-                                            print(f"🔧 Monkey-patch error: {e}")
-                                            raise
+                            if quantizer_file:
+                                try:
+                                    self.hybrid_perception.load_quantizer(quantizer_file)
+                                    print(f"✅ Vocabulary loaded: {quantizer_type} quantizer")
                                     
-                                    quantizer.transform = fixed_transform
-                                    print("✅ Quantizer dtype fix monkey-patched (full transform override + kmeans centers)!")
-                            except Exception as e:
-                                print(f"⚠️  Could not load quantizer: {e}")
-                        else:
-                            print(f"⚠️  No quantizer file found")
-                            print(f"   Tried: gesture_training_quantizer, symbolic_training_quantizer, _quantizer.joblib")
-                            print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
+                                    # CRITICAL FIX: Monkey-patch transform to convert ALL intermediate dtypes to float32
+                                    # The pickled quantizer uses sklearn normalize() which returns float64
+                                    import numpy as np
+                                    from sklearn.preprocessing import normalize as sklearn_normalize
+                                    quantizer = self.hybrid_perception.quantizer
+                                    if quantizer is not None:
+                                        # Patch transform to ensure float32 throughout
+                                        original_transform = quantizer.transform
+                                        def fixed_transform(features):
+                                            try:
+                                                # Ensure input features are float32
+                                                if len(features) == 0:
+                                                    return np.array([])
+                                                if features.ndim == 1:
+                                                    features = features.reshape(1, -1)
+                                                if features.dtype != np.float32:
+                                                    features = features.astype(np.float32)
+                                                
+                                                # Manually do what transform does, but with float32
+                                                if quantizer.use_l2_norm:
+                                                    # sklearn normalize returns float64, so we need to convert
+                                                    features_scaled = sklearn_normalize(features, norm='l2', axis=1)
+                                                    if features_scaled.dtype != np.float32:
+                                                        features_scaled = features_scaled.astype(np.float32)
+                                                else:
+                                                    features_scaled = quantizer.scaler.transform(features)
+                                                    if features_scaled.dtype != np.float32:
+                                                        features_scaled = features_scaled.astype(np.float32)
+                                                
+                                                # Ensure kmeans centroids are also float32
+                                                if hasattr(quantizer.kmeans, 'cluster_centers_'):
+                                                    if quantizer.kmeans.cluster_centers_.dtype != np.float32:
+                                                        quantizer.kmeans.cluster_centers_ = quantizer.kmeans.cluster_centers_.astype(np.float32)
+                                                
+                                                # Now call kmeans.predict with float32
+                                                tokens = quantizer.kmeans.predict(features_scaled)
+                                                return tokens
+                                            except Exception as e:
+                                                print(f"🔧 Monkey-patch error: {e}")
+                                                raise
+                                        
+                                        quantizer.transform = fixed_transform
+                                        print("✅ Quantizer dtype fix monkey-patched (full transform override + kmeans centers)!")
+                                    
+                                    quantizer_loaded = True  # Mark as successfully loaded
+                                except Exception as e:
+                                    print(f"⚠️  Could not load quantizer: {e}")
+                            else:
+                                print(f"⚠️  No quantizer file found")
+                                print(f"   Tried: gesture_training_quantizer, symbolic_training_quantizer, _quantizer.joblib")
+                                print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
                     
                     # Load RhythmOracle if available and enabled
                     if self.rhythm_oracle and self.enable_rhythmic:
-                        rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                        # Build correct rhythm oracle filename based on model file type
+                        if most_recent_file.endswith('.pkl.gz') or most_recent_file.endswith('.pkl'):
+                            # Pickle model: rhythm oracle should be in same directory with base name
+                            base_name = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '')
+                            rhythm_oracle_file = base_name + '_rhythm_oracle.json'
+                        else:
+                            # JSON model
+                            rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                        
                         if os.path.exists(rhythm_oracle_file):
                             try:
                                 print(f"🥁 Loading RhythmOracle from: {rhythm_oracle_file}")
@@ -2176,8 +2239,8 @@ class EnhancedDriftEngineAI:
                 else:
                     print(f"❌ Failed to load {most_recent_file}")
             
-            # Fallback: look for regular JSON files (training results) - but skip if we have model files
-            if not model_files:  # Only try training results if no model files exist
+            # Fallback: look for regular JSON files (training results) - but skip if we already loaded a model
+            if not model_loaded:  # Only try training results if no model files were loaded
                 json_files = [f for f in os.listdir(json_dir) if f.endswith('.json') and not f.endswith('_model.json')]
                 if json_files:
                     # Sort by modification time (most recent first)
@@ -2400,8 +2463,12 @@ class EnhancedDriftEngineAI:
         """Save current learning data to files"""
         print("💾 Saving learning data...")
         
-        # Save memory buffer (always save - contains recent 30s context)
-        memory_saved = self.memory_buffer.save_to_file(self.memory_file)
+        # Save memory buffer (only if live training enabled - otherwise just consuming disk space)
+        memory_saved = False
+        if self.enable_live_training:
+            memory_saved = self.memory_buffer.save_to_file(self.memory_file)
+        else:
+            print("🔒 Skipping memory buffer save (live training was disabled)")
         
         # Save PolyphonicAudioOracle model (only if live training was enabled)
         polyphonic_oracle_saved = False
@@ -2831,6 +2898,8 @@ def main():
     parser.add_argument('--gesture-min-tokens', type=int, default=2,
                        help='Minimum tokens before gesture consensus (default: 2)')
     parser.add_argument('--performance-duration', type=int, default=0, help='Performance duration in minutes (0 = no timeline)')
+    parser.add_argument('--performance-arc', type=str, default=None,
+                       help='Performance arc file path (default: auto-detect most recent arc in ai_learning_data/)')
     parser.add_argument('--learn-target', type=str, help='Learn target fingerprint (description)')
     parser.add_argument('--load-target', type=str, help='Load target fingerprint from file')
     parser.add_argument('--no-autonomous', action='store_true', help='Disable autonomous generation (reactive only)')
@@ -2855,6 +2924,7 @@ def main():
         enable_rhythmic=not args.no_rhythmic,
         enable_mpe=not args.no_mpe,
         performance_duration=args.performance_duration,
+        performance_arc_path=args.performance_arc,
         enable_hybrid_perception=not args.no_hybrid_perception,
         enable_wav2vec=not args.no_wav2vec,
         enable_live_training=args.enable_live_training,

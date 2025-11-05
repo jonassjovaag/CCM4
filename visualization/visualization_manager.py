@@ -4,7 +4,7 @@ Visualization Manager
 Main coordinator for multi-viewport system
 """
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QGridLayout
 from PyQt5.QtCore import Qt, QThread, QTimer, QMetaObject, Q_ARG
 from typing import Dict, List, Optional, Any
 import sys
@@ -72,7 +72,7 @@ class VisualizationManager:
         # Initialize viewports
         self._create_viewports()
         self._connect_event_bus()
-        self._arrange_viewports()
+        self._create_fullscreen_container()
     
     def _create_viewports(self):
         """Create viewport instances based on configuration"""
@@ -93,6 +93,64 @@ class VisualizationManager:
                 print(f"✅ Created viewport: {viewport_id}")
             else:
                 print(f"⚠️  Unknown viewport ID: {viewport_id}")
+    
+    def _create_fullscreen_container(self):
+        """Create single fullscreen window containing all viewports in grid layout"""
+        self.main_window = QMainWindow()
+        self.main_window.setWindowTitle("MusicHal 9000 - Performance Visualization")
+        self.main_window.setWindowState(Qt.WindowFullScreen)
+        
+        # Create central widget with grid layout
+        central_widget = QWidget()
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(10)  # Padding between viewports
+        grid_layout.setContentsMargins(20, 20, 20, 20)  # Margin around edges
+        
+        # Arrange viewports in 3-column layout
+        # Column 1 (3 rows @ 33% each): pattern_matching, request_parameters, phrase_memory
+        # Column 2 (2 rows @ 50% each): audio_analysis, performance_timeline
+        # Column 3 (2 rows @ 50% each): gpt_reflection, webcam (swapped positions)
+        
+        viewport_positions = {
+            'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1, rowspan 1, colspan 1
+            'request_parameters': (1, 0, 1, 1),    # Col 1, Row 2
+            'phrase_memory': (2, 0, 1, 1),         # Col 1, Row 3
+            'audio_analysis': (0, 1, 2, 1),        # Col 2, Rows 1-2 (span 2 rows for 50% height)
+            'performance_timeline': (2, 1, 1, 1),  # Col 2, Row 3
+            'gpt_reflection': (0, 2, 2, 1),        # Col 3, Rows 1-2 (span 2 rows for 50% height) - swapped with webcam
+            'webcam': (2, 2, 1, 1)                 # Col 3, Row 3 - swapped with gpt_reflection
+        }
+        
+        for viewport_id, (row, col, rowspan, colspan) in viewport_positions.items():
+            if viewport_id in self.viewports:
+                viewport = self.viewports[viewport_id]
+                # Remove fixed size - let widgets fill their grid cells
+                viewport.setMinimumSize(400, 300)  # Set minimum size instead
+                grid_layout.addWidget(viewport, row, col, rowspan, colspan)
+        
+        # Set column stretches (all equal width)
+        grid_layout.setColumnStretch(0, 1)
+        grid_layout.setColumnStretch(1, 1)
+        grid_layout.setColumnStretch(2, 1)
+        
+        # Set row stretches for proper proportions:
+        # Row 0: 33% height
+        # Row 1: 33% height  
+        # Row 2: 34% height
+        grid_layout.setRowStretch(0, 33)
+        grid_layout.setRowStretch(1, 33)
+        grid_layout.setRowStretch(2, 34)
+        
+        central_widget.setLayout(grid_layout)
+        self.main_window.setCentralWidget(central_widget)
+        
+        print("✅ Created fullscreen container with 3-column grid layout (3 rows | 2 rows | 2 rows)")
+    
+    def show(self):
+        """Show the main visualization window"""
+        if self.main_window:
+            self.main_window.show()
+            print("🎨 Visualization window displayed")
     
     def _connect_event_bus(self):
         """Connect viewports to event bus signals"""
@@ -149,35 +207,15 @@ class VisualizationManager:
         self.app.processEvents()  # Force immediate processing
         print("🧪 Test signals emitted and processed")
     
-    def _arrange_viewports(self):
-        """Arrange viewports using layout manager"""
-        # Get screen dimensions
-        screen_width, screen_height = self.layout_manager.get_screen_dimensions()
-        
-        # Calculate layout
-        viewport_ids = list(self.viewports.keys())
-        positions = self.layout_manager.calculate_layout(
-            num_viewports=len(viewport_ids),
-            screen_width=screen_width,
-            screen_height=screen_height,
-            viewport_ids=viewport_ids
-        )
-        
-        # Position and show viewports
-        for pos in positions:
-            viewport = self.viewports[pos.viewport_id]
-            viewport.setGeometry(pos.x, pos.y, pos.width, pos.height)
-            viewport.show()
-        
-        print(f"✅ Arranged {len(positions)} viewports")
-        print(self.layout_manager.format_layout_info(positions))
-    
     def start(self):
         """
         Start the visualization system (non-blocking)
         
-        Returns Qt application for event loop integration
+        Shows the main window and returns Qt application for event loop integration
         """
+        # Show the main window
+        self.show()
+        
         print("\n🎨 Visualization system started!")
         print("💡 Viewports are now receiving events...")
         return self.app
@@ -194,12 +232,20 @@ class VisualizationManager:
     
     def _close_viewports(self):
         """Internal method to actually close viewports (must be on main thread)"""
-        for viewport in self.viewports.values():
+        if self.main_window:
             try:
-                viewport.close()
+                self.main_window.close()
+                print("🎨 Visualization window closed")
             except Exception as e:
-                print(f"⚠️  Error closing viewport: {e}")
-        print("🎨 Visualization system closed")
+                print(f"⚠️  Error closing visualization window: {e}")
+        else:
+            # Fallback: close individual viewports if no main window
+            for viewport in self.viewports.values():
+                try:
+                    viewport.close()
+                except Exception as e:
+                    print(f"⚠️  Error closing viewport: {e}")
+            print("🎨 Visualization system closed")
     
     # ===== API for MusicHal_9000 =====
     # These methods are called from the main MusicHal thread

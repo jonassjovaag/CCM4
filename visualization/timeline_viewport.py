@@ -209,11 +209,11 @@ class TimelineViewport(BaseViewport):
         content_layout = QVBoxLayout()
         self.content_widget.setLayout(content_layout)
         
-        # Session duration
+        # Session duration (LARGE FONT FOR VISIBILITY DURING PERFORMANCE)
         self.duration_label = QLabel("Session: 0:00")
         self.duration_label.setAlignment(Qt.AlignCenter)
         duration_font = QFont()
-        duration_font.setPointSize(12)
+        duration_font.setPointSize(72)  # Increased from 12pt to 72pt for live performance visibility
         duration_font.setBold(True)
         self.duration_label.setFont(duration_font)
         content_layout.addWidget(self.duration_label)

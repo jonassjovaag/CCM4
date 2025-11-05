@@ -4,18 +4,18 @@ Base Viewport Class
 All specific viewport types inherit from this base
 """
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
 from typing import Dict, Any, Optional
 
 
-class BaseViewport(QWidget):
+class BaseViewport(QFrame):
     """
-    Base class for all viewport types
+    Base class for all viewport types (inherits from QFrame for border support)
     
     Provides:
-    - Standard styling
+    - Standard styling with border
     - Title display
     - Update rate limiting
     - Common layout structure
@@ -43,6 +43,9 @@ class BaseViewport(QWidget):
         self._last_update_time = 0
         self._update_pending = False
         self._pending_data = None
+        
+        # Set object name for CSS targeting
+        self.setObjectName("viewport_container")
         
         # Setup UI
         self._setup_ui()
@@ -79,13 +82,15 @@ class BaseViewport(QWidget):
         self.setPalette(palette)
         self.setAutoFillBackground(True)
         
-        # Border styling
+        # Add border using frame style (more reliable than CSS)
+        from PyQt5.QtWidgets import QFrame
+        self.setFrameShape(QFrame.Box)
+        self.setLineWidth(1)
+        
+        # Basic styling for child elements
         self.setStyleSheet("""
-            BaseViewport {
-                border: 2px solid #404040;
-                border-radius: 5px;
-            }
             QLabel {
+                border: none;
                 color: #DCDCDC;
             }
         """)

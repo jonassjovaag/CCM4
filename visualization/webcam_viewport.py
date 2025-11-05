@@ -3,9 +3,10 @@
 Webcam Viewport - Display live webcam feed
 """
 
-from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PyQt5.QtWidgets import QLabel, QVBoxLayout
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QImage, QPixmap
+from .base_viewport import BaseViewport
 
 # Try to import OpenCV, gracefully handle if not available
 try:
@@ -17,7 +18,7 @@ except ImportError:
     print("   To enable: pip install opencv-python")
 
 
-class WebcamViewport(QWidget):
+class WebcamViewport(BaseViewport):
     """
     Viewport for displaying live webcam feed
     
@@ -28,7 +29,8 @@ class WebcamViewport(QWidget):
     - Error handling for missing/busy camera
     """
     
-    def __init__(self, camera_index: int = 0, fps: int = 30):
+    
+    def __init__(self, camera_index=0, fps=30):
         """
         Initialize webcam viewport
         
@@ -36,7 +38,7 @@ class WebcamViewport(QWidget):
             camera_index: Camera device index (0 = default)
             fps: Target frame rate
         """
-        super().__init__()
+        super().__init__(viewport_id="webcam", title="📷 Webcam")
         
         self.camera_index = camera_index
         self.fps = fps
@@ -50,22 +52,10 @@ class WebcamViewport(QWidget):
         """Initialize the user interface"""
         from PyQt5.QtWidgets import QSizePolicy
         
+        # Use BaseViewport's content_widget instead of creating new layout
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
-        
-        # Title
-        title = QLabel("📷 Webcam")
-        title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                background-color: #2d2d30;
-                padding: 5px;
-            }
-        """)
-        title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        layout.addWidget(title)
+        self.content_widget.setLayout(layout)
         
         # Video display label
         self.video_label = QLabel()
@@ -93,19 +83,6 @@ class WebcamViewport(QWidget):
         """)
         self.status_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.status_label)
-        
-        self.setLayout(layout)
-        
-        # Set size policy to prevent widget from growing
-        from PyQt5.QtWidgets import QSizePolicy
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        
-        # Dark theme
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e1e;
-            }
-        """)
     
     def _init_camera(self):
         """Initialize camera capture"""
