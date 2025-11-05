@@ -1,0 +1,1081 @@
+{
+  "patterns": [
+    {
+      "pattern_id": "pattern_0",
+      "tempo": 112.34714673912777,
+      "density": 4.785156250000024,
+      "syncopation": 0.15217391304577446,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 51.24643990929705,
+        "end_time": 51.66439909297052,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360699
+    },
+    {
+      "pattern_id": "pattern_1",
+      "tempo": 112.34714673912777,
+      "density": 7.830255681818184,
+      "syncopation": 0.23913043478260293,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 58.049886621315196,
+        "end_time": 58.30530612244898,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360704
+    },
+    {
+      "pattern_id": "pattern_2",
+      "tempo": 112.34714673912777,
+      "density": 3.5888671874999996,
+      "syncopation": 0.20000000000055346,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.08768943743823787,
+      "context": {
+        "start_time": 59.86104308390023,
+        "end_time": 61.25424036281179,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3607092
+    },
+    {
+      "pattern_id": "pattern_3",
+      "tempo": 112.34714673912777,
+      "density": 4.533305921052594,
+      "syncopation": 0.0869565217391368,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 67.84870748299319,
+        "end_time": 68.28988662131519,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360725
+    },
+    {
+      "pattern_id": "pattern_4",
+      "tempo": 112.34714673912777,
+      "density": 5.556955645161272,
+      "syncopation": 0.27173913043166764,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.26700499913880327,
+      "context": {
+        "start_time": 69.47410430839003,
+        "end_time": 70.19392290249434,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3607318
+    },
+    {
+      "pattern_id": "pattern_5",
+      "tempo": 112.34714673912777,
+      "density": 6.459960937499966,
+      "syncopation": 0.3333333333322335,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.30000000000001226,
+      "context": {
+        "start_time": 73.3750566893424,
+        "end_time": 73.83945578231292,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360737
+    },
+    {
+      "pattern_id": "pattern_6",
+      "tempo": 112.34714673912777,
+      "density": 1.6564002403846172,
+      "syncopation": 0.28985507246260966,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.4487179487179476,
+      "context": {
+        "start_time": 75.27909297052155,
+        "end_time": 77.09024943310658,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3607411
+    },
+    {
+      "pattern_id": "pattern_7",
+      "tempo": 112.34714673912777,
+      "density": 1.7488895939086295,
+      "syncopation": 0.2663043478279217,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.4126824214680467,
+      "context": {
+        "start_time": 81.13052154195012,
+        "end_time": 85.70485260770975,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360744
+    },
+    {
+      "pattern_id": "pattern_8",
+      "tempo": 112.34714673912777,
+      "density": 5.066636029411684,
+      "syncopation": 0.21739130434388387,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 88.30548752834467,
+        "end_time": 88.70022675736962,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360748
+    },
+    {
+      "pattern_id": "pattern_9",
+      "tempo": 112.34714673912777,
+      "density": 3.076171875000004,
+      "syncopation": 0.16304347826297866,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.22220805024813794,
+      "context": {
+        "start_time": 94.87673469387755,
+        "end_time": 96.17705215419501,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360752
+    },
+    {
+      "pattern_id": "pattern_10",
+      "tempo": 112.34714673912777,
+      "density": 2.2666529605263332,
+      "syncopation": 0.1739130434782869,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 99.40462585034014,
+        "end_time": 100.28698412698412,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3607612
+    },
+    {
+      "pattern_id": "pattern_11",
+      "tempo": 112.34714673912777,
+      "density": 2.3925781250000004,
+      "syncopation": 0.20807453416217164,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.2811749894957338,
+      "context": {
+        "start_time": 101.44798185941043,
+        "end_time": 107.299410430839,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360767
+    },
+    {
+      "pattern_id": "pattern_12",
+      "tempo": 112.34714673912777,
+      "density": 9.570312499999885,
+      "syncopation": 0.3043478260869589,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 109.11056689342404,
+        "end_time": 109.31954648526077,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.36077
+    },
+    {
+      "pattern_id": "pattern_13",
+      "tempo": 112.34714673912777,
+      "density": 3.1901041666666647,
+      "syncopation": 0.2608695652186245,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25161531144393556,
+      "context": {
+        "start_time": 110.43410430839002,
+        "end_time": 112.94185941043084,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360773
+    },
+    {
+      "pattern_id": "pattern_14",
+      "tempo": 112.34714673912777,
+      "density": 6.62560096153852,
+      "syncopation": 0.21739130434783535,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 116.49451247165533,
+        "end_time": 116.79637188208616,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360776
+    },
+    {
+      "pattern_id": "pattern_15",
+      "tempo": 112.34714673912777,
+      "density": 4.394531250000027,
+      "syncopation": 0.19130434782501796,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.3070319091656569,
+      "context": {
+        "start_time": 119.16480725623583,
+        "end_time": 120.3025850340136,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360779
+    },
+    {
+      "pattern_id": "pattern_16",
+      "tempo": 112.34714673912777,
+      "density": 2.034633366141738,
+      "syncopation": 0.2173913043514808,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.3134173919516087,
+      "context": {
+        "start_time": 122.20662131519275,
+        "end_time": 125.15555555555555,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360781
+    },
+    {
+      "pattern_id": "pattern_17",
+      "tempo": 112.34714673912777,
+      "density": 2.820943640829694,
+      "syncopation": 0.2753623188432914,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.14490942081540836,
+      "context": {
+        "start_time": 127.54721088435375,
+        "end_time": 132.86458049886622,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3607838
+    },
+    {
+      "pattern_id": "pattern_18",
+      "tempo": 112.34714673912777,
+      "density": 2.0369246199324285,
+      "syncopation": 0.31677018633628695,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.4142793332901315,
+      "context": {
+        "start_time": 134.6292970521542,
+        "end_time": 138.06585034013605,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360787
+    },
+    {
+      "pattern_id": "pattern_19",
+      "tempo": 112.34714673912777,
+      "density": 8.613281250000483,
+      "syncopation": 0.26086956522373006,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.25,
+      "context": {
+        "start_time": 141.80426303854875,
+        "end_time": 142.036462585034,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.36079
+    },
+    {
+      "pattern_id": "pattern_20",
+      "tempo": 112.34714673912777,
+      "density": 2.5969692211055375,
+      "syncopation": 0.26449275362209185,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.3368059073437237,
+      "context": {
+        "start_time": 144.47455782312926,
+        "end_time": 149.09532879818593,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360793
+    },
+    {
+      "pattern_id": "pattern_21",
+      "tempo": 112.34714673912777,
+      "density": 1.9876802884615374,
+      "syncopation": 0.231884057969874,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.35720974427888885,
+      "context": {
+        "start_time": 150.69750566893424,
+        "end_time": 156.73469387755102,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360796
+    },
+    {
+      "pattern_id": "pattern_22",
+      "tempo": 112.34714673912777,
+      "density": 3.5678412354677778,
+      "syncopation": 0.2516694691334559,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.31602669881038825,
+      "context": {
+        "start_time": 160.61242630385487,
+        "end_time": 667.9219954648526,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608
+    },
+    {
+      "pattern_id": "pattern_23",
+      "tempo": 112.34714673912777,
+      "density": 4.355029845505593,
+      "syncopation": 0.24959742350715844,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.34600220375285046,
+      "context": {
+        "start_time": 669.1526530612244,
+        "end_time": 675.3523809523809,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608031
+    },
+    {
+      "pattern_id": "pattern_24",
+      "tempo": 112.34714673912777,
+      "density": 2.5131589854111467,
+      "syncopation": 0.22332015810833813,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.19219338078774456,
+      "context": {
+        "start_time": 676.7455782312925,
+        "end_time": 685.4995011337868,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360806
+    },
+    {
+      "pattern_id": "pattern_25",
+      "tempo": 112.34714673912777,
+      "density": 2.631554788484142,
+      "syncopation": 0.2366220735773744,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.33919197100376064,
+      "context": {
+        "start_time": 686.8230385487528,
+        "end_time": 706.5832199546485,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608088
+    },
+    {
+      "pattern_id": "pattern_26",
+      "tempo": 112.34714673912777,
+      "density": 4.095062400950872,
+      "syncopation": 0.24178743961386392,
+      "meter": "4/4",
+      "pattern_type": "dense",
+      "confidence": 0.26432869597396147,
+      "context": {
+        "start_time": 707.9299773242631,
+        "end_time": 751.8853514739229,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360812
+    },
+    {
+      "pattern_id": "pattern_27",
+      "tempo": 112.34714673912777,
+      "density": 2.809688258222502,
+      "syncopation": 0.24733501018134632,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.34670951261513033,
+      "context": {
+        "start_time": 753.0463492063492,
+        "end_time": 882.2421768707483,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360815
+    },
+    {
+      "pattern_id": "pattern_28",
+      "tempo": 112.34714673912777,
+      "density": 2.688631717289721,
+      "syncopation": 0.2488935173154399,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.25958894234877933,
+      "context": {
+        "start_time": 883.7050340136054,
+        "end_time": 945.8184126984127,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360818
+    },
+    {
+      "pattern_id": "pattern_29",
+      "tempo": 112.34714673912777,
+      "density": 2.0589516932271117,
+      "syncopation": 0.2572463768115803,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.23559200332643354,
+      "context": {
+        "start_time": 947.0026303854876,
+        "end_time": 952.8308390022676,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360821
+    },
+    {
+      "pattern_id": "pattern_30",
+      "tempo": 112.34714673912777,
+      "density": 3.1901041666666283,
+      "syncopation": 0.23369565218449484,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.2579911465881639,
+      "context": {
+        "start_time": 954.3169160997733,
+        "end_time": 956.8246712018141,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360824
+    },
+    {
+      "pattern_id": "pattern_31",
+      "tempo": 112.34714673912777,
+      "density": 2.2335899513776325,
+      "syncopation": 0.263586956516348,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.37306406936163194,
+      "context": {
+        "start_time": 958.8215873015873,
+        "end_time": 973.1482993197279,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360827
+    },
+    {
+      "pattern_id": "pattern_32",
+      "tempo": 112.34714673912777,
+      "density": 1.9283465485074474,
+      "syncopation": 0.30434782611589184,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.5201741304589325,
+      "context": {
+        "start_time": 974.4718367346939,
+        "end_time": 977.5833106575964,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.36083
+    },
+    {
+      "pattern_id": "pattern_33",
+      "tempo": 112.34714673912777,
+      "density": 2.140727796052606,
+      "syncopation": 0.28644501277478457,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.2913573299428168,
+      "context": {
+        "start_time": 978.7210884353741,
+        "end_time": 986.6623129251701,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360833
+    },
+    {
+      "pattern_id": "pattern_34",
+      "tempo": 112.34714673912777,
+      "density": 2.475080818965534,
+      "syncopation": 0.19130434787018966,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.3121641057412086,
+      "context": {
+        "start_time": 988.0090702947846,
+        "end_time": 990.0292063492063,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360836
+    },
+    {
+      "pattern_id": "pattern_35",
+      "tempo": 112.34714673912777,
+      "density": 2.38560267857143,
+      "syncopation": 0.28375286042827347,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.18577268845594033,
+      "context": {
+        "start_time": 992.0957823129252,
+        "end_time": 1000.0602267573696,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360838
+    },
+    {
+      "pattern_id": "pattern_36",
+      "tempo": 112.34714673912777,
+      "density": 3.1666475183824163,
+      "syncopation": 0.34782608698327344,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.5092543302390828,
+      "context": {
+        "start_time": 1001.1980045351474,
+        "end_time": 1002.7769614512472,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360841
+    },
+    {
+      "pattern_id": "pattern_37",
+      "tempo": 112.34714673912777,
+      "density": 2.475080818965534,
+      "syncopation": 0.399999999991038,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.4897243247304485,
+      "context": {
+        "start_time": 1004.3559183673469,
+        "end_time": 1006.3760544217687,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608441
+    },
+    {
+      "pattern_id": "pattern_38",
+      "tempo": 112.34714673912777,
+      "density": 1.3579497466216153,
+      "syncopation": 0.27329192543371844,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.5846779342026849,
+      "context": {
+        "start_time": 1007.4673922902494,
+        "end_time": 1012.6222222222223,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360847
+    },
+    {
+      "pattern_id": "pattern_39",
+      "tempo": 112.34714673912777,
+      "density": 2.6013265520134294,
+      "syncopation": 0.23913043480275198,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.3328961864427008,
+      "context": {
+        "start_time": 1014.0154195011338,
+        "end_time": 1020.9349659863946,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608499
+    },
+    {
+      "pattern_id": "pattern_40",
+      "tempo": 112.34714673912777,
+      "density": 2.5839843750003344,
+      "syncopation": 0.34782608700219075,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.3499999999998727,
+      "context": {
+        "start_time": 1023.0479818594105,
+        "end_time": 1024.2089795918366,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360853
+    },
+    {
+      "pattern_id": "pattern_41",
+      "tempo": 112.34714673912777,
+      "density": 1.6190378289474219,
+      "syncopation": 0.20869565221989825,
+      "meter": "4/4",
+      "pattern_type": "sparse",
+      "confidence": 0.7271356357948173,
+      "context": {
+        "start_time": 1028.5511111111111,
+        "end_time": 1031.639365079365,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360856
+    },
+    {
+      "pattern_id": "pattern_42",
+      "tempo": 112.34714673912777,
+      "density": 2.9033532303370615,
+      "syncopation": 0.3260869565524777,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.6124907947384874,
+      "context": {
+        "start_time": 1033.798820861678,
+        "end_time": 1035.8653968253968,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360859
+    },
+    {
+      "pattern_id": "pattern_43",
+      "tempo": 112.34714673912777,
+      "density": 3.2139109141791966,
+      "syncopation": 0.2869565217484154,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.2072381306577385,
+      "context": {
+        "start_time": 1038.6053514739228,
+        "end_time": 1040.161088435374,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360863
+    },
+    {
+      "pattern_id": "pattern_44",
+      "tempo": 112.34714673912777,
+      "density": 2.808678668478493,
+      "syncopation": 0.11594202903201078,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.9782608695650971,
+      "context": {
+        "start_time": 1042.4134240362812,
+        "end_time": 1043.4815419501133,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360866
+    },
+    {
+      "pattern_id": "pattern_45",
+      "tempo": 112.34714673912777,
+      "density": 3.828125000000371,
+      "syncopation": 0.1304347825853224,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.4881957955086722,
+      "context": {
+        "start_time": 1047.8468934240364,
+        "end_time": 1048.89179138322,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.3608692
+    },
+    {
+      "pattern_id": "pattern_46",
+      "tempo": 112.34714673912777,
+      "density": 2.5045711436170204,
+      "syncopation": 0.2067868504726741,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.4208850579015765,
+      "context": {
+        "start_time": 1050.0295691609977,
+        "end_time": 1082.7697052154194,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360872
+    },
+    {
+      "pattern_id": "pattern_47",
+      "tempo": 112.34714673912777,
+      "density": 2.936345880682146,
+      "syncopation": 0.14492753618328416,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.7045454545455354,
+      "context": {
+        "start_time": 1089.06231292517,
+        "end_time": 1090.0839909297051,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360874
+    },
+    {
+      "pattern_id": "pattern_48",
+      "tempo": 112.34714673912777,
+      "density": 2.7943851383587917,
+      "syncopation": 0.23529411764990135,
+      "meter": "4/4",
+      "pattern_type": "moderate",
+      "confidence": 0.2885669180763494,
+      "context": {
+        "start_time": 1091.5932879818595,
+        "end_time": 1097.6769160997733,
+        "complexity": 1.0
+      },
+      "timestamp": 1762299554.360877
+    }
+  ],
+  "transitions": {
+    "pattern_0": {
+      "pattern_1": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_1": {
+      "pattern_2": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_2": {
+      "pattern_3": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_3": {
+      "pattern_4": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_4": {
+      "pattern_5": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_5": {
+      "pattern_6": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_6": {
+      "pattern_7": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_7": {
+      "pattern_8": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_8": {
+      "pattern_9": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_9": {
+      "pattern_10": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_10": {
+      "pattern_11": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_11": {
+      "pattern_12": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_12": {
+      "pattern_13": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_13": {
+      "pattern_14": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_14": {
+      "pattern_15": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_15": {
+      "pattern_16": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_16": {
+      "pattern_17": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_17": {
+      "pattern_18": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_18": {
+      "pattern_19": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_19": {
+      "pattern_20": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_20": {
+      "pattern_21": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_21": {
+      "pattern_22": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_22": {
+      "pattern_23": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_23": {
+      "pattern_24": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_24": {
+      "pattern_25": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_25": {
+      "pattern_26": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_26": {
+      "pattern_27": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_27": {
+      "pattern_28": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_28": {
+      "pattern_29": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_29": {
+      "pattern_30": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_30": {
+      "pattern_31": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_31": {
+      "pattern_32": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_32": {
+      "pattern_33": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_33": {
+      "pattern_34": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_34": {
+      "pattern_35": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_35": {
+      "pattern_36": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_36": {
+      "pattern_37": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_37": {
+      "pattern_38": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_38": {
+      "pattern_39": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_39": {
+      "pattern_40": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_40": {
+      "pattern_41": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_41": {
+      "pattern_42": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_42": {
+      "pattern_43": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_43": {
+      "pattern_44": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_44": {
+      "pattern_45": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_45": {
+      "pattern_46": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_46": {
+      "pattern_47": {
+        "frequency": 1,
+        "context": {}
+      }
+    },
+    "pattern_47": {
+      "pattern_48": {
+        "frequency": 1,
+        "context": {}
+      }
+    }
+  },
+  "frequency": {
+    "pattern_0": 1,
+    "pattern_1": 2,
+    "pattern_2": 2,
+    "pattern_3": 2,
+    "pattern_4": 2,
+    "pattern_5": 2,
+    "pattern_6": 2,
+    "pattern_7": 2,
+    "pattern_8": 2,
+    "pattern_9": 2,
+    "pattern_10": 2,
+    "pattern_11": 2,
+    "pattern_12": 2,
+    "pattern_13": 2,
+    "pattern_14": 2,
+    "pattern_15": 2,
+    "pattern_16": 2,
+    "pattern_17": 2,
+    "pattern_18": 2,
+    "pattern_19": 2,
+    "pattern_20": 2,
+    "pattern_21": 2,
+    "pattern_22": 2,
+    "pattern_23": 2,
+    "pattern_24": 2,
+    "pattern_25": 2,
+    "pattern_26": 2,
+    "pattern_27": 2,
+    "pattern_28": 2,
+    "pattern_29": 2,
+    "pattern_30": 2,
+    "pattern_31": 2,
+    "pattern_32": 2,
+    "pattern_33": 2,
+    "pattern_34": 2,
+    "pattern_35": 2,
+    "pattern_36": 2,
+    "pattern_37": 2,
+    "pattern_38": 2,
+    "pattern_39": 2,
+    "pattern_40": 2,
+    "pattern_41": 2,
+    "pattern_42": 2,
+    "pattern_43": 2,
+    "pattern_44": 2,
+    "pattern_45": 2,
+    "pattern_46": 2,
+    "pattern_47": 2,
+    "pattern_48": 2
+  },
+  "timestamp": 1762340738.6106298
+}

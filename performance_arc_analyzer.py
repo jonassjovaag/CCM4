@@ -36,6 +36,31 @@ class PerformanceArc:
     silence_patterns: List[Tuple[float, float]]  # (start_time, duration)
     theme_development: List[Dict[str, Any]]
     dynamic_evolution: List[float]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'total_duration': self.total_duration,
+            'phases': [asdict(phase) for phase in self.phases],
+            'overall_engagement_curve': self.overall_engagement_curve,
+            'instrument_evolution': self.instrument_evolution,
+            'silence_patterns': [[start, dur] for start, dur in self.silence_patterns],
+            'theme_development': self.theme_development,
+            'dynamic_evolution': self.dynamic_evolution
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'PerformanceArc':
+        """Create from dictionary (for loading from JSON)"""
+        return cls(
+            total_duration=data['total_duration'],
+            phases=[MusicalPhase(**phase) for phase in data['phases']],
+            overall_engagement_curve=data['overall_engagement_curve'],
+            instrument_evolution=data['instrument_evolution'],
+            silence_patterns=[tuple(sp) for sp in data['silence_patterns']],
+            theme_development=data['theme_development'],
+            dynamic_evolution=data['dynamic_evolution']
+        )
 
 class PerformanceArcAnalyzer:
     """Analyzes training audio to extract performance arcs"""

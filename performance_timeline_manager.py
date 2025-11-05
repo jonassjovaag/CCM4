@@ -354,7 +354,14 @@ class PerformanceTimelineManager:
             print(f"📊 Simple duration-based timeline (no arc phases)")
         print(f"🎚️ Engagement profile: {self.config.engagement_profile}")
         
-        self._initialize_performance_state()
+        # Only initialize if not already initialized (avoid resetting start_time)
+        if not self.performance_state:
+            self._initialize_performance_state()
+        else:
+            # Just reset the start time for a new performance run
+            self.performance_state.start_time = time.time()
+            self.performance_state.current_time = 0.0
+            self.performance_state.last_activity_time = time.time()
         self._update_current_phase()
     
     def is_complete(self) -> bool:
