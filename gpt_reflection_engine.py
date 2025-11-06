@@ -370,13 +370,19 @@ Unfortunately, there was an error gathering recent musical data: {summary['error
 Respond with a brief acknowledgment of the technical issue.
 """
         
-        # Format mode distribution
-        mode_str = ', '.join([f"{mode} ({count}x)" for mode, count in summary['mode_distribution']]) \
-                   if summary['mode_distribution'] else 'No mode data'
+        # Format mode distribution (handle empty or malformed data)
+        try:
+            mode_str = ', '.join([f"{mode} ({count}x)" for mode, count in summary['mode_distribution']]) \
+                       if summary.get('mode_distribution') else 'No mode data'
+        except (TypeError, ValueError, KeyError):
+            mode_str = 'No mode data'
         
-        # Format token distribution
-        token_str = ', '.join([f"token {token} ({count}x)" for token, count in summary['token_distribution'][:3]]) \
-                    if summary['token_distribution'] else 'No gesture data'
+        # Format token distribution (handle empty or malformed data)
+        try:
+            token_str = ', '.join([f"token {token} ({count}x)" for token, count in summary['token_distribution'][:3]]) \
+                        if summary.get('token_distribution') else 'No gesture data'
+        except (TypeError, ValueError, KeyError):
+            token_str = 'No gesture data'
         
         # Build prompt
         prompt = f"""
