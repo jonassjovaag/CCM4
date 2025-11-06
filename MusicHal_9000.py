@@ -1968,7 +1968,10 @@ class EnhancedDriftEngineAI:
         controls_viewport.set_give_space(0.3)
         controls_viewport.set_initiative(0.7)
         
-        print("🎛️  Performance controls connected")
+        print("🎛️  Performance controls connected successfully!")
+        print("   - Density, Give Space, and Initiative sliders are LIVE")
+        print("   - Move sliders to see real-time updates in terminal")
+        print("   - Other controls will be connected to timeline manager later")
     
     def set_density_level(self, level: float):
         """Set musical density level"""
