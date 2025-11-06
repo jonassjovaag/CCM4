@@ -301,9 +301,6 @@ class EnhancedDriftEngineAI:
                     self.visualization_manager.start()
                     print("🎨 Visualization system enabled (8 viewports)")
                     
-                    # Connect performance controls viewport (if available)
-                    self._connect_performance_controls()
-                    
                 except Exception as e:
                     print(f"⚠️  Visualization initialization failed: {e}")
                     self.visualization_manager = None
@@ -424,6 +421,10 @@ class EnhancedDriftEngineAI:
         if self.performance_duration > 0:
             self._initialize_timeline_manager(self.performance_arc_path)
         
+        # Connect performance controls after timeline_manager is initialized
+        if self.visualization_manager:
+            self._connect_performance_controls()
+        
         # Initialize conversation logging
         self._initialize_conversation_logging()
         
@@ -495,17 +496,35 @@ class EnhancedDriftEngineAI:
                     print(f"   Performance will use simple duration-based timeline")
                     arc_file_path = None  # Proceed without arc
             
-            config = PerformanceConfig(
-                duration_minutes=self.performance_duration,
-                arc_file_path=arc_file_path,  # Can be None for simple timeline
-                engagement_profile="balanced",
-                silence_tolerance=5.0,
-                adaptation_rate=0.1
-            )
-            self.timeline_manager = PerformanceTimelineManager(config)
-            print(f"🎭 Performance timeline initialized: {self.performance_duration} minutes")
+            # Try to create timeline with arc file
+            try:
+                config = PerformanceConfig(
+                    duration_minutes=self.performance_duration,
+                    arc_file_path=arc_file_path,  # Can be None for simple timeline
+                    engagement_profile="balanced",
+                    silence_tolerance=5.0,
+                    adaptation_rate=0.1
+                )
+                self.timeline_manager = PerformanceTimelineManager(config)
+                print(f"🎭 Performance timeline initialized: {self.performance_duration} minutes")
+            except Exception as arc_error:
+                # If arc loading fails, create simple timeline without arc
+                print(f"⚠️  Failed to load arc file: {arc_error}")
+                print(f"   Creating simple duration-based timeline instead...")
+                config = PerformanceConfig(
+                    duration_minutes=self.performance_duration,
+                    arc_file_path=None,  # Force simple timeline
+                    engagement_profile="balanced",
+                    silence_tolerance=5.0,
+                    adaptation_rate=0.1
+                )
+                self.timeline_manager = PerformanceTimelineManager(config)
+                print(f"✅ Simple timeline initialized: {self.performance_duration} minutes")
+                
         except Exception as e:
-            print(f"⚠️ Failed to initialize timeline manager: {e}")
+            print(f"❌ Critical failure initializing timeline manager: {e}")
+            import traceback
+            traceback.print_exc()
             self.timeline_manager = None
     
     def _initialize_conversation_logging(self):
@@ -1955,23 +1974,31 @@ class EnhancedDriftEngineAI:
             print("⚠️  Performance controls viewport not found")
             return
         
-        # Connect Musical Interaction controls (MPE parameters)
+        # Connect Musical Interaction controls (MPE parameters - directly to ai_agent)
         controls_viewport.density_changed.connect(self.set_density_level)
         controls_viewport.give_space_changed.connect(self.set_give_space_factor)
         controls_viewport.initiative_changed.connect(self.set_initiative_budget)
         
-        # Connect Core Behavior controls (timeline manager will be added later)
-        # For now, these will need to be connected after timeline_manager is initialized
+        # Connect Core Behavior and Timing controls (to timeline_manager if available)
+        if self.timeline_manager:
+            controls_viewport.engagement_profile_changed.connect(self.timeline_manager.set_engagement_profile)
+            controls_viewport.engagement_level_changed.connect(self.timeline_manager.set_engagement_level_override)
+            controls_viewport.behavior_mode_changed.connect(self.timeline_manager.set_behavior_mode_override)
+            controls_viewport.confidence_changed.connect(self.timeline_manager.set_confidence_override)
+            controls_viewport.silence_tolerance_changed.connect(self.timeline_manager.set_silence_tolerance)
+            controls_viewport.adaptation_rate_changed.connect(self.timeline_manager.set_adaptation_rate)
+            controls_viewport.momentum_changed.connect(self.timeline_manager.set_momentum_override)
+            print("🎛️  Performance controls connected successfully!")
+            print("   ✅ All 10 controls active (MPE + Timeline)")
+        else:
+            print("🎛️  Performance controls connected (partial)")
+            print("   ✅ 3 MPE controls active (Density, Give Space, Initiative)")
+            print("   ⚠️  7 timeline controls inactive (run with --duration 5 to enable)")
         
         # Initialize controls with current values
         controls_viewport.set_density(0.5)
         controls_viewport.set_give_space(0.3)
         controls_viewport.set_initiative(0.7)
-        
-        print("🎛️  Performance controls connected successfully!")
-        print("   - Density, Give Space, and Initiative sliders are LIVE")
-        print("   - Move sliders to see real-time updates in terminal")
-        print("   - Other controls will be connected to timeline manager later")
     
     def set_density_level(self, level: float):
         """Set musical density level"""
@@ -2167,10 +2194,14 @@ class EnhancedDriftEngineAI:
                         # Only try single vocabulary if dual vocabulary failed
                         if not quantizer_loaded:
                             # Fall back to single vocabulary loading
+                            # CRITICAL FIX: Handle both pickle and JSON model files
+                            # Remove model extension first, then add quantizer suffix
+                            base_filename = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '').replace('_model.json', '')
+                            
                             # Try new naming scheme first (gesture > symbolic), then fall back to old scheme
-                            gesture_quantizer_file = most_recent_file.replace('_model.json', '_gesture_training_quantizer.joblib')
-                            symbolic_quantizer_file = most_recent_file.replace('_model.json', '_symbolic_training_quantizer.joblib')
-                            old_quantizer_file = most_recent_file.replace('_model.json', '_quantizer.joblib')
+                            gesture_quantizer_file = base_filename + '_gesture_training_quantizer.joblib'
+                            symbolic_quantizer_file = base_filename + '_symbolic_training_quantizer.joblib'
+                            old_quantizer_file = base_filename + '_quantizer.joblib'
                             
                             quantizer_file = None
                             if os.path.exists(gesture_quantizer_file):

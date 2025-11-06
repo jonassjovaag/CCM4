@@ -845,6 +845,25 @@ class EnhancedHybridTrainingPipeline:
             print(f"🎭 Saving PerformanceArc to {arc_file}...")
             try:
                 arc_dict = performance_arc.to_dict()
+                
+                # Convert NumPy types to Python native types for JSON serialization
+                def convert_numpy_types(obj):
+                    """Recursively convert NumPy types to Python native types"""
+                    if isinstance(obj, dict):
+                        return {key: convert_numpy_types(value) for key, value in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_numpy_types(item) for item in obj]
+                    elif isinstance(obj, (np.integer, np.int32, np.int64)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    else:
+                        return obj
+                
+                arc_dict = convert_numpy_types(arc_dict)
+                
                 with open(arc_file, 'w') as f:
                     import json
                     json.dump(arc_dict, f, indent=2)
@@ -911,6 +930,30 @@ class EnhancedHybridTrainingPipeline:
                     print(f"✅ Saved percussive vocabulary to {percussive_vocab_file}")
                 except Exception as e:
                     print(f"⚠️  Failed to save percussive vocabulary: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # CRITICAL FIX: Also save gesture quantizer for pattern matching
+                # In dual vocabulary mode, we use harmonic quantizer as the main gesture quantizer
+                # (both harmonic and percussive are gesture quantizers, but we need one for backwards compatibility)
+                gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
+                try:
+                    # Save harmonic quantizer as the main gesture quantizer
+                    # (it's trained on Wav2Vec features just like percussive)
+                    if self.dual_perception.harmonic_quantizer and self.dual_perception.harmonic_quantizer.is_fitted:
+                        self.dual_perception.harmonic_quantizer.save(gesture_quantizer_file)
+                        print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
+                        # Verify file was created
+                        import os
+                        if os.path.exists(gesture_quantizer_file):
+                            file_size = os.path.getsize(gesture_quantizer_file) / 1024  # KB
+                            print(f"   📁 File verified: {file_size:.1f} KB")
+                        else:
+                            print(f"   ❌ ERROR: File not found after save!")
+                    else:
+                        print(f"⚠️  Harmonic quantizer not fitted - cannot save gesture quantizer")
+                except Exception as e:
+                    print(f"⚠️  Failed to save gesture quantizer: {e}")
                     import traceback
                     traceback.print_exc()
             else:

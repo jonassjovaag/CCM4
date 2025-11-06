@@ -219,10 +219,18 @@ class DualPerceptionModule:
             raw_gesture_token = None
             smoothed_gesture_token = None
             
-            if self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
+            # CRITICAL FIX: In dual vocabulary mode, use harmonic_quantizer for gesture tokens
+            # (harmonic/percussive vocabularies are identical 768D Wav2Vec quantizers)
+            active_quantizer = None
+            if self.enable_dual_vocabulary and self.harmonic_quantizer and self.harmonic_quantizer.is_fitted:
+                active_quantizer = self.harmonic_quantizer
+            elif self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
+                active_quantizer = self.quantizer
+            
+            if active_quantizer:
                 # Ensure float64 for sklearn
                 features_64 = wav2vec_features.astype(np.float64)
-                raw_gesture_token = int(self.quantizer.transform(features_64.reshape(1, -1))[0])
+                raw_gesture_token = int(active_quantizer.transform(features_64.reshape(1, -1))[0])
                 
                 # Apply temporal smoothing to get phrase-level token
                 smoothed_gesture_token = self.gesture_smoother.add_token(raw_gesture_token, timestamp)

@@ -192,9 +192,12 @@ class RhythmOracle:
     def _calculate_pattern_similarity(self, query: Dict, pattern: RhythmicPattern) -> float:
         """Calculate similarity between query and stored pattern"""
         
-        # Tempo similarity
-        tempo_sim = 1.0 - abs(query.get('tempo', 120.0) - pattern.tempo) / max(pattern.tempo, 120.0)
-        tempo_sim = max(0.0, tempo_sim)
+        # Tempo similarity - use percentage-based tolerance (allows 50% tempo variation)
+        query_tempo = query.get('tempo', 120.0)
+        pattern_tempo = pattern.tempo
+        tempo_ratio = max(query_tempo, pattern_tempo) / min(query_tempo, pattern_tempo)
+        # Map ratio to similarity: 1.0 (same tempo) → 1.0, 1.5 (50% faster) → 0.5, 2.0 (double) → 0.0
+        tempo_sim = max(0.0, 1.0 - (tempo_ratio - 1.0))
         
         # Density similarity
         density_sim = 1.0 - abs(query.get('density', 0.5) - pattern.density)
@@ -207,12 +210,13 @@ class RhythmOracle:
         # Pattern type similarity
         type_sim = 1.0 if query.get('pattern_type', 'unknown') == pattern.pattern_type else 0.0
         
-        # Weighted combination
+        # Weighted combination - REDUCED tempo weight, increased density/syncopation
+        # This makes it more forgiving of tempo differences while preserving rhythmic feel
         similarity = (
-            tempo_sim * 0.3 +
-            density_sim * 0.3 +
-            syncopation_sim * 0.2 +
-            type_sim * 0.2
+            tempo_sim * 0.2 +       # Reduced from 0.3 - tempo less critical
+            density_sim * 0.4 +     # Increased from 0.3 - note density more important
+            syncopation_sim * 0.3 + # Increased from 0.2 - rhythmic feel crucial
+            type_sim * 0.1          # Reduced from 0.2 - pattern type less strict
         )
         
         return similarity

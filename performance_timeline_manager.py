@@ -26,6 +26,11 @@ class PerformanceState:
     last_activity_time: float
     musical_momentum: float
     detected_instrument: str = "unknown"
+    # Override fields (None = use computed values)
+    engagement_level_override: Optional[float] = None
+    musical_momentum_override: Optional[float] = None
+    confidence_threshold_override: Optional[float] = None
+    behavior_mode_override: Optional[str] = None
 
 @dataclass
 class PerformanceConfig:
@@ -689,8 +694,25 @@ class PerformanceTimelineManager:
         base_engagement = self.performance_state.engagement_level if self.performance_state.current_phase else 0.5
         adjusted_engagement = base_engagement * activity_multiplier
         
+        # Apply engagement level override if set
+        if self.performance_state.engagement_level_override is not None:
+            adjusted_engagement = self.performance_state.engagement_level_override
+        
+        # Apply behavior mode override if set
+        if self.performance_state.behavior_mode_override is not None:
+            behavior_mode = self.performance_state.behavior_mode_override
+        
         # Adjust confidence threshold based on engagement
         confidence_threshold *= (1.0 - adjusted_engagement * 0.3)
+        
+        # Apply confidence threshold override if set
+        if self.performance_state.confidence_threshold_override is not None:
+            confidence_threshold = self.performance_state.confidence_threshold_override
+        
+        # Get momentum (use override if set)
+        current_momentum = self.performance_state.musical_momentum if self.performance_state.current_phase else 0.5
+        if self.performance_state.musical_momentum_override is not None:
+            current_momentum = self.performance_state.musical_momentum_override
         
         guidance = {
             'should_respond': should_respond,
@@ -700,7 +722,7 @@ class PerformanceTimelineManager:
             'silence_mode': self.performance_state.silence_mode if self.performance_state.current_phase else False,
             'performance_phase': performance_phase,
             'activity_multiplier': activity_multiplier,
-            'musical_momentum': self.performance_state.musical_momentum if self.performance_state.current_phase else 0.5,
+            'musical_momentum': current_momentum,
             'time_remaining': self.performance_state.total_duration - self.performance_state.current_time,
             'detected_instrument': self.performance_state.detected_instrument if self.performance_state.current_phase else None
         }
@@ -735,6 +757,64 @@ class PerformanceTimelineManager:
             return True
         
         return self.performance_state.current_time >= self.performance_state.total_duration
+    
+    # Runtime parameter setters for live performance controls
+    
+    def set_engagement_profile(self, profile: str):
+        """Set engagement profile (conservative/balanced/experimental)"""
+        if profile in ['conservative', 'balanced', 'experimental']:
+            self.config.engagement_profile = profile
+            print(f"🎚️ Engagement profile set to: {profile}")
+    
+    def set_silence_tolerance(self, tolerance: float):
+        """Set silence tolerance in seconds"""
+        self.config.silence_tolerance = max(0.0, min(20.0, tolerance))
+        print(f"🎚️ Silence tolerance set to: {tolerance:.1f}s")
+    
+    def set_adaptation_rate(self, rate: float):
+        """Set adaptation rate (0.0-1.0)"""
+        self.config.adaptation_rate = max(0.0, min(1.0, rate))
+        print(f"🎚️ Adaptation rate set to: {rate:.2f}")
+    
+    def set_engagement_level_override(self, level: Optional[float]):
+        """Override engagement level (None to use computed value)"""
+        if self.performance_state:
+            if level is not None:
+                self.performance_state.engagement_level_override = max(0.0, min(1.0, level))
+                print(f"🎚️ Engagement level override: {level:.2f}")
+            else:
+                self.performance_state.engagement_level_override = None
+                print("🎚️ Engagement level override cleared (using computed value)")
+    
+    def set_momentum_override(self, momentum: Optional[float]):
+        """Override musical momentum (None to use computed value)"""
+        if self.performance_state:
+            if momentum is not None:
+                self.performance_state.musical_momentum_override = max(0.0, min(1.0, momentum))
+                print(f"🎚️ Musical momentum override: {momentum:.2f}")
+            else:
+                self.performance_state.musical_momentum_override = None
+                print("🎚️ Momentum override cleared (using computed value)")
+    
+    def set_confidence_override(self, confidence: Optional[float]):
+        """Override confidence threshold (None to use computed value)"""
+        if self.performance_state:
+            if confidence is not None:
+                self.performance_state.confidence_threshold_override = max(0.6, min(0.9, confidence))
+                print(f"🎚️ Confidence threshold override: {confidence:.2f}")
+            else:
+                self.performance_state.confidence_threshold_override = None
+                print("🎚️ Confidence override cleared (using computed value)")
+    
+    def set_behavior_mode_override(self, mode: Optional[str]):
+        """Override behavior mode (None to use computed value)"""
+        if self.performance_state:
+            if mode and mode in ['imitate', 'contrast', 'lead', 'wait']:
+                self.performance_state.behavior_mode_override = mode
+                print(f"🎚️ Behavior mode override: {mode}")
+            else:
+                self.performance_state.behavior_mode_override = None
+                print("🎚️ Behavior mode override cleared (using computed value)")
 
 def main():
     """Test the performance timeline manager"""

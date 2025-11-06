@@ -835,7 +835,7 @@ class PolyphonicAudioOracle(AudioOracle):
                 'chord_progressions': dict(self.chord_progressions),
                 'harmonic_patterns': dict(self.harmonic_patterns),
                 'distance_history': list(self.distance_history),
-                'threshold_adjustments': self.threshold_adjustments,
+                'threshold_adjustments': getattr(self, 'threshold_adjustments', 0),
                 'transitions': self.transitions,
                 'suffix_links': self.suffix_links,
                 'states': self.states,
