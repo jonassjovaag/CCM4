@@ -299,7 +299,11 @@ class EnhancedDriftEngineAI:
                 try:
                     self.visualization_manager = VisualizationManager()
                     self.visualization_manager.start()
-                    print("🎨 Visualization system enabled (5 viewports)")
+                    print("🎨 Visualization system enabled (8 viewports)")
+                    
+                    # Connect performance controls viewport (if available)
+                    self._connect_performance_controls()
+                    
                 except Exception as e:
                     print(f"⚠️  Visualization initialization failed: {e}")
                     self.visualization_manager = None
@@ -1939,6 +1943,32 @@ class EnhancedDriftEngineAI:
     def _get_reference_frequency(self, midi_note: int) -> float:
         """Get reference frequency for MIDI note (12TET)"""
         return 440.0 * (2.0 ** ((midi_note - 69) / 12.0))
+    
+    def _connect_performance_controls(self):
+        """Connect performance controls viewport signals to runtime parameters"""
+        if not self.visualization_manager:
+            return
+        
+        # Get the performance controls viewport
+        controls_viewport = self.visualization_manager.viewports.get('performance_controls')
+        if not controls_viewport:
+            print("⚠️  Performance controls viewport not found")
+            return
+        
+        # Connect Musical Interaction controls (MPE parameters)
+        controls_viewport.density_changed.connect(self.set_density_level)
+        controls_viewport.give_space_changed.connect(self.set_give_space_factor)
+        controls_viewport.initiative_changed.connect(self.set_initiative_budget)
+        
+        # Connect Core Behavior controls (timeline manager will be added later)
+        # For now, these will need to be connected after timeline_manager is initialized
+        
+        # Initialize controls with current values
+        controls_viewport.set_density(0.5)
+        controls_viewport.set_give_space(0.3)
+        controls_viewport.set_initiative(0.7)
+        
+        print("🎛️  Performance controls connected")
     
     def set_density_level(self, level: float):
         """Set musical density level"""

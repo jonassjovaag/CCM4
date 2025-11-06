@@ -18,6 +18,7 @@ from .audio_analysis_viewport import AudioAnalysisViewport
 from .timeline_viewport import TimelineViewport
 from .webcam_viewport import WebcamViewport
 from .gpt_reflection_viewport import GPTReflectionViewport
+from .performance_controls_viewport import PerformanceControlsViewport
 
 
 class VisualizationManager:
@@ -61,6 +62,7 @@ class VisualizationManager:
                 'phrase_memory',
                 'audio_analysis',
                 'performance_timeline',
+                'performance_controls',
                 'webcam',
                 'gpt_reflection'
             ]
@@ -82,6 +84,7 @@ class VisualizationManager:
             'phrase_memory': PhraseMemoryViewport,
             'audio_analysis': AudioAnalysisViewport,
             'performance_timeline': TimelineViewport,
+            'performance_controls': PerformanceControlsViewport,
             'webcam': WebcamViewport,
             'gpt_reflection': GPTReflectionViewport
         }
@@ -106,10 +109,11 @@ class VisualizationManager:
         grid_layout.setSpacing(10)  # Padding between viewports
         grid_layout.setContentsMargins(20, 20, 20, 20)  # Margin around edges
         
-        # Arrange viewports in 3-column layout
+        # Arrange viewports in 4-column layout
         # Column 1 (3 rows @ 33% each): pattern_matching, request_parameters, phrase_memory
         # Column 2 (2 rows @ 50% each): audio_analysis, performance_timeline
-        # Column 3 (2 rows @ 50% each): gpt_reflection, webcam (swapped positions)
+        # Column 3 (2 rows @ 50% each): performance_controls (NEW), webcam
+        # Column 4 (2 rows @ 50% each): gpt_reflection (spans 2 rows)
         
         viewport_positions = {
             'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1, rowspan 1, colspan 1
@@ -117,8 +121,9 @@ class VisualizationManager:
             'phrase_memory': (2, 0, 1, 1),         # Col 1, Row 3
             'audio_analysis': (0, 1, 2, 1),        # Col 2, Rows 1-2 (span 2 rows for 50% height)
             'performance_timeline': (2, 1, 1, 1),  # Col 2, Row 3
-            'gpt_reflection': (0, 2, 2, 1),        # Col 3, Rows 1-2 (span 2 rows for 50% height) - swapped with webcam
-            'webcam': (2, 2, 1, 1)                 # Col 3, Row 3 - swapped with gpt_reflection
+            'performance_controls': (0, 2, 2, 1),  # Col 3, Rows 1-2 (NEW - performance controls)
+            'webcam': (2, 2, 1, 1),                # Col 3, Row 3
+            'gpt_reflection': (0, 3, 3, 1)         # Col 4, Rows 1-3 (span all 3 rows)
         }
         
         for viewport_id, (row, col, rowspan, colspan) in viewport_positions.items():
@@ -132,6 +137,7 @@ class VisualizationManager:
         grid_layout.setColumnStretch(0, 1)
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 1)
+        grid_layout.setColumnStretch(3, 1)
         
         # Set row stretches for proper proportions:
         # Row 0: 33% height
@@ -144,7 +150,7 @@ class VisualizationManager:
         central_widget.setLayout(grid_layout)
         self.main_window.setCentralWidget(central_widget)
         
-        print("✅ Created fullscreen container with 3-column grid layout (3 rows | 2 rows | 2 rows)")
+        print("✅ Created fullscreen container with 4-column grid layout (3 rows | 2 rows | 2 rows | 3 rows)")
     
     def show(self):
         """Show the main visualization window"""
