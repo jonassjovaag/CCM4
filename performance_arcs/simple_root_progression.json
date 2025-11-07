@@ -1,0 +1,72 @@
+{
+  "total_duration": 900.0,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "end_time": 180.0,
+      "phase_type": "intro",
+      "engagement_level": 0.5,
+      "instrument_roles": {"melody": "lead"},
+      "musical_density": 0.4,
+      "dynamic_level": 0.5,
+      "silence_ratio": 0.2,
+      "root_hint_frequency": 261.63,
+      "harmonic_tension_target": 0.2
+    },
+    {
+      "start_time": 180.0,
+      "end_time": 360.0,
+      "phase_type": "development",
+      "engagement_level": 0.7,
+      "instrument_roles": {"melody": "lead"},
+      "musical_density": 0.6,
+      "dynamic_level": 0.6,
+      "silence_ratio": 0.15,
+      "root_hint_frequency": 220.0,
+      "harmonic_tension_target": 0.5
+    },
+    {
+      "start_time": 360.0,
+      "end_time": 540.0,
+      "phase_type": "climax",
+      "engagement_level": 0.9,
+      "instrument_roles": {"melody": "lead"},
+      "musical_density": 0.8,
+      "dynamic_level": 0.8,
+      "silence_ratio": 0.05,
+      "root_hint_frequency": 329.63,
+      "harmonic_tension_target": 0.8
+    },
+    {
+      "start_time": 540.0,
+      "end_time": 720.0,
+      "phase_type": "development",
+      "engagement_level": 0.6,
+      "instrument_roles": {"melody": "lead"},
+      "musical_density": 0.5,
+      "dynamic_level": 0.6,
+      "silence_ratio": 0.2,
+      "root_hint_frequency": 246.94,
+      "harmonic_tension_target": 0.4
+    },
+    {
+      "start_time": 720.0,
+      "end_time": 900.0,
+      "phase_type": "resolution",
+      "engagement_level": 0.4,
+      "instrument_roles": {"melody": "lead"},
+      "musical_density": 0.3,
+      "dynamic_level": 0.4,
+      "silence_ratio": 0.3,
+      "root_hint_frequency": 261.63,
+      "harmonic_tension_target": 0.1
+    }
+  ],
+  "overall_engagement_curve": [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4],
+  "instrument_evolution": {
+    "melody": [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
+  },
+  "silence_patterns": [],
+  "theme_development": [],
+  "dynamic_evolution": [0.5, 0.6, 0.7, 0.8, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
+}

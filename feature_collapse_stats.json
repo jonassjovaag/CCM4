@@ -1,0 +1,27 @@
+{
+  "sample_size": 1000,
+  "active_dimensions": 5,
+  "dead_dimensions": 763,
+  "constant_dimensions": 759,
+  "near_zero_means": 754,
+  "unique_values": 2751,
+  "mean_range": [
+    -251.9948035496005,
+    4.211829626164056
+  ],
+  "std_range": [
+    0.0,
+    3.085266239357757
+  ],
+  "variance_range": [
+    0.0,
+    9.518867767720756
+  ],
+  "active_dim_indices": [
+    0,
+    2,
+    3,
+    12,
+    15
+  ]
+}

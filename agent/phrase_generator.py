@@ -98,9 +98,16 @@ class PhraseGenerator:
         self.current_chord = "C"
         self.scale_degrees = [0, 2, 4, 5, 7, 9, 11]  # C major
         
-        # DRAMATICALLY EXPANDED RANGES for maximum variety - ADJUSTMENT REQUESTED
-        self.melodic_range = (60, 96)   # C4 to C7 (3 octaves - expressive lead)
+        # MELODIC ENHANCEMENT: Narrower ranges for more singable, coherent melodies
+        # Changed from (60, 96) to (48, 72) for better melodic focus
+        self.melodic_range = (48, 72)   # C3 to C5 (2 octaves - singable lead range)
         self.bass_range = (36, 60)      # C2 to C4 (2 octaves - foundation)
+        
+        # Melodic constraints for more coherent lines
+        self.max_leap = 7              # Max interval jump (perfect 5th)
+        self.prefer_steps = 0.7        # 70% probability for stepwise motion
+        self.penalize_tritone = True   # Avoid augmented 4th/diminished 5th
+        self.scale_constraint = True   # Prefer diatonic notes in current key
     
     def track_event(self, event_data: Dict, source: str = 'human'):
         """
@@ -447,6 +454,125 @@ class PhraseGenerator:
         
         return timings
     
+    # ========================================
+    # Melodic Constraint Helpers (Phase 2-4)
+    # ========================================
+    
+    def _apply_scale_constraint(self, note: int, scale_degrees: List[int] = None) -> int:
+        """
+        Phase 2: Snap note to nearest scale degree for more diatonic melodies
+        
+        Args:
+            note: MIDI note number to constrain
+            scale_degrees: List of scale degrees [0,2,4,5,7,9,11] for major, etc.
+            
+        Returns:
+            MIDI note snapped to nearest scale degree
+        """
+        if not self.scale_constraint:
+            return note
+        
+        if scale_degrees is None:
+            scale_degrees = self.scale_degrees  # Use default (C major)
+        
+        # Get the note's pitch class (0-11)
+        pitch_class = note % 12
+        
+        # Find nearest scale degree
+        min_distance = float('inf')
+        nearest_degree = pitch_class
+        
+        for degree in scale_degrees:
+            # Calculate distance (wrapping around octave)
+            distance = min(abs(pitch_class - degree), abs(pitch_class - degree + 12), abs(pitch_class - degree - 12))
+            if distance < min_distance:
+                min_distance = distance
+                nearest_degree = degree
+        
+        # Calculate adjustment
+        adjustment = nearest_degree - pitch_class
+        
+        # Handle wrapping (e.g., B -> C is +1, not +11)
+        if adjustment > 6:
+            adjustment -= 12
+        elif adjustment < -6:
+            adjustment += 12
+        
+        return note + adjustment
+    
+    def _calculate_interval_penalty(self, interval: int) -> float:
+        """
+        Phase 3: Calculate penalty for large melodic leaps
+        
+        Args:
+            interval: Interval in semitones (can be negative)
+            
+        Returns:
+            Penalty multiplier [0.0, 1.0] where 1.0 = no penalty, 0.0 = maximum penalty
+        """
+        if not self.penalize_tritone and abs(interval) <= self.max_leap:
+            return 1.0  # No penalty if constraints disabled
+        
+        abs_interval = abs(interval)
+        
+        # Tritone penalty (augmented 4th / diminished 5th)
+        if self.penalize_tritone and abs_interval == 6:
+            return 0.1  # Strong penalty for tritone
+        
+        # Leap penalty (beyond perfect 5th)
+        if abs_interval > self.max_leap:
+            # Gradually increase penalty for larger leaps
+            # Perfect 5th (7) = baseline
+            # Minor 6th (8) = 0.8 penalty
+            # Major 6th (9) = 0.6 penalty
+            # Minor 7th (10) = 0.4 penalty
+            # Octave (12) = 0.2 penalty
+            excess = abs_interval - self.max_leap
+            penalty = max(0.2, 1.0 - (excess * 0.2))
+            return penalty
+        
+        # Small intervals: no penalty
+        return 1.0
+    
+    def _apply_contour_smoothing(self, notes: List[int], i: int, interval: int, 
+                                 previous_direction: int) -> int:
+        """
+        Phase 4: Smooth melodic contour to create arch-like melodies
+        
+        Args:
+            notes: List of notes generated so far
+            i: Current index in note generation
+            interval: Proposed interval for next note
+            previous_direction: Previous melodic direction (-1, 0, 1)
+            
+        Returns:
+            Adjusted interval (may be reversed for contour smoothing)
+        """
+        if i < 2 or len(notes) < 2:
+            return interval  # Need at least 2 notes for direction detection
+        
+        current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
+        
+        # Detect if we've been moving in same direction for 2+ steps
+        if current_direction == previous_direction and previous_direction != 0:
+            # Calculate "run length" - how many steps in same direction?
+            run_length = 1
+            for j in range(len(notes) - 1, 0, -1):
+                if (notes[j] - notes[j-1]) * previous_direction > 0:
+                    run_length += 1
+                else:
+                    break
+            
+            # Bias toward direction reversal based on run length
+            # Longer runs = stronger reversal bias
+            reversal_probability = min(0.8, 0.3 + (run_length * 0.15))
+            
+            if random.random() < reversal_probability:
+                # Reverse direction to create arch-like contour
+                return -interval
+        
+        return interval
+    
     def _build_shadowing_request(self, mode_params: Dict = None) -> Dict:
         """
         Enhanced SHADOW: Close imitation using multiple parameters
@@ -649,16 +775,49 @@ class PhraseGenerator:
         mode_upper = mode.upper()
         
         if mode_upper == 'SHADOW':
-            return self._build_shadowing_request(mode_params)
+            request = self._build_shadowing_request(mode_params)
         elif mode_upper == 'MIRROR':
-            return self._build_mirroring_request(mode_params)
+            request = self._build_mirroring_request(mode_params)
         elif mode_upper == 'COUPLE':
-            return self._build_coupling_request(mode_params)
+            request = self._build_coupling_request(mode_params)
         elif mode_upper in ['IMITATE', 'CONTRAST', 'LEAD']:
             # Use shadowing as fallback for compatibility
-            return self._build_shadowing_request(mode_params)
+            request = self._build_shadowing_request(mode_params)
         else:
-            return None
+            request = None
+        
+        # PHASE 8: Add root hints from mode_params (from PerformanceState)
+        if request and mode_params:
+            request = self._add_root_hints_to_request(request, mode_params)
+        
+        return request
+    
+    def _add_root_hints_to_request(self, request: Dict, mode_params: Dict) -> Dict:
+        """
+        Add autonomous root progression hints to request
+        
+        PHASE 8: If mode_params contains root_hint_hz and tension_target
+        (from PerformanceTimelineManager → PerformanceState), add them
+        to the AudioOracle request for soft biasing.
+        
+        Args:
+            request: Existing request dict
+            mode_params: Parameters from calling context (may contain root hints)
+            
+        Returns:
+            Request dict with root hints added (if available)
+        """
+        if 'root_hint_hz' in mode_params and mode_params['root_hint_hz']:
+            request['root_hint_hz'] = mode_params['root_hint_hz']
+            
+        if 'tension_target' in mode_params and mode_params['tension_target'] is not None:
+            request['tension_target'] = mode_params['tension_target']
+        
+        # Optionally override bias strength
+        if 'root_bias_strength' in mode_params:
+            request['root_bias_strength'] = mode_params['root_bias_strength']
+        
+        return request
     
     def generate_phrase(self, current_event: Dict, voice_type: str, 
                        mode: str, harmonic_context: Dict, temperature: float = 0.8, 
@@ -1066,14 +1225,22 @@ class PhraseGenerator:
                 chosen_magnitude = random.choices(interval_choices, weights=probs)[0]
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
                 
-                # Melodic contour: Favor direction changes after 2-3 steps in same direction
-                # This creates arch-like melodies (up then down, or down then up)
-                if i >= 2:  # Need at least 2 previous notes to detect direction
+                # PHASE 4: Apply contour smoothing (arch-like melodies)
+                if voice_type == "melodic":
+                    interval = self._apply_contour_smoothing(notes, i, interval, previous_direction)
+                
+                # PHASE 3: Apply interval leap penalty (prefer small intervals)
+                # Re-roll interval if it has high penalty
+                if voice_type == "melodic":
+                    penalty = self._calculate_interval_penalty(interval)
+                    if penalty < 1.0 and random.random() > penalty:
+                        # Penalty failed - choose smaller interval
+                        # Fall back to stepwise motion (most melodic)
+                        interval = random.choice([-2, -1, 1, 2])  # Step only
+                
+                # Track melodic direction for contour analysis
+                if i >= 2:
                     current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
-                    if current_direction == previous_direction and previous_direction != 0:
-                        # Same direction for 2+ steps - bias toward reversing
-                        if random.random() < 0.4:  # 40% chance to force direction change
-                            interval = -interval  # Reverse direction
                     previous_direction = current_direction
                 
                 note = previous_note + interval
@@ -1089,6 +1256,10 @@ class PhraseGenerator:
                 
                 # Final clamping to ensure note is in range
                 note = max(min_note, min(note, max_note))
+                
+                # PHASE 2: Apply scale constraint (snap to diatonic notes)
+                if voice_type == "melodic":
+                    note = self._apply_scale_constraint(note)
                 
                 # Avoid repetition: if note equals previous, nudge it
                 if note == previous_note and (max_note - min_note) > 2:
@@ -1179,6 +1350,7 @@ class PhraseGenerator:
         
         # DRAMATICALLY EXPANDED peak generation - use SAME algorithm as buildup
         previous_note = random.randint(min_note, max_note)
+        previous_direction = 0  # Track melodic direction: -1=down, 0=static, 1=up
         
         for i in range(phrase_length):
             if i == 0:
@@ -1216,8 +1388,25 @@ class PhraseGenerator:
                     magnitude_probs = [0.25, 0.20, 0.10, 0.10, 0.15, 0.15, 0.05]
                 
                 chosen_magnitude = random.choices(interval_magnitudes, weights=magnitude_probs)[0]
-                
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
+                
+                # PHASE 4: Apply contour smoothing (peak phrases still get arch-like shape)
+                if voice_type == "melodic" and i >= 2:
+                    interval = self._apply_contour_smoothing(notes, i, interval, 
+                                                            previous_direction if 'previous_direction' in locals() else 0)
+                
+                # PHASE 3: Apply interval leap penalty (even peaks should be singable)
+                if voice_type == "melodic":
+                    penalty = self._calculate_interval_penalty(interval)
+                    if penalty < 1.0 and random.random() > penalty:
+                        # Fall back to stepwise motion
+                        interval = random.choice([-2, -1, 1, 2])
+                
+                # Track melodic direction
+                if i >= 2:
+                    current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
+                    previous_direction = current_direction
+                
                 note = previous_note + interval
                 
                 # Wrap around range boundaries
@@ -1232,11 +1421,18 @@ class PhraseGenerator:
                 # Final clamping to ensure note is in range
                 note = max(min_note, min(note, max_note))
                 
+                # PHASE 2: Apply scale constraint (snap to diatonic notes)
+                if voice_type == "melodic":
+                    note = self._apply_scale_constraint(note)
+                
                 # Avoid repetition: if note equals previous, nudge it
                 if note == previous_note and (max_note - min_note) > 2:
                     nudge = random.choice([-2, -1, 1, 2])
                     note = previous_note + nudge
                     note = max(min_note, min(note, max_note))
+                    # Re-apply scale constraint after nudge
+                    if voice_type == "melodic":
+                        note = self._apply_scale_constraint(note)
             
             notes.append(note)
             previous_note = note

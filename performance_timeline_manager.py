@@ -12,6 +12,11 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from performance_arc_analyzer import PerformanceArc, MusicalPhase
+from agent.autonomous_root_explorer import (
+    AutonomousRootExplorer,
+    RootWaypoint,
+    ExplorationConfig
+)
 
 @dataclass
 class PerformanceState:
@@ -31,6 +36,9 @@ class PerformanceState:
     musical_momentum_override: Optional[float] = None
     confidence_threshold_override: Optional[float] = None
     behavior_mode_override: Optional[str] = None
+    # Autonomous root progression (Phase 8)
+    current_root_hint: Optional[float] = None  # Hz (from autonomous explorer)
+    current_tension_target: Optional[float] = None  # 0.0-1.0
 
 @dataclass
 class PerformanceConfig:
@@ -50,6 +58,11 @@ class PerformanceTimelineManager:
         self.performance_arc = None
         self.scaled_arc = None
         self.performance_state = None
+        
+        # Autonomous root progression (Phase 8)
+        self.root_explorer = None  # Will be initialized when AudioOracle available
+        self.last_root_exploration_time = 0.0
+        self.exploration_interval = 60.0  # Seconds between root explorations
         
         # Load and scale the performance arc (if file exists)
         if self.config.arc_file_path and os.path.exists(self.config.arc_file_path):
@@ -125,7 +138,10 @@ class PerformanceTimelineManager:
                 instrument_roles=phase.instrument_roles,
                 musical_density=phase.musical_density,
                 dynamic_level=phase.dynamic_level,
-                silence_ratio=phase.silence_ratio
+                silence_ratio=phase.silence_ratio,
+                # Preserve autonomous root progression fields (Phase 8)
+                root_hint_frequency=phase.root_hint_frequency if hasattr(phase, 'root_hint_frequency') else None,
+                harmonic_tension_target=phase.harmonic_tension_target if hasattr(phase, 'harmonic_tension_target') else None
             )
             scaled_phases.append(scaled_phase)
         
@@ -350,6 +366,70 @@ class PerformanceTimelineManager:
             musical_momentum=0.0
         )
     
+    def initialize_root_explorer(
+        self, 
+        audio_oracle, 
+        config: Optional['ExplorationConfig'] = None
+    ):
+        """
+        Initialize autonomous root explorer with trained AudioOracle
+        
+        Args:
+            audio_oracle: Trained AudioOracle with fundamentals populated
+            config: Optional ExplorationConfig (uses default hybrid if not provided)
+        """
+        if not hasattr(audio_oracle, 'fundamentals') or not audio_oracle.fundamentals:
+            print("⚠️  AudioOracle has no harmonic data - root exploration disabled")
+            print("    Retrain model to capture fundamental frequencies")
+            return
+        
+        # Extract waypoints from performance arc phases
+        waypoints = self._extract_waypoints_from_phases()
+        
+        if not waypoints:
+            print("⚠️  No root hints in performance arc - using default")
+            waypoints = [RootWaypoint(time=0.0, root_hz=220.0, comment="Default A3")]
+        
+        # Use provided config or default hybrid
+        if config is None:
+            config = ExplorationConfig(
+                training_weight=0.6,
+                input_response_weight=0.3,
+                theory_bonus_weight=0.1,
+                max_drift_semitones=7,
+                update_interval=60.0
+            )
+        
+        self.root_explorer = AutonomousRootExplorer(
+            audio_oracle=audio_oracle,
+            waypoints=waypoints,
+            config=config
+        )
+        
+        print(f"✅ Autonomous root explorer initialized")
+        print(f"   Waypoints: {len(waypoints)}")
+        print(f"   Weights: {config.training_weight*100:.0f}% training, "
+              f"{config.input_response_weight*100:.0f}% input, "
+              f"{config.theory_bonus_weight*100:.0f}% theory")
+    
+    def _extract_waypoints_from_phases(self) -> List['RootWaypoint']:
+        """Extract root waypoints from performance arc phases"""
+        waypoints = []
+        
+        if not self.scaled_arc or not self.scaled_arc.phases:
+            return waypoints
+        
+        for phase in self.scaled_arc.phases:
+            if hasattr(phase, 'root_hint_frequency') and phase.root_hint_frequency:
+                waypoint = RootWaypoint(
+                    time=phase.start_time,
+                    root_hz=phase.root_hint_frequency,
+                    comment=f"{phase.phase_type} phase"
+                )
+                waypoints.append(waypoint)
+        
+        return waypoints
+    
     def start_performance(self):
         """Start a new performance session"""
         print(f"🎵 Starting performance session: {self.config.duration_minutes} minutes")
@@ -469,8 +549,20 @@ class PerformanceTimelineManager:
             fade_factor = 1.0 - ending_progress  # 1.0 → 0.0
             return fade_factor ** 2  # Smooth exponential fade
     
-    def update_performance_state(self, human_activity: bool = False, instrument_detected: str = None):
-        """Update the performance state based on current time and human activity"""
+    def update_performance_state(
+        self, 
+        human_activity: bool = False, 
+        instrument_detected: Optional[str] = None,
+        input_fundamental: Optional[float] = None
+    ):
+        """
+        Update the performance state based on current time and human activity
+        
+        Args:
+            human_activity: Whether human is currently playing
+            instrument_detected: Name of detected instrument
+            input_fundamental: Live input fundamental frequency (Hz) from Groven method
+        """
         current_time = time.time()
         elapsed_time = current_time - self.performance_state.start_time
         
@@ -496,6 +588,28 @@ class PerformanceTimelineManager:
         
         # Update musical momentum
         self._update_musical_momentum(human_activity)
+        
+        # Update autonomous root hint (Phase 8)
+        if self.root_explorer and self.performance_state.current_phase:
+            time_since_exploration = elapsed_time - self.last_root_exploration_time
+            
+            # Check if it's time to explore (every exploration_interval seconds)
+            if time_since_exploration >= self.exploration_interval:
+                # Get next root from autonomous explorer
+                next_root = self.root_explorer.update(
+                    elapsed_time=elapsed_time,
+                    input_fundamental=input_fundamental
+                )
+                
+                # Update state with new root hint
+                self.performance_state.current_root_hint = next_root
+                
+                # Also update tension target from current phase
+                if hasattr(self.performance_state.current_phase, 'harmonic_tension_target'):
+                    self.performance_state.current_tension_target = \
+                        self.performance_state.current_phase.harmonic_tension_target
+                
+                self.last_root_exploration_time = elapsed_time
     
     def _update_current_phase(self):
         """Update the current phase based on elapsed time"""
