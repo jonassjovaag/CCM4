@@ -2061,8 +2061,9 @@ class EnhancedDriftEngineAI:
         print("🧠 Loading previous learning data...")
         print("🔍 Debug: _load_learning_data() called")
         
-        # Initialize model_loaded flag
+        # Initialize flags
         model_loaded = False
+        rhythmic_loaded = False  # Track if RhythmOracle patterns were loaded
         
         # Load memory buffer
         memory_loaded = self.memory_buffer.load_from_file(self.memory_file)
@@ -2272,6 +2273,7 @@ class EnhancedDriftEngineAI:
                                 print(f"   Gesture tokens will not be available - retrain model to generate quantizer")
                     
                     # Load RhythmOracle if available and enabled
+                    rhythmic_loaded = False  # Track if rhythmic patterns were loaded
                     if self.rhythm_oracle and self.enable_rhythmic:
                         # Build correct rhythm oracle filename based on model file type
                         if most_recent_file.endswith('.pkl.gz') or most_recent_file.endswith('.pkl'):
@@ -2292,12 +2294,13 @@ class EnhancedDriftEngineAI:
                                       f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
                                       f"avg density {rhythm_stats['avg_density']:.2f}, "
                                       f"transitions: {rhythm_stats['total_transitions']}")
+                                rhythmic_loaded = True  # Mark as successfully loaded
                             except Exception as e:
                                 print(f"⚠️  Could not load RhythmOracle: {e}")
-                                print(f"   Rhythmic phrasing will not be available")
+                                print(f"   Will try fallback location...")
                         else:
-                            print(f"⚠️  No RhythmOracle file found ({rhythm_oracle_file})")
-                            print(f"   Rhythmic phrasing will not be available - retrain with --rhythmic flag")
+                            print(f"⚠️  No RhythmOracle companion file found: {os.path.basename(rhythm_oracle_file)}")
+                            print(f"   Will try fallback location...")
                     
                     model_loaded = True
                 else:
@@ -2417,16 +2420,21 @@ class EnhancedDriftEngineAI:
             print("📝 No trained models found, loading default model...")
             polyphonic_oracle_loaded = self.clustering.load_from_file(self.clustering_file)
         
-        # Load rhythmic data if enabled
-        print(f"🔍 Debug: enable_rhythmic={self.enable_rhythmic}, rhythm_oracle={self.rhythm_oracle is not None}")
-        rhythmic_loaded = False
-        if self.enable_rhythmic and self.rhythm_oracle:
+        # Load rhythmic data if enabled (fallback if not loaded from companion file)
+        print(f"🔍 Debug: enable_rhythmic={self.enable_rhythmic}, rhythm_oracle={self.rhythm_oracle is not None}, rhythmic_loaded={rhythmic_loaded}")
+        if not rhythmic_loaded and self.enable_rhythmic and self.rhythm_oracle:
             try:
+                print(f"🥁 Trying fallback RhythmOracle location: {self.rhythmic_file}")
                 self.rhythm_oracle.load_patterns(self.rhythmic_file)
+                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                print("✅ RhythmOracle loaded from fallback location!")
+                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                      f"avg density {rhythm_stats['avg_density']:.2f}, "
+                      f"transitions: {rhythm_stats['total_transitions']}")
                 rhythmic_loaded = True
-                print("🥁 Loaded rhythmic patterns")
             except Exception as e:
-                print(f"⚠️ Could not load rhythmic patterns: {e}")
+                print(f"⚠️ Could not load rhythmic patterns from fallback: {e}")
         
         # Update AI agent with rhythm oracle for phrase generation
         print(f"🔍 Debug: About to initialize phrase generator...")

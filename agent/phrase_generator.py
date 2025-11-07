@@ -226,13 +226,14 @@ class PhraseGenerator:
         """
         Query RhythmOracle for rhythmic phrasing pattern based on current context
         
+        NOW TEMPO-INDEPENDENT: Queries with duration patterns and scales to current tempo.
         This provides WHEN/HOW to phrase notes (complements AudioOracle's WHAT notes)
         
         Args:
-            current_context: Dict with tempo, density, syncopation from Brandtsegg analysis
+            current_context: Dict with duration_pattern, density, syncopation, pulse
             
         Returns:
-            Dict with rhythmic phrasing parameters or None if unavailable
+            Dict with rhythmic phrasing parameters (including onsets at current tempo) or None
         """
         print(f"🥁 DEBUG: _get_rhythmic_phrasing_from_oracle called, rhythm_oracle={self.rhythm_oracle is not None}")
         
@@ -246,23 +247,37 @@ class PhraseGenerator:
             if not human_events:
                 return None
             
-            # Extract rhythmic features from recent input
-            tempos = [e.get('tempo', 120.0) for e in human_events if 'tempo' in e]
+            # Extract TEMPO-INDEPENDENT rhythmic features from recent input
+            # Calculate duration pattern from recent onsets
+            recent_onsets = [e.get('t', 0.0) for e in human_events if 't' in e]
+            
+            # Analyze current rhythm ratios
+            duration_pattern = [2, 2, 2, 2]  # Default
+            if len(recent_onsets) >= 3:
+                intervals = np.diff(recent_onsets)
+                if len(intervals) > 0:
+                    min_interval = np.min(intervals)
+                    if min_interval > 0:
+                        duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
+            
+            # Extract other tempo-free features
             densities = [e.get('density', 0.5) for e in human_events if 'density' in e]
             syncopations = [e.get('syncopation', 0.0) for e in human_events if 'syncopation' in e]
+            pulses = [e.get('pulse', 4) for e in human_events if 'pulse' in e]
             
             current_context = {
-                'tempo': float(np.mean(tempos)) if tempos else 120.0,
+                'duration_pattern': duration_pattern,
                 'density': float(np.mean(densities)) if densities else 0.5,
-                'syncopation': float(np.mean(syncopations)) if syncopations else 0.0
+                'syncopation': float(np.mean(syncopations)) if syncopations else 0.0,
+                'pulse': int(np.median(pulses)) if pulses else 4
             }
         
-        # Query RhythmOracle for similar patterns
+        # Query RhythmOracle for similar patterns (TEMPO-FREE MATCHING)
         try:
             print(f"🥁 DEBUG: Querying RhythmOracle with context: {current_context}")
             similar_patterns = self.rhythm_oracle.find_similar_patterns(
                 current_context, 
-                threshold=0.6  # 60% similarity threshold
+                threshold=0.3  # 30% similarity threshold (lowered due to density scale mismatch - query uses normalized 0-1, patterns use absolute events/sec)
             )
             print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
             
@@ -270,10 +285,53 @@ class PhraseGenerator:
                 # Use most similar pattern (first in sorted list)
                 best_pattern, similarity = similar_patterns[0]
                 
+                # Estimate current tempo from recent events (for scaling pattern to playback)
+                # IMPROVED: Detect subdivision level to avoid tempo inflation
+                human_events = self._get_recent_human_events(n=10)
+                current_tempo = 120.0  # Default
+                if len(human_events) >= 2:
+                    recent_onsets = [e.get('t', 0.0) for e in human_events if 't' in e]
+                    if len(recent_onsets) >= 2:
+                        avg_interval = np.mean(np.diff(recent_onsets))
+                        if avg_interval > 0:
+                            # Calculate raw tempo (assuming each interval = 1 beat)
+                            raw_tempo = 60.0 / avg_interval
+                            
+                            # SMART SUBDIVISION DETECTION:
+                            # If raw tempo > 180, likely playing 8th/16th notes, not quarter notes
+                            # Common subdivisions: 1/4, 1/8, 1/16
+                            # Divide by subdivision factor to get actual quarter-note tempo
+                            if raw_tempo > 350:
+                                # Likely 16th notes (1/4 of quarter note)
+                                current_tempo = raw_tempo / 4.0
+                                subdivision = "16th notes"
+                            elif raw_tempo > 180:
+                                # Likely 8th notes (1/2 of quarter note)
+                                current_tempo = raw_tempo / 2.0
+                                subdivision = "8th notes"
+                            else:
+                                # Likely quarter notes or slower
+                                current_tempo = raw_tempo
+                                subdivision = "quarter notes"
+                            
+                            # Clamp to reasonable range (after subdivision correction)
+                            current_tempo = max(60.0, min(200.0, current_tempo))
+                            
+                            print(f"🥁 DEBUG: Tempo estimation - avg_interval={avg_interval:.3f}s, "
+                                  f"raw_tempo={raw_tempo:.1f} BPM, subdivision={subdivision}, "
+                                  f"corrected_tempo={current_tempo:.1f} BPM")
+                
+                # Scale pattern to current tempo using to_absolute_timing()
+                absolute_onsets = best_pattern.to_absolute_timing(current_tempo, start_time=0.0)
+                
                 rhythmic_phrasing = {
-                    'tempo': best_pattern.tempo,
+                    'duration_pattern': best_pattern.duration_pattern,
+                    'absolute_onsets': absolute_onsets,  # Scaled to current tempo
+                    'current_tempo': current_tempo,  # For reference
                     'density': best_pattern.density,
                     'syncopation': best_pattern.syncopation,
+                    'pulse': best_pattern.pulse,
+                    'complexity': best_pattern.complexity,
                     'pattern_type': best_pattern.pattern_type,
                     'pattern_id': best_pattern.pattern_id,
                     'confidence': best_pattern.confidence * similarity,  # Scale by similarity
@@ -281,8 +339,21 @@ class PhraseGenerator:
                 }
                 
                 print(f"🥁 RhythmOracle phrasing: pattern={best_pattern.pattern_id}, "
-                      f"tempo={best_pattern.tempo:.1f}, density={best_pattern.density:.2f}, "
-                      f"similarity={similarity:.2f}")
+                      f"duration={best_pattern.duration_pattern}, tempo={current_tempo:.1f} BPM, "
+                      f"density={best_pattern.density:.2f}, similarity={similarity:.2f}")
+                
+                # 🎨 Emit RhythmOracle data to viewport (using dedicated rhythm_oracle_signal)
+                if self.visualization_manager:
+                    duration_str = str(best_pattern.duration_pattern[:8]) + ('...' if len(best_pattern.duration_pattern) > 8 else '')
+                    self.visualization_manager.emit_rhythm_oracle(
+                        pattern_id=best_pattern.pattern_id,
+                        tempo=current_tempo,
+                        density=best_pattern.density,
+                        similarity=similarity,
+                        duration_pattern=duration_str,
+                        pulse=best_pattern.pulse,
+                        syncopation=best_pattern.syncopation
+                    )
                 
                 return rhythmic_phrasing
             else:
@@ -291,6 +362,8 @@ class PhraseGenerator:
                 
         except Exception as e:
             print(f"⚠️ RhythmOracle query failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _apply_rhythmic_phrasing_to_timing(self, rhythmic_phrasing: Dict, num_notes: int, 
@@ -298,10 +371,11 @@ class PhraseGenerator:
         """
         Convert rhythmic phrasing parameters into actual note timing array
         
+        NOW TEMPO-INDEPENDENT: Uses absolute_onsets from RhythmOracle pattern scaled to current tempo.
         This is where RhythmOracle patterns become actual MIDI timing!
         
         Args:
-            rhythmic_phrasing: Dict with tempo, density, syncopation from RhythmOracle
+            rhythmic_phrasing: Dict with absolute_onsets (already scaled to current tempo)
             num_notes: Number of notes to generate timings for
             voice_type: "melodic" or "bass" for context
             
@@ -313,14 +387,30 @@ class PhraseGenerator:
             base = 0.5 if voice_type == "melodic" else 1.0
             return [base] * num_notes
         
-        # Extract rhythmic parameters
-        tempo = rhythmic_phrasing.get('tempo', 120.0)
+        # Use pre-scaled absolute onsets from RhythmOracle pattern
+        if 'absolute_onsets' in rhythmic_phrasing:
+            absolute_onsets = rhythmic_phrasing['absolute_onsets']
+            
+            # Convert to inter-onset intervals
+            if len(absolute_onsets) > 0:
+                intervals = []
+                for i in range(len(absolute_onsets) - 1):
+                    intervals.append(absolute_onsets[i+1] - absolute_onsets[i])
+                
+                # If we need more notes than pattern length, repeat pattern
+                while len(intervals) < num_notes:
+                    intervals.extend(intervals[:min(len(intervals), num_notes - len(intervals))])
+                
+                # Trim to exact number of notes needed
+                return intervals[:num_notes]
+        
+        # Fallback: use density/syncopation if no absolute_onsets
+        # (This should rarely happen now that we have duration patterns)
+        tempo = rhythmic_phrasing.get('current_tempo', 120.0)
         density = rhythmic_phrasing.get('density', 0.5)
         syncopation = rhythmic_phrasing.get('syncopation', 0.0)
         
         # Calculate base inter-onset interval from tempo
-        # tempo = BPM = beats per minute
-        # IOI in seconds = 60 / tempo
         beat_duration = 60.0 / tempo  # e.g., 120 BPM = 0.5 seconds per beat
         
         # Density affects note spacing:
@@ -337,8 +427,6 @@ class PhraseGenerator:
         base_ioi = beat_duration * spacing_multiplier
         
         # Apply syncopation as timing variation
-        # High syncopation → more varied timing offsets
-        # Low syncopation → steady, on-beat timing
         syncopation_amount = syncopation * 0.3  # Max 30% deviation
         
         timings = []

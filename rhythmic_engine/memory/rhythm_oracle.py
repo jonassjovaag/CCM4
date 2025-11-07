@@ -18,16 +18,39 @@ import time
 
 @dataclass
 class RhythmicPattern:
-    """Stored rhythmic pattern"""
+    """Stored rhythmic pattern (tempo-independent)"""
     pattern_id: str
-    tempo: float
-    density: float
-    syncopation: float
-    meter: str
-    pattern_type: str
-    confidence: float
-    context: Dict
-    timestamp: float
+    duration_pattern: List[int]  # Tempo-free rational durations (e.g., [2,1,1,2])
+    density: float  # Events per beat (tempo-independent)
+    syncopation: float  # Syncopation score (tempo-independent)
+    pulse: int  # Pulse subdivision (2, 3, 4)
+    complexity: float  # Barlow indigestability
+    meter: str  # Time signature
+    pattern_type: str  # Pattern classification
+    confidence: float  # Analysis confidence
+    context: Dict  # Additional metadata
+    timestamp: float  # When pattern was created
+    
+    def to_absolute_timing(self, tempo: float, start_time: float = 0.0) -> List[float]:
+        """
+        Convert duration pattern to absolute onset times at given tempo
+        
+        Args:
+            tempo: Target tempo in BPM
+            start_time: Starting timestamp
+            
+        Returns:
+            List of absolute onset times
+        """
+        beat_duration = 60.0 / tempo
+        onsets = [start_time]
+        
+        for duration in self.duration_pattern:
+            next_onset = onsets[-1] + (beat_duration * duration)
+            onsets.append(next_onset)
+        
+        # Return all but first (which is start_time)
+        return onsets[1:]
 
 @dataclass
 class PatternTransition:
@@ -63,7 +86,16 @@ class RhythmOracle:
         Add a rhythmic pattern to memory
         
         Args:
-            pattern_data: Dictionary containing pattern information
+            pattern_data: Dictionary containing pattern information:
+                - duration_pattern: List[int] - Tempo-free rational durations
+                - density: float - Events per beat
+                - syncopation: float - Syncopation score
+                - pulse: int - Pulse subdivision (2, 3, 4)
+                - complexity: float - Barlow indigestability
+                - meter: str (optional) - Time signature
+                - pattern_type: str (optional) - Pattern classification
+                - confidence: float (optional) - Analysis confidence
+                - context: Dict (optional) - Additional metadata
             
         Returns:
             str: Pattern ID
@@ -72,9 +104,11 @@ class RhythmOracle:
         
         pattern = RhythmicPattern(
             pattern_id=pattern_id,
-            tempo=pattern_data.get('tempo', 120.0),
+            duration_pattern=pattern_data.get('duration_pattern', [2, 2, 2, 2]),
             density=pattern_data.get('density', 0.5),
             syncopation=pattern_data.get('syncopation', 0.0),
+            pulse=pattern_data.get('pulse', 4),
+            complexity=pattern_data.get('complexity', 0.0),
             meter=pattern_data.get('meter', '4/4'),
             pattern_type=pattern_data.get('pattern_type', 'unknown'),
             confidence=pattern_data.get('confidence', 0.5),
@@ -92,13 +126,13 @@ class RhythmOracle:
         
         return pattern_id
     
-    def find_similar_patterns(self, query_pattern: Dict, threshold: float = 0.7) -> List[Tuple[RhythmicPattern, float]]:
+    def find_similar_patterns(self, query_pattern: Dict, threshold: float = 0.5) -> List[Tuple[RhythmicPattern, float]]:
         """
         Find similar rhythmic patterns
         
         Args:
             query_pattern: Pattern to match against
-            threshold: Similarity threshold
+            threshold: Similarity threshold (default 0.5 for more lenient matching)
             
         Returns:
             List of (pattern, similarity) tuples
@@ -153,20 +187,20 @@ class RhythmOracle:
         return None
     
     def get_rhythmic_statistics(self) -> Dict:
-        """Get statistics about stored patterns"""
+        """Get statistics about stored patterns (tempo-independent)"""
         if not self.rhythmic_patterns:
             return {
                 'total_patterns': 0,
-                'avg_tempo': 120.0,
                 'avg_density': 0.5,
                 'avg_syncopation': 0.0,
+                'avg_complexity': 0.0,
                 'pattern_types': {},
                 'total_transitions': 0
             }
         
-        tempos = [p.tempo for p in self.rhythmic_patterns]
         densities = [p.density for p in self.rhythmic_patterns]
         syncopations = [p.syncopation for p in self.rhythmic_patterns]
+        complexities = [p.complexity for p in self.rhythmic_patterns]
         
         # Count pattern types
         pattern_types = {}
@@ -182,41 +216,94 @@ class RhythmOracle:
         
         return {
             'total_patterns': len(self.rhythmic_patterns),
-            'avg_tempo': np.mean(tempos),
             'avg_density': np.mean(densities),
             'avg_syncopation': np.mean(syncopations),
+            'avg_complexity': np.mean(complexities),
             'pattern_types': pattern_types,
             'total_transitions': total_transitions
         }
     
     def _calculate_pattern_similarity(self, query: Dict, pattern: RhythmicPattern) -> float:
-        """Calculate similarity between query and stored pattern"""
+        """
+        Calculate similarity between query and stored pattern
         
-        # Tempo similarity - use percentage-based tolerance (allows 50% tempo variation)
-        query_tempo = query.get('tempo', 120.0)
-        pattern_tempo = pattern.tempo
-        tempo_ratio = max(query_tempo, pattern_tempo) / min(query_tempo, pattern_tempo)
-        # Map ratio to similarity: 1.0 (same tempo) → 1.0, 1.5 (50% faster) → 0.5, 2.0 (double) → 0.0
-        tempo_sim = max(0.0, 1.0 - (tempo_ratio - 1.0))
+        Now tempo-independent: matches on duration pattern structure, density,
+        syncopation, and pulse instead of absolute tempo.
         
-        # Density similarity
-        density_sim = 1.0 - abs(query.get('density', 0.5) - pattern.density)
-        density_sim = max(0.0, density_sim)
+        Args:
+            query: Query dict with duration_pattern, density, syncopation, pulse
+            pattern: Stored RhythmicPattern
+            
+        Returns:
+            Similarity score (0.0-1.0)
+        """
         
-        # Syncopation similarity
+        # Duration pattern similarity - compare ratio sequences
+        query_pattern = query.get('duration_pattern', [2, 2, 2, 2])
+        pattern_pattern = pattern.duration_pattern
+        
+        # Simple correlation-based similarity for duration patterns
+        # (Could use DTW for variable-length patterns, but start simple)
+        if len(query_pattern) == len(pattern_pattern):
+            # Same length - use normalized correlation
+            query_arr = np.array(query_pattern, dtype=float)
+            pattern_arr = np.array(pattern_pattern, dtype=float)
+            
+            # Normalize both to unit vectors
+            query_norm = query_arr / np.linalg.norm(query_arr) if np.linalg.norm(query_arr) > 0 else query_arr
+            pattern_norm = pattern_arr / np.linalg.norm(pattern_arr) if np.linalg.norm(pattern_arr) > 0 else pattern_arr
+            
+            # Cosine similarity
+            duration_sim = float(np.dot(query_norm, pattern_norm))
+            duration_sim = max(0.0, duration_sim)  # Clamp to [0, 1]
+        else:
+            # Different length - use simpler metric (could improve with DTW)
+            # For now: penalize length difference, compare normalized patterns
+            len_ratio = min(len(query_pattern), len(pattern_pattern)) / max(len(query_pattern), len(pattern_pattern))
+            
+            # Truncate to shortest length for comparison
+            min_len = min(len(query_pattern), len(pattern_pattern))
+            query_arr = np.array(query_pattern[:min_len], dtype=float)
+            pattern_arr = np.array(pattern_pattern[:min_len], dtype=float)
+            
+            query_norm = query_arr / np.linalg.norm(query_arr) if np.linalg.norm(query_arr) > 0 else query_arr
+            pattern_norm = pattern_arr / np.linalg.norm(pattern_arr) if np.linalg.norm(pattern_arr) > 0 else pattern_arr
+            
+            partial_sim = float(np.dot(query_norm, pattern_norm))
+            duration_sim = max(0.0, partial_sim * len_ratio)
+        
+        # Density similarity - FIXED to handle absolute density values (events/second)
+        # Stored patterns have density in range ~0.5-10.0 (events per second)
+        # Query may have normalized (0-1) or absolute values
+        query_density = query.get('density', 0.5)
+        pattern_density = pattern.density
+        
+        # Use ratio-based similarity instead of absolute difference
+        # This works for both normalized and absolute values
+        if pattern_density > 0 and query_density > 0:
+            density_ratio = min(query_density, pattern_density) / max(query_density, pattern_density)
+            density_sim = density_ratio  # 1.0 = same density, 0.0 = very different
+        else:
+            density_sim = 0.0
+        
+        # Syncopation similarity - tempo-independent rhythmic character
         syncopation_sim = 1.0 - abs(query.get('syncopation', 0.0) - pattern.syncopation)
         syncopation_sim = max(0.0, syncopation_sim)
         
-        # Pattern type similarity
+        # Pulse similarity - matches subdivision feel (2, 3, 4)
+        pulse_sim = 1.0 if query.get('pulse', 4) == pattern.pulse else 0.5
+        
+        # Pattern type similarity (optional)
         type_sim = 1.0 if query.get('pattern_type', 'unknown') == pattern.pattern_type else 0.0
         
-        # Weighted combination - REDUCED tempo weight, increased density/syncopation
-        # This makes it more forgiving of tempo differences while preserving rhythmic feel
+        # Weighted combination - TEMPO-FREE
+        # Emphasize duration pattern structure and rhythmic feel
         similarity = (
-            tempo_sim * 0.2 +       # Reduced from 0.3 - tempo less critical
-            density_sim * 0.4 +     # Increased from 0.3 - note density more important
-            syncopation_sim * 0.3 + # Increased from 0.2 - rhythmic feel crucial
-            type_sim * 0.1          # Reduced from 0.2 - pattern type less strict
+            duration_sim * 0.4 +     # Duration pattern structure (highest weight)
+            syncopation_sim * 0.25 + # Off-beat character crucial
+            density_sim * 0.2 +      # Note density important
+            pulse_sim * 0.1 +        # Pulse subdivision feel
+            type_sim * 0.05          # Pattern type least important
         )
         
         return similarity
@@ -236,7 +323,7 @@ class RhythmOracle:
                 best_similarity = similarity
                 best_pattern = pattern
         
-        return best_pattern if best_similarity > 0.5 else None
+        return best_pattern if best_similarity > 0.3 else None  # Lowered from 0.5 to match find_similar_patterns threshold
     
     def _update_transition(self, from_pattern_id: str, to_pattern_id: str):
         """Update pattern transition statistics"""

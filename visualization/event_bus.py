@@ -50,6 +50,7 @@ class VisualizationEventBus(QObject):
     human_input_signal = pyqtSignal(dict)    # {midi, gesture_token, timestamp}
     machine_output_signal = pyqtSignal(dict) # {notes, durations, mode, timestamp}
     gpt_reflection_signal = pyqtSignal(dict)  # {reflection, timestamp}
+    rhythm_oracle_signal = pyqtSignal(dict)  # {pattern_id, tempo, density, similarity, duration_pattern}
     
     def __init__(self):
         """Initialize event bus"""
@@ -268,6 +269,48 @@ class VisualizationEventBus(QObject):
         }
         self.gpt_reflection_signal.emit(data)
         # Note: Not recording in _event_history to avoid bloat
+    
+    def emit_rhythm_oracle(self,
+                          pattern_id: str,
+                          tempo: float,
+                          density: float,
+                          similarity: float,
+                          duration_pattern: str,
+                          pulse: int,
+                          syncopation: float,
+                          timestamp: Optional[float] = None):
+        """
+        Emit RhythmOracle pattern matching event
+        
+        RhythmOracle is a TIMING ENGINE, not a behavioral mode.
+        It provides rhythmic phrasing that works WITHIN behavioral modes (MIRROR/CONTRAST/LEAD).
+        
+        Args:
+            pattern_id: ID of matched pattern (e.g., "pattern_4")
+            tempo: Current estimated tempo in BPM
+            density: Pattern density (events per second)
+            similarity: Pattern match similarity score (0.0-1.0)
+            duration_pattern: String representation of pattern durations
+            pulse: Detected pulse subdivision
+            syncopation: Syncopation score (0.0-1.0)
+            timestamp: Event timestamp
+        """
+        if timestamp is None:
+            import time
+            timestamp = time.time()
+        
+        data = {
+            'pattern_id': pattern_id,
+            'tempo': tempo,
+            'density': density,
+            'similarity': similarity,
+            'duration_pattern': duration_pattern,
+            'pulse': pulse,
+            'syncopation': syncopation,
+            'timestamp': timestamp
+        }
+        self.rhythm_oracle_signal.emit(data)
+        # Note: Not recording in _event_history to avoid bloat (frequent rhythmic updates)
     
     def _record_event(self, event_type: EventType, data: Dict[str, Any]):
         """

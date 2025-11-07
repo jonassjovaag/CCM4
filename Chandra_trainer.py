@@ -993,29 +993,83 @@ class EnhancedHybridTrainingPipeline:
         return enhanced_output
     
     def _train_rhythm_oracle(self, rhythmic_result: RhythmicAnalysis):
-        """Train RhythmOracle with rhythmic analysis results"""
+        """
+        Train RhythmOracle with rhythmic analysis results
         
-        print("🥁 Training RhythmOracle with rhythmic patterns...")
+        Now uses rational_structure analysis for tempo-independent patterns.
+        Each detected pattern gets its duration pattern extracted from rational analysis.
+        """
+        
+        print("🥁 Training RhythmOracle with tempo-independent patterns...")
         
         # Add each detected pattern to the RhythmOracle
+        patterns_with_ratios = 0
+        patterns_without_ratios = 0
+        
         for pattern in rhythmic_result.patterns:
+            # Try to extract rational structure for this pattern's onsets
+            pattern_onsets = []
+            for onset_time in rhythmic_result.onsets:
+                if pattern.start_time <= onset_time <= pattern.end_time:
+                    pattern_onsets.append(onset_time)
+            
+            # Analyze rational structure for this pattern if enough onsets
+            duration_pattern = None
+            pulse = 4
+            complexity = 0.0
+            
+            if len(pattern_onsets) >= 3:
+                try:
+                    rational = self.rhythmic_analyzer.analyze_rational_structure(np.array(pattern_onsets))
+                    if rational:
+                        duration_pattern = rational['duration_pattern']
+                        pulse = rational['pulse']
+                        complexity = rational['complexity']
+                        patterns_with_ratios += 1
+                except Exception as e:
+                    print(f"   ⚠️  Could not analyze rational structure for pattern: {e}")
+            
+            # Fallback: create simple duration pattern if rational analysis failed
+            if not duration_pattern:
+                # Use simple interval-based pattern
+                if len(pattern_onsets) >= 2:
+                    intervals = np.diff(pattern_onsets)
+                    # Normalize to smallest interval
+                    min_interval = np.min(intervals)
+                    if min_interval > 0:
+                        duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
+                    else:
+                        duration_pattern = [2, 2, 2, 2]  # Default
+                else:
+                    duration_pattern = [2, 2, 2, 2]  # Default for insufficient data
+                patterns_without_ratios += 1
+            
             pattern_data = {
-                'tempo': pattern.tempo,
+                'duration_pattern': duration_pattern,
                 'density': pattern.density,
                 'syncopation': pattern.syncopation,
+                'pulse': pulse,
+                'complexity': complexity,
                 'meter': pattern.meter,
                 'pattern_type': pattern.pattern_type,
                 'confidence': pattern.confidence,
                 'context': {
                     'start_time': pattern.start_time,
                     'end_time': pattern.end_time,
-                    'complexity': rhythmic_result.rhythmic_complexity
+                    'num_onsets': len(pattern_onsets),
+                    'rhythmic_complexity': rhythmic_result.rhythmic_complexity
                 }
             }
             
             self.rhythm_oracle.add_rhythmic_pattern(pattern_data)
         
         print(f"✅ RhythmOracle trained with {len(rhythmic_result.patterns)} patterns")
+        print(f"   📊 {patterns_with_ratios} with rational structure, {patterns_without_ratios} with fallback")
+        
+        # Print statistics
+        stats = self.rhythm_oracle.get_rhythmic_statistics()
+        print(f"   📈 Avg density: {stats['avg_density']:.2f}, Avg syncopation: {stats['avg_syncopation']:.2f}")
+        print(f"   📈 Avg complexity: {stats['avg_complexity']:.2f}")
     
     def _convert_event_to_dict(self, event) -> Dict:
         """
