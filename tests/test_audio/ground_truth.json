@@ -1,0 +1,280 @@
+{
+  "metadata": {
+    "created": "2025-11-08T22:47:01.165193",
+    "sample_rate": 44100,
+    "duration_per_sample": 2.0,
+    "total_samples": 15
+  },
+  "samples": [
+    {
+      "id": 0,
+      "filename": "C_major_pure_sine.wav",
+      "filepath": "tests/test_audio/C_major_pure_sine.wav",
+      "chord_name": "C_major",
+      "chord_type": "major",
+      "root_midi": 60,
+      "midi_notes": [
+        60,
+        64,
+        67
+      ],
+      "variation": "pure_sine",
+      "octave_shift": 0,
+      "overtones": 0,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 1,
+      "filename": "C_major_octave_up_overtones.wav",
+      "filepath": "tests/test_audio/C_major_octave_up_overtones.wav",
+      "chord_name": "C_major",
+      "chord_type": "major",
+      "root_midi": 60,
+      "midi_notes": [
+        72,
+        76,
+        79
+      ],
+      "variation": "octave_up_overtones",
+      "octave_shift": 12,
+      "overtones": 2,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 2,
+      "filename": "C_major_octave_down_rich.wav",
+      "filepath": "tests/test_audio/C_major_octave_down_rich.wav",
+      "chord_name": "C_major",
+      "chord_type": "major",
+      "root_midi": 60,
+      "midi_notes": [
+        48,
+        52,
+        55
+      ],
+      "variation": "octave_down_rich",
+      "octave_shift": -12,
+      "overtones": 4,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 3,
+      "filename": "D_minor_pure_sine.wav",
+      "filepath": "tests/test_audio/D_minor_pure_sine.wav",
+      "chord_name": "D_minor",
+      "chord_type": "minor",
+      "root_midi": 62,
+      "midi_notes": [
+        62,
+        65,
+        69
+      ],
+      "variation": "pure_sine",
+      "octave_shift": 0,
+      "overtones": 0,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    },
+    {
+      "id": 4,
+      "filename": "D_minor_octave_up_overtones.wav",
+      "filepath": "tests/test_audio/D_minor_octave_up_overtones.wav",
+      "chord_name": "D_minor",
+      "chord_type": "minor",
+      "root_midi": 62,
+      "midi_notes": [
+        74,
+        77,
+        81
+      ],
+      "variation": "octave_up_overtones",
+      "octave_shift": 12,
+      "overtones": 2,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    },
+    {
+      "id": 5,
+      "filename": "D_minor_octave_down_rich.wav",
+      "filepath": "tests/test_audio/D_minor_octave_down_rich.wav",
+      "chord_name": "D_minor",
+      "chord_type": "minor",
+      "root_midi": 62,
+      "midi_notes": [
+        50,
+        53,
+        57
+      ],
+      "variation": "octave_down_rich",
+      "octave_shift": -12,
+      "overtones": 4,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    },
+    {
+      "id": 6,
+      "filename": "G_major_pure_sine.wav",
+      "filepath": "tests/test_audio/G_major_pure_sine.wav",
+      "chord_name": "G_major",
+      "chord_type": "major",
+      "root_midi": 67,
+      "midi_notes": [
+        67,
+        71,
+        74
+      ],
+      "variation": "pure_sine",
+      "octave_shift": 0,
+      "overtones": 0,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 7,
+      "filename": "G_major_octave_up_overtones.wav",
+      "filepath": "tests/test_audio/G_major_octave_up_overtones.wav",
+      "chord_name": "G_major",
+      "chord_type": "major",
+      "root_midi": 67,
+      "midi_notes": [
+        79,
+        83,
+        86
+      ],
+      "variation": "octave_up_overtones",
+      "octave_shift": 12,
+      "overtones": 2,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 8,
+      "filename": "G_major_octave_down_rich.wav",
+      "filepath": "tests/test_audio/G_major_octave_down_rich.wav",
+      "chord_name": "G_major",
+      "chord_type": "major",
+      "root_midi": 67,
+      "midi_notes": [
+        55,
+        59,
+        62
+      ],
+      "variation": "octave_down_rich",
+      "octave_shift": -12,
+      "overtones": 4,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 9,
+      "filename": "F_major_pure_sine.wav",
+      "filepath": "tests/test_audio/F_major_pure_sine.wav",
+      "chord_name": "F_major",
+      "chord_type": "major",
+      "root_midi": 65,
+      "midi_notes": [
+        65,
+        69,
+        72
+      ],
+      "variation": "pure_sine",
+      "octave_shift": 0,
+      "overtones": 0,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 10,
+      "filename": "F_major_octave_up_overtones.wav",
+      "filepath": "tests/test_audio/F_major_octave_up_overtones.wav",
+      "chord_name": "F_major",
+      "chord_type": "major",
+      "root_midi": 65,
+      "midi_notes": [
+        77,
+        81,
+        84
+      ],
+      "variation": "octave_up_overtones",
+      "octave_shift": 12,
+      "overtones": 2,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 11,
+      "filename": "F_major_octave_down_rich.wav",
+      "filepath": "tests/test_audio/F_major_octave_down_rich.wav",
+      "chord_name": "F_major",
+      "chord_type": "major",
+      "root_midi": 65,
+      "midi_notes": [
+        53,
+        57,
+        60
+      ],
+      "variation": "octave_down_rich",
+      "octave_shift": -12,
+      "overtones": 4,
+      "expected_consonance": 0.92,
+      "duration": 2.0
+    },
+    {
+      "id": 12,
+      "filename": "A_minor_pure_sine.wav",
+      "filepath": "tests/test_audio/A_minor_pure_sine.wav",
+      "chord_name": "A_minor",
+      "chord_type": "minor",
+      "root_midi": 57,
+      "midi_notes": [
+        57,
+        60,
+        64
+      ],
+      "variation": "pure_sine",
+      "octave_shift": 0,
+      "overtones": 0,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    },
+    {
+      "id": 13,
+      "filename": "A_minor_octave_up_overtones.wav",
+      "filepath": "tests/test_audio/A_minor_octave_up_overtones.wav",
+      "chord_name": "A_minor",
+      "chord_type": "minor",
+      "root_midi": 57,
+      "midi_notes": [
+        69,
+        72,
+        76
+      ],
+      "variation": "octave_up_overtones",
+      "octave_shift": 12,
+      "overtones": 2,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    },
+    {
+      "id": 14,
+      "filename": "A_minor_octave_down_rich.wav",
+      "filepath": "tests/test_audio/A_minor_octave_down_rich.wav",
+      "chord_name": "A_minor",
+      "chord_type": "minor",
+      "root_midi": 57,
+      "midi_notes": [
+        45,
+        48,
+        52
+      ],
+      "variation": "octave_down_rich",
+      "octave_shift": -12,
+      "overtones": 4,
+      "expected_consonance": 0.88,
+      "duration": 2.0
+    }
+  ]
+}

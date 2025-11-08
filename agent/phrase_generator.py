@@ -8,6 +8,8 @@ This module bridges the gap between rhythmic analysis and musical expression:
 - Generates connected musical phrases (not single notes)
 - Implements silence/buildup/release musical arcs
 - Creates human-like musical timing and feel
+- INTERVAL-BASED HARMONIC TRANSLATION: Preserves learned melodic gestures
+  while adapting to current harmonic context
 """
 
 import time
@@ -16,6 +18,10 @@ import numpy as np
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+# Interval-based harmonic translation components
+from .interval_extractor import IntervalExtractor
+from .harmonic_translator import HarmonicTranslator
 
 @dataclass
 class MusicalPhrase:
@@ -54,6 +60,12 @@ class PhraseGenerator:
         self.rhythm_oracle = rhythm_oracle
         self.audio_oracle = audio_oracle  # AudioOracle for learned patterns
         self.visualization_manager = visualization_manager
+        
+        # INTERVAL-BASED HARMONIC TRANSLATION
+        self.interval_extractor = IntervalExtractor()
+        self.harmonic_translator = HarmonicTranslator(
+            scale_constraint_func=self._apply_scale_constraint
+        )
         
         # Phrase-based context buffer for AudioOracle matching
         self.recent_human_notes = []  # List of recent human MIDI notes
@@ -1085,22 +1097,35 @@ class PhraseGenerator:
                     print(f"🔍 Oracle returned: {len(generated_frames) if generated_frames else 0} frames")  # DEBUG
                     
                     if generated_frames and len(generated_frames) > 0:
-                        # Extract MIDI notes from generated frame IDs
-                        oracle_notes = []
-                        for frame_id in generated_frames:
-                            # frame_id is an integer index into audio_frames
-                            if isinstance(frame_id, int) and frame_id < len(self.audio_oracle.audio_frames):
-                                frame_obj = self.audio_oracle.audio_frames[frame_id]
-                                audio_data = frame_obj.audio_data
-                                
-                                # Try to extract MIDI note
-                                if 'midi_note' in audio_data:
-                                    oracle_notes.append(int(audio_data['midi_note']))
-                                elif 'pitch_hz' in audio_data and audio_data['pitch_hz'] > 0:
-                                    # Convert Hz to MIDI
-                                    import math
-                                    midi_note = int(round(69 + 12 * math.log2(audio_data['pitch_hz'] / 440.0)))
-                                    oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION
+                        # Extract intervals instead of absolute MIDI notes
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            # Build harmonic context for translation
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            # Translate intervals to MIDI using harmonic context
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint  # Use existing flag
+                            )
+                            
+                            print(f"✅ Interval Translation: {len(intervals)} intervals → {len(oracle_notes)} MIDI notes")
+                            print(f"   Intervals: {intervals[:5]}...")
+                            print(f"   MIDI output: {oracle_notes[:5]}... (in {self.current_key})")
+                        else:
+                            oracle_notes = None
+                            print(f"⚠️  No intervals extracted from {len(generated_frames)} frames")
                         print(f"🔍 Extracted {len(oracle_notes)} notes from {len(generated_frames)} frames: {oracle_notes[:5]}...")  # DEBUG
             except Exception as e:
                 # Silently fall back to random generation
@@ -1326,14 +1351,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (PEAK)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         
@@ -1485,14 +1523,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (RELEASE)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         
@@ -1574,14 +1625,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (CONTEMPLATION)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         

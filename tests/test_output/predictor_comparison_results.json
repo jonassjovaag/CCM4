@@ -1,0 +1,20 @@
+{
+  "model_path": "JSON/Itzama_071125_2130_training_model.pkl.gz",
+  "gesture_token_analysis": {
+    "mean_variance": 162.28537112111184,
+    "median_variance": 132.05453395715608,
+    "tokens_analyzed": 60
+  },
+  "consonance_analysis": {
+    "mean_variance": 158.01221994491578,
+    "median_variance": 179.2,
+    "bins_analyzed": 5
+  },
+  "comparison": {
+    "variance_reduction_percent": 2.6331092856219587,
+    "better_predictor": "neither"
+  },
+  "correlation": {
+    "consonance_midi": 0.16444355795298535
+  }
+}

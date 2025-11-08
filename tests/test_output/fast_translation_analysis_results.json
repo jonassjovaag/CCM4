@@ -1,0 +1,806 @@
+{
+  "model_path": "JSON/Itzama_071125_2130_training_model.pkl.gz",
+  "total_frames": 5000,
+  "frames_with_tokens": 5000,
+  "frames_with_midi": 5000,
+  "frames_with_both": 5000,
+  "unique_tokens": 60,
+  "token_statistics": {
+    "0": {
+      "frame_count": 19,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        67
+      ],
+      "midi_mean": 36.94736842105263,
+      "midi_variance": 119.62880886426592,
+      "consonance_mean": 0.6499089327682533,
+      "consonance_std": 0.07903283811763885,
+      "f0_count": 19
+    },
+    "1": {
+      "frame_count": 260,
+      "unique_midi_notes": 14,
+      "midi_range": [
+        29,
+        79
+      ],
+      "midi_mean": 48.25,
+      "midi_variance": 208.66442307692307,
+      "consonance_mean": 0.602025835976911,
+      "consonance_std": 0.10112172964555413,
+      "f0_count": 260
+    },
+    "2": {
+      "frame_count": 88,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        65
+      ],
+      "midi_mean": 37.93181818181818,
+      "midi_variance": 120.33626033057853,
+      "consonance_mean": 0.617563292850627,
+      "consonance_std": 0.08953203965265258,
+      "f0_count": 88
+    },
+    "3": {
+      "frame_count": 61,
+      "unique_midi_notes": 7,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 38.65573770491803,
+      "midi_variance": 155.6683687180865,
+      "consonance_mean": 0.6595000853956641,
+      "consonance_std": 0.14982474063065698,
+      "f0_count": 61
+    },
+    "4": {
+      "frame_count": 23,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        36
+      ],
+      "midi_mean": 33.26086956521739,
+      "midi_variance": 11.671077504725895,
+      "consonance_mean": 0.6591585703467904,
+      "consonance_std": 0.08418002398866407,
+      "f0_count": 23
+    },
+    "5": {
+      "frame_count": 148,
+      "unique_midi_notes": 6,
+      "midi_range": [
+        29,
+        81
+      ],
+      "midi_mean": 33.86486486486486,
+      "midi_variance": 80.8871439006574,
+      "consonance_mean": 0.617569375448997,
+      "consonance_std": 0.08116626614734408,
+      "f0_count": 148
+    },
+    "6": {
+      "frame_count": 142,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        65
+      ],
+      "midi_mean": 45.87323943661972,
+      "midi_variance": 212.29379091450107,
+      "consonance_mean": 0.5938974916098578,
+      "consonance_std": 0.11071854384732478,
+      "f0_count": 142
+    },
+    "7": {
+      "frame_count": 18,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        36
+      ],
+      "midi_mean": 29.38888888888889,
+      "midi_variance": 2.5709876543209873,
+      "consonance_mean": 0.636757747572291,
+      "consonance_std": 0.12395508936495984,
+      "f0_count": 18
+    },
+    "8": {
+      "frame_count": 45,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        93
+      ],
+      "midi_mean": 42.31111111111111,
+      "midi_variance": 561.9476543209877,
+      "consonance_mean": 0.6696815134117194,
+      "consonance_std": 0.07246515771373249,
+      "f0_count": 45
+    },
+    "10": {
+      "frame_count": 141,
+      "unique_midi_notes": 15,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 45.01418439716312,
+      "midi_variance": 270.75157185252255,
+      "consonance_mean": 0.6343310049715223,
+      "consonance_std": 0.10941918934691193,
+      "f0_count": 141
+    },
+    "11": {
+      "frame_count": 276,
+      "unique_midi_notes": 15,
+      "midi_range": [
+        29,
+        79
+      ],
+      "midi_mean": 39.028985507246375,
+      "midi_variance": 154.14408737660156,
+      "consonance_mean": 0.5949163807901878,
+      "consonance_std": 0.10568326532320474,
+      "f0_count": 276
+    },
+    "12": {
+      "frame_count": 58,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        50
+      ],
+      "midi_mean": 33.310344827586206,
+      "midi_variance": 40.14506539833532,
+      "consonance_mean": 0.5410122729392804,
+      "consonance_std": 0.06684337309347647,
+      "f0_count": 58
+    },
+    "13": {
+      "frame_count": 164,
+      "unique_midi_notes": 12,
+      "midi_range": [
+        29,
+        77
+      ],
+      "midi_mean": 41.670731707317074,
+      "midi_variance": 197.13548483045807,
+      "consonance_mean": 0.6069179709214135,
+      "consonance_std": 0.08879202947949198,
+      "f0_count": 164
+    },
+    "14": {
+      "frame_count": 11,
+      "unique_midi_notes": 1,
+      "midi_range": [
+        29,
+        29
+      ],
+      "midi_mean": 29.0,
+      "midi_variance": 0.0,
+      "consonance_mean": 0.6965533548278425,
+      "consonance_std": 0.08132036304283151,
+      "f0_count": 11
+    },
+    "15": {
+      "frame_count": 11,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        55
+      ],
+      "midi_mean": 47.90909090909091,
+      "midi_variance": 134.08264462809916,
+      "consonance_mean": 0.5881255656007827,
+      "consonance_std": 0.061474324423214835,
+      "f0_count": 11
+    },
+    "16": {
+      "frame_count": 48,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        55
+      ],
+      "midi_mean": 35.520833333333336,
+      "midi_variance": 82.54123263888889,
+      "consonance_mean": 0.5807666444954576,
+      "consonance_std": 0.09316712767156678,
+      "f0_count": 48
+    },
+    "17": {
+      "frame_count": 49,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        96
+      ],
+      "midi_mean": 46.285714285714285,
+      "midi_variance": 537.6734693877552,
+      "consonance_mean": 0.5710009099421897,
+      "consonance_std": 0.07819155658969613,
+      "f0_count": 49
+    },
+    "19": {
+      "frame_count": 46,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        69
+      ],
+      "midi_mean": 37.06521739130435,
+      "midi_variance": 98.40879017013232,
+      "consonance_mean": 0.6543745269687932,
+      "consonance_std": 0.06497390105405809,
+      "f0_count": 46
+    },
+    "20": {
+      "frame_count": 152,
+      "unique_midi_notes": 11,
+      "midi_range": [
+        29,
+        79
+      ],
+      "midi_mean": 39.7171052631579,
+      "midi_variance": 187.5976021468144,
+      "consonance_mean": 0.5827301861043361,
+      "consonance_std": 0.09352139577035108,
+      "f0_count": 152
+    },
+    "21": {
+      "frame_count": 75,
+      "unique_midi_notes": 11,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 45.346666666666664,
+      "midi_variance": 361.39982222222216,
+      "consonance_mean": 0.5867878349885494,
+      "consonance_std": 0.07463392258697299,
+      "f0_count": 75
+    },
+    "22": {
+      "frame_count": 99,
+      "unique_midi_notes": 13,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 46.4040404040404,
+      "midi_variance": 307.99836751351904,
+      "consonance_mean": 0.5972059559418779,
+      "consonance_std": 0.10335798360341014,
+      "f0_count": 99
+    },
+    "23": {
+      "frame_count": 51,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 43.568627450980394,
+      "midi_variance": 222.32372164552092,
+      "consonance_mean": 0.6088432882373107,
+      "consonance_std": 0.0670356232984543,
+      "f0_count": 51
+    },
+    "24": {
+      "frame_count": 13,
+      "unique_midi_notes": 6,
+      "midi_range": [
+        29,
+        81
+      ],
+      "midi_mean": 41.76923076923077,
+      "midi_variance": 320.6390532544378,
+      "consonance_mean": 0.7466033311937963,
+      "consonance_std": 0.03772336140515359,
+      "f0_count": 13
+    },
+    "25": {
+      "frame_count": 19,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        57
+      ],
+      "midi_mean": 47.63157894736842,
+      "midi_variance": 76.96952908587258,
+      "consonance_mean": 0.6565716525123642,
+      "consonance_std": 0.000980602993135876,
+      "f0_count": 19
+    },
+    "26": {
+      "frame_count": 138,
+      "unique_midi_notes": 12,
+      "midi_range": [
+        29,
+        93
+      ],
+      "midi_mean": 40.98550724637681,
+      "midi_variance": 396.0142827137156,
+      "consonance_mean": 0.6006277535967595,
+      "consonance_std": 0.0846955474337949,
+      "f0_count": 138
+    },
+    "27": {
+      "frame_count": 469,
+      "unique_midi_notes": 17,
+      "midi_range": [
+        29,
+        79
+      ],
+      "midi_mean": 39.02132196162047,
+      "midi_variance": 132.65626179186313,
+      "consonance_mean": 0.602848481383733,
+      "consonance_std": 0.10197427756192796,
+      "f0_count": 469
+    },
+    "29": {
+      "frame_count": 42,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        36
+      ],
+      "midi_mean": 31.166666666666668,
+      "midi_variance": 10.472222222222223,
+      "consonance_mean": 0.6340364032211123,
+      "consonance_std": 0.09926263200845169,
+      "f0_count": 42
+    },
+    "30": {
+      "frame_count": 60,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        36
+      ],
+      "midi_mean": 29.816666666666666,
+      "midi_variance": 5.049722222222221,
+      "consonance_mean": 0.5546633581281071,
+      "consonance_std": 0.13808264444701587,
+      "f0_count": 60
+    },
+    "31": {
+      "frame_count": 47,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        91
+      ],
+      "midi_mean": 55.744680851063826,
+      "midi_variance": 506.1475780896335,
+      "consonance_mean": 0.5894407321203295,
+      "consonance_std": 0.08316933078161144,
+      "f0_count": 47
+    },
+    "32": {
+      "frame_count": 22,
+      "unique_midi_notes": 3,
+      "midi_range": [
+        29,
+        41
+      ],
+      "midi_mean": 32.68181818181818,
+      "midi_variance": 25.853305785123954,
+      "consonance_mean": 0.6787191312947508,
+      "consonance_std": 0.05823210810736265,
+      "f0_count": 22
+    },
+    "33": {
+      "frame_count": 28,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        57
+      ],
+      "midi_mean": 41.107142857142854,
+      "midi_variance": 131.452806122449,
+      "consonance_mean": 0.6320699826933293,
+      "consonance_std": 0.09536733077610564,
+      "f0_count": 28
+    },
+    "34": {
+      "frame_count": 125,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        55
+      ],
+      "midi_mean": 36.392,
+      "midi_variance": 63.85433599999998,
+      "consonance_mean": 0.587218949843306,
+      "consonance_std": 0.10997121369489621,
+      "f0_count": 125
+    },
+    "35": {
+      "frame_count": 27,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        55
+      ],
+      "midi_mean": 43.44444444444444,
+      "midi_variance": 134.76543209876544,
+      "consonance_mean": 0.624609743142363,
+      "consonance_std": 0.1180574730746799,
+      "f0_count": 27
+    },
+    "36": {
+      "frame_count": 52,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        72
+      ],
+      "midi_mean": 40.71153846153846,
+      "midi_variance": 167.51294378698225,
+      "consonance_mean": 0.6108029940613091,
+      "consonance_std": 0.09363724282973233,
+      "f0_count": 52
+    },
+    "37": {
+      "frame_count": 6,
+      "unique_midi_notes": 3,
+      "midi_range": [
+        29,
+        65
+      ],
+      "midi_mean": 36.166666666666664,
+      "midi_variance": 172.80555555555554,
+      "consonance_mean": 0.6269286256465177,
+      "consonance_std": 0.004308550062417625,
+      "f0_count": 6
+    },
+    "38": {
+      "frame_count": 55,
+      "unique_midi_notes": 6,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 33.70909090909091,
+      "midi_variance": 112.13355371900826,
+      "consonance_mean": 0.5134399325161089,
+      "consonance_std": 0.04481030609168755,
+      "f0_count": 55
+    },
+    "39": {
+      "frame_count": 42,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 45.904761904761905,
+      "midi_variance": 291.84807256235825,
+      "consonance_mean": 0.5822499953017302,
+      "consonance_std": 0.061100763006072166,
+      "f0_count": 42
+    },
+    "40": {
+      "frame_count": 28,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        55
+      ],
+      "midi_mean": 37.607142857142854,
+      "midi_variance": 89.95280612244895,
+      "consonance_mean": 0.5,
+      "consonance_std": 0.0,
+      "f0_count": 28
+    },
+    "41": {
+      "frame_count": 43,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        60
+      ],
+      "midi_mean": 35.2093023255814,
+      "midi_variance": 91.97944835045972,
+      "consonance_mean": 0.6963777830768442,
+      "consonance_std": 0.036244641182510785,
+      "f0_count": 43
+    },
+    "42": {
+      "frame_count": 56,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 41.410714285714285,
+      "midi_variance": 286.84917091836735,
+      "consonance_mean": 0.5933610718039145,
+      "consonance_std": 0.08312184756693379,
+      "f0_count": 56
+    },
+    "43": {
+      "frame_count": 184,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 35.72826086956522,
+      "midi_variance": 61.31746219281664,
+      "consonance_mean": 0.5893701888133572,
+      "consonance_std": 0.10354465702267454,
+      "f0_count": 184
+    },
+    "44": {
+      "frame_count": 72,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 42.94444444444444,
+      "midi_variance": 190.21913580246914,
+      "consonance_mean": 0.5627217654859186,
+      "consonance_std": 0.0811620524047412,
+      "f0_count": 72
+    },
+    "45": {
+      "frame_count": 41,
+      "unique_midi_notes": 6,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 47.58536585365854,
+      "midi_variance": 579.6573468173706,
+      "consonance_mean": 0.5617447543939856,
+      "consonance_std": 0.06950258598012365,
+      "f0_count": 41
+    },
+    "46": {
+      "frame_count": 168,
+      "unique_midi_notes": 12,
+      "midi_range": [
+        29,
+        67
+      ],
+      "midi_mean": 41.773809523809526,
+      "midi_variance": 160.50836167800455,
+      "consonance_mean": 0.6196059521310522,
+      "consonance_std": 0.07166230790443653,
+      "f0_count": 168
+    },
+    "47": {
+      "frame_count": 51,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        76
+      ],
+      "midi_mean": 47.568627450980394,
+      "midi_variance": 137.7354863514033,
+      "consonance_mean": 0.6064014195868148,
+      "consonance_std": 0.0956068735303951,
+      "f0_count": 51
+    },
+    "49": {
+      "frame_count": 116,
+      "unique_midi_notes": 8,
+      "midi_range": [
+        29,
+        71
+      ],
+      "midi_mean": 36.293103448275865,
+      "midi_variance": 122.62098692033291,
+      "consonance_mean": 0.6628330180125086,
+      "consonance_std": 0.1009114398544985,
+      "f0_count": 116
+    },
+    "50": {
+      "frame_count": 29,
+      "unique_midi_notes": 5,
+      "midi_range": [
+        29,
+        69
+      ],
+      "midi_mean": 48.44827586206897,
+      "midi_variance": 218.66111771700352,
+      "consonance_mean": 0.629505683152311,
+      "consonance_std": 0.1000079032211205,
+      "f0_count": 29
+    },
+    "51": {
+      "frame_count": 21,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 70.42857142857143,
+      "midi_variance": 244.53061224489795,
+      "consonance_mean": 0.5635643987483832,
+      "consonance_std": 0.016235782541983504,
+      "f0_count": 21
+    },
+    "52": {
+      "frame_count": 112,
+      "unique_midi_notes": 15,
+      "midi_range": [
+        29,
+        76
+      ],
+      "midi_mean": 44.375,
+      "midi_variance": 238.78794642857142,
+      "consonance_mean": 0.6779165198302336,
+      "consonance_std": 0.0973986206785805,
+      "f0_count": 112
+    },
+    "53": {
+      "frame_count": 213,
+      "unique_midi_notes": 11,
+      "midi_range": [
+        29,
+        76
+      ],
+      "midi_mean": 34.967136150234744,
+      "midi_variance": 90.4918777138575,
+      "consonance_mean": 0.6003255847593336,
+      "consonance_std": 0.09450951436801781,
+      "f0_count": 213
+    },
+    "54": {
+      "frame_count": 17,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        29,
+        50
+      ],
+      "midi_mean": 33.94117647058823,
+      "midi_variance": 79.34948096885813,
+      "consonance_mean": 0.6287374471453736,
+      "consonance_std": 0.0411832720299173,
+      "f0_count": 17
+    },
+    "55": {
+      "frame_count": 17,
+      "unique_midi_notes": 1,
+      "midi_range": [
+        29,
+        29
+      ],
+      "midi_mean": 29.0,
+      "midi_variance": 0.0,
+      "consonance_mean": 0.5,
+      "consonance_std": 0.0,
+      "f0_count": 17
+    },
+    "56": {
+      "frame_count": 36,
+      "unique_midi_notes": 3,
+      "midi_range": [
+        29,
+        41
+      ],
+      "midi_mean": 35.138888888888886,
+      "midi_variance": 13.619598765432103,
+      "consonance_mean": 0.5747465095435067,
+      "consonance_std": 0.10031341354325848,
+      "f0_count": 36
+    },
+    "57": {
+      "frame_count": 10,
+      "unique_midi_notes": 1,
+      "midi_range": [
+        29,
+        29
+      ],
+      "midi_mean": 29.0,
+      "midi_variance": 0.0,
+      "consonance_mean": 0.5,
+      "consonance_std": 0.0,
+      "f0_count": 10
+    },
+    "58": {
+      "frame_count": 47,
+      "unique_midi_notes": 4,
+      "midi_range": [
+        29,
+        57
+      ],
+      "midi_mean": 36.02127659574468,
+      "midi_variance": 75.16976007243096,
+      "consonance_mean": 0.5854668206349327,
+      "consonance_std": 0.06508986348946069,
+      "f0_count": 47
+    },
+    "59": {
+      "frame_count": 14,
+      "unique_midi_notes": 2,
+      "midi_range": [
+        36,
+        41
+      ],
+      "midi_mean": 36.357142857142854,
+      "midi_variance": 1.6581632653061233,
+      "consonance_mean": 0.5,
+      "consonance_std": 0.0,
+      "f0_count": 14
+    },
+    "60": {
+      "frame_count": 25,
+      "unique_midi_notes": 3,
+      "midi_range": [
+        29,
+        41
+      ],
+      "midi_mean": 37.48,
+      "midi_variance": 18.6496,
+      "consonance_mean": 0.5,
+      "consonance_std": 0.0,
+      "f0_count": 25
+    },
+    "61": {
+      "frame_count": 341,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        82
+      ],
+      "midi_mean": 35.589442815249264,
+      "midi_variance": 64.2244046748824,
+      "consonance_mean": 0.6466583610981947,
+      "consonance_std": 0.09279753407864133,
+      "f0_count": 341
+    },
+    "62": {
+      "frame_count": 156,
+      "unique_midi_notes": 9,
+      "midi_range": [
+        29,
+        74
+      ],
+      "midi_mean": 37.26923076923077,
+      "midi_variance": 87.55571992110454,
+      "consonance_mean": 0.6012456431336785,
+      "consonance_std": 0.1057364957513979,
+      "f0_count": 156
+    },
+    "63": {
+      "frame_count": 73,
+      "unique_midi_notes": 12,
+      "midi_range": [
+        29,
+        86
+      ],
+      "midi_mean": 53.9041095890411,
+      "midi_variance": 267.53875023456555,
+      "consonance_mean": 0.6574796637792619,
+      "consonance_std": 0.10392109783097576,
+      "f0_count": 73
+    }
+  },
+  "consistency_metrics": {
+    "single_note_tokens": 3,
+    "low_variance_tokens": 5,
+    "frequent_tokens": 59,
+    "vocabulary_usage_percent": 93.75
+  },
+  "consonance_groups": {
+    "high (>0.8)": 0,
+    "medium (0.5-0.8)": 55,
+    "low (<0.5)": 5
+  },
+  "findings": [
+    "Vocabulary usage: 60/64 tokens (93.8%)",
+    "\u26a0\ufe0f  Poor mapping consistency: Only 8.3% of tokens have low MIDI variance",
+    "\u2705 Excellent data coverage: 100.0% of frames have both token and MIDI"
+  ]
+}
