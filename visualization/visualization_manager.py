@@ -15,9 +15,11 @@ from .pattern_match_viewport import PatternMatchViewport
 from .request_params_viewport import RequestParamsViewport
 from .phrase_memory_viewport import PhraseMemoryViewport
 from .audio_analysis_viewport import AudioAnalysisViewport
+from .rhythm_oracle_viewport import RhythmOracleViewport
 from .timeline_viewport import TimelineViewport
 from .webcam_viewport import WebcamViewport
 from .gpt_reflection_viewport import GPTReflectionViewport
+from .performance_controls_viewport import PerformanceControlsViewport
 
 
 class VisualizationManager:
@@ -60,7 +62,9 @@ class VisualizationManager:
                 'request_parameters',
                 'phrase_memory',
                 'audio_analysis',
+                'rhythm_oracle',
                 'performance_timeline',
+                'performance_controls',  # RESTORED - Live parameter controls!
                 'webcam',
                 'gpt_reflection'
             ]
@@ -81,7 +85,9 @@ class VisualizationManager:
             'request_parameters': RequestParamsViewport,
             'phrase_memory': PhraseMemoryViewport,
             'audio_analysis': AudioAnalysisViewport,
+            'rhythm_oracle': RhythmOracleViewport,
             'performance_timeline': TimelineViewport,
+            'performance_controls': PerformanceControlsViewport,
             'webcam': WebcamViewport,
             'gpt_reflection': GPTReflectionViewport
         }
@@ -107,18 +113,20 @@ class VisualizationManager:
         grid_layout.setContentsMargins(20, 20, 20, 20)  # Margin around edges
         
         # Arrange viewports in 3-column layout
-        # Column 1 (3 rows @ 33% each): pattern_matching, request_parameters, phrase_memory
-        # Column 2 (2 rows @ 50% each): audio_analysis, performance_timeline
-        # Column 3 (2 rows @ 50% each): gpt_reflection, webcam (swapped positions)
+        # Column 1 (3 rows): pattern_matching, request_parameters, phrase_memory
+        # Column 2 (3 rows): audio_analysis, rhythm_oracle, performance_timeline
+        # Column 3 (3 rows): gpt_reflection (row 1), performance_controls (row 2), webcam (row 3)
         
         viewport_positions = {
-            'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1, rowspan 1, colspan 1
+            'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1
             'request_parameters': (1, 0, 1, 1),    # Col 1, Row 2
             'phrase_memory': (2, 0, 1, 1),         # Col 1, Row 3
-            'audio_analysis': (0, 1, 2, 1),        # Col 2, Rows 1-2 (span 2 rows for 50% height)
+            'audio_analysis': (0, 1, 1, 1),        # Col 2, Row 1
+            'rhythm_oracle': (1, 1, 1, 1),         # Col 2, Row 2
             'performance_timeline': (2, 1, 1, 1),  # Col 2, Row 3
-            'gpt_reflection': (0, 2, 2, 1),        # Col 3, Rows 1-2 (span 2 rows for 50% height) - swapped with webcam
-            'webcam': (2, 2, 1, 1)                 # Col 3, Row 3 - swapped with gpt_reflection
+            'gpt_reflection': (0, 2, 1, 1),        # Col 3, Row 1
+            'performance_controls': (1, 2, 1, 1),  # Col 3, Row 2 (RESTORED!)
+            'webcam': (2, 2, 1, 1)                 # Col 3, Row 3
         }
         
         for viewport_id, (row, col, rowspan, colspan) in viewport_positions.items():
@@ -128,7 +136,7 @@ class VisualizationManager:
                 viewport.setMinimumSize(400, 300)  # Set minimum size instead
                 grid_layout.addWidget(viewport, row, col, rowspan, colspan)
         
-        # Set column stretches (all equal width)
+        # Set column stretches (all equal width - 3 columns)
         grid_layout.setColumnStretch(0, 1)
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 1)
@@ -144,7 +152,7 @@ class VisualizationManager:
         central_widget.setLayout(grid_layout)
         self.main_window.setCentralWidget(central_widget)
         
-        print("✅ Created fullscreen container with 3-column grid layout (3 rows | 2 rows | 2 rows)")
+        print("✅ Created fullscreen container with 3-column grid layout (Col1: 3 rows | Col2: 3 rows | Col3: 2+1 rows)")
     
     def show(self):
         """Show the main visualization window"""
@@ -181,6 +189,13 @@ class VisualizationManager:
         if 'audio_analysis' in self.viewports:
             self.event_bus.audio_analysis_signal.connect(
                 self.viewports['audio_analysis'].update_data,
+                Qt.QueuedConnection
+            )
+        
+        # RhythmOracle viewport (listens to rhythm_oracle_signal for timing engine data)
+        if 'rhythm_oracle' in self.viewports:
+            self.event_bus.rhythm_oracle_signal.connect(
+                self.viewports['rhythm_oracle'].update_data,
                 Qt.QueuedConnection
             )
         
@@ -280,6 +295,13 @@ class VisualizationManager:
                             timestamp: Optional[float] = None):
         """Emit timeline event"""
         self.event_bus.emit_timeline_update(event_type, mode, timestamp)
+    
+    def emit_rhythm_oracle(self, pattern_id: str, tempo: float, density: float,
+                          similarity: float, duration_pattern: str, pulse: int,
+                          syncopation: float, timestamp: Optional[float] = None):
+        """Emit RhythmOracle pattern matching event"""
+        self.event_bus.emit_rhythm_oracle(pattern_id, tempo, density, similarity,
+                                          duration_pattern, pulse, syncopation, timestamp)
     
     def process_events(self):
         """Process pending Qt events (call from main loop)"""

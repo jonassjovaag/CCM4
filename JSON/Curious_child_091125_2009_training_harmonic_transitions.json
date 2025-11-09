@@ -1,0 +1,2367 @@
+{
+  "transitions": {
+    "Dm->Dm": {
+      "probability": 0.6503496503496503,
+      "count": 93,
+      "from_chord_occurrences": 143
+    },
+    "Dm->D": {
+      "probability": 0.055944055944055944,
+      "count": 8,
+      "from_chord_occurrences": 143
+    },
+    "D->D": {
+      "probability": 0.8352059925093633,
+      "count": 446,
+      "from_chord_occurrences": 534
+    },
+    "D->Am": {
+      "probability": 0.024344569288389514,
+      "count": 13,
+      "from_chord_occurrences": 534
+    },
+    "Am->A": {
+      "probability": 0.04261363636363636,
+      "count": 15,
+      "from_chord_occurrences": 352
+    },
+    "A->A": {
+      "probability": 0.853763440860215,
+      "count": 397,
+      "from_chord_occurrences": 465
+    },
+    "A->D": {
+      "probability": 0.03225806451612903,
+      "count": 15,
+      "from_chord_occurrences": 465
+    },
+    "D->A": {
+      "probability": 0.020599250936329586,
+      "count": 11,
+      "from_chord_occurrences": 534
+    },
+    "D->G": {
+      "probability": 0.020599250936329586,
+      "count": 11,
+      "from_chord_occurrences": 534
+    },
+    "G->G": {
+      "probability": 0.7992277992277992,
+      "count": 207,
+      "from_chord_occurrences": 259
+    },
+    "G->Bm": {
+      "probability": 0.03474903474903475,
+      "count": 9,
+      "from_chord_occurrences": 259
+    },
+    "Bm->G": {
+      "probability": 0.05228758169934641,
+      "count": 8,
+      "from_chord_occurrences": 153
+    },
+    "G->Dm": {
+      "probability": 0.011583011583011582,
+      "count": 3,
+      "from_chord_occurrences": 259
+    },
+    "Dm->A": {
+      "probability": 0.06993006993006994,
+      "count": 10,
+      "from_chord_occurrences": 143
+    },
+    "G->A7": {
+      "probability": 0.011583011583011582,
+      "count": 3,
+      "from_chord_occurrences": 259
+    },
+    "A7->A7": {
+      "probability": 0.5,
+      "count": 6,
+      "from_chord_occurrences": 12
+    },
+    "A7->A": {
+      "probability": 0.3333333333333333,
+      "count": 4,
+      "from_chord_occurrences": 12
+    },
+    "A->F": {
+      "probability": 0.008602150537634409,
+      "count": 4,
+      "from_chord_occurrences": 465
+    },
+    "F->F": {
+      "probability": 0.8421052631578947,
+      "count": 256,
+      "from_chord_occurrences": 304
+    },
+    "F->Em": {
+      "probability": 0.006578947368421052,
+      "count": 2,
+      "from_chord_occurrences": 304
+    },
+    "Em->Em": {
+      "probability": 0.7016129032258065,
+      "count": 87,
+      "from_chord_occurrences": 124
+    },
+    "Em->F": {
+      "probability": 0.024193548387096774,
+      "count": 3,
+      "from_chord_occurrences": 124
+    },
+    "F->G7": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "G7->F": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "F->Am": {
+      "probability": 0.039473684210526314,
+      "count": 12,
+      "from_chord_occurrences": 304
+    },
+    "A->E": {
+      "probability": 0.012903225806451613,
+      "count": 6,
+      "from_chord_occurrences": 465
+    },
+    "E->E": {
+      "probability": 0.8121827411167513,
+      "count": 160,
+      "from_chord_occurrences": 197
+    },
+    "E->Em": {
+      "probability": 0.03553299492385787,
+      "count": 7,
+      "from_chord_occurrences": 197
+    },
+    "Em->D#": {
+      "probability": 0.016129032258064516,
+      "count": 2,
+      "from_chord_occurrences": 124
+    },
+    "D#->D#": {
+      "probability": 0.8432835820895522,
+      "count": 226,
+      "from_chord_occurrences": 268
+    },
+    "D#->A": {
+      "probability": 0.022388059701492536,
+      "count": 6,
+      "from_chord_occurrences": 268
+    },
+    "D->Gm": {
+      "probability": 0.0056179775280898875,
+      "count": 3,
+      "from_chord_occurrences": 534
+    },
+    "Gm->Gm": {
+      "probability": 0.845679012345679,
+      "count": 274,
+      "from_chord_occurrences": 324
+    },
+    "Gm->D#": {
+      "probability": 0.027777777777777776,
+      "count": 9,
+      "from_chord_occurrences": 324
+    },
+    "A->F#m": {
+      "probability": 0.030107526881720432,
+      "count": 14,
+      "from_chord_occurrences": 465
+    },
+    "F#m->F#": {
+      "probability": 0.07865168539325842,
+      "count": 14,
+      "from_chord_occurrences": 178
+    },
+    "F#->F#": {
+      "probability": 0.8423423423423423,
+      "count": 187,
+      "from_chord_occurrences": 222
+    },
+    "F#->F#m": {
+      "probability": 0.05405405405405406,
+      "count": 12,
+      "from_chord_occurrences": 222
+    },
+    "F#m->F#m": {
+      "probability": 0.702247191011236,
+      "count": 125,
+      "from_chord_occurrences": 178
+    },
+    "F#m->C#m": {
+      "probability": 0.011235955056179775,
+      "count": 2,
+      "from_chord_occurrences": 178
+    },
+    "C#m->Amaj7": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "Amaj7->Amaj7": {
+      "probability": 0.42857142857142855,
+      "count": 6,
+      "from_chord_occurrences": 14
+    },
+    "Amaj7->A#m7": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "A#m7->D#m": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "D#m->D#m": {
+      "probability": 0.7575757575757576,
+      "count": 100,
+      "from_chord_occurrences": 132
+    },
+    "D#m->A#": {
+      "probability": 0.022727272727272728,
+      "count": 3,
+      "from_chord_occurrences": 132
+    },
+    "A#->A#m": {
+      "probability": 0.014814814814814815,
+      "count": 4,
+      "from_chord_occurrences": 270
+    },
+    "A#m->A#": {
+      "probability": 0.1,
+      "count": 3,
+      "from_chord_occurrences": 30
+    },
+    "A#->A#": {
+      "probability": 0.8444444444444444,
+      "count": 228,
+      "from_chord_occurrences": 270
+    },
+    "A#->Fm": {
+      "probability": 0.018518518518518517,
+      "count": 5,
+      "from_chord_occurrences": 270
+    },
+    "Fm->Fm": {
+      "probability": 0.5,
+      "count": 17,
+      "from_chord_occurrences": 34
+    },
+    "Fm->G#": {
+      "probability": 0.11764705882352941,
+      "count": 4,
+      "from_chord_occurrences": 34
+    },
+    "G#->G#": {
+      "probability": 0.8444444444444444,
+      "count": 190,
+      "from_chord_occurrences": 225
+    },
+    "G#->C#": {
+      "probability": 0.013333333333333334,
+      "count": 3,
+      "from_chord_occurrences": 225
+    },
+    "C#->G#": {
+      "probability": 0.08695652173913043,
+      "count": 6,
+      "from_chord_occurrences": 69
+    },
+    "G#->Fm7": {
+      "probability": 0.0044444444444444444,
+      "count": 1,
+      "from_chord_occurrences": 225
+    },
+    "Fm7->Fm7": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Fm7->D#m": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "D#m->F#": {
+      "probability": 0.045454545454545456,
+      "count": 6,
+      "from_chord_occurrences": 132
+    },
+    "F#m->A": {
+      "probability": 0.03932584269662921,
+      "count": 7,
+      "from_chord_occurrences": 178
+    },
+    "Bm->Bm": {
+      "probability": 0.7189542483660131,
+      "count": 110,
+      "from_chord_occurrences": 153
+    },
+    "Bm->B": {
+      "probability": 0.026143790849673203,
+      "count": 4,
+      "from_chord_occurrences": 153
+    },
+    "B->B": {
+      "probability": 0.8319327731092437,
+      "count": 99,
+      "from_chord_occurrences": 119
+    },
+    "B->G": {
+      "probability": 0.01680672268907563,
+      "count": 2,
+      "from_chord_occurrences": 119
+    },
+    "G->Em": {
+      "probability": 0.019305019305019305,
+      "count": 5,
+      "from_chord_occurrences": 259
+    },
+    "Em->Am": {
+      "probability": 0.04032258064516129,
+      "count": 5,
+      "from_chord_occurrences": 124
+    },
+    "Am->Am": {
+      "probability": 0.7954545454545454,
+      "count": 280,
+      "from_chord_occurrences": 352
+    },
+    "F->B": {
+      "probability": 0.009868421052631578,
+      "count": 3,
+      "from_chord_occurrences": 304
+    },
+    "B->Em": {
+      "probability": 0.01680672268907563,
+      "count": 2,
+      "from_chord_occurrences": 119
+    },
+    "Em->G": {
+      "probability": 0.04032258064516129,
+      "count": 5,
+      "from_chord_occurrences": 124
+    },
+    "G->F": {
+      "probability": 0.011583011583011582,
+      "count": 3,
+      "from_chord_occurrences": 259
+    },
+    "A->Am": {
+      "probability": 0.021505376344086023,
+      "count": 10,
+      "from_chord_occurrences": 465
+    },
+    "E->D#": {
+      "probability": 0.015228426395939087,
+      "count": 3,
+      "from_chord_occurrences": 197
+    },
+    "D->Dsus4": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "Dsus4->D#": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "D#->C#m": {
+      "probability": 0.007462686567164179,
+      "count": 2,
+      "from_chord_occurrences": 268
+    },
+    "C#m->C#m": {
+      "probability": 0.6923076923076923,
+      "count": 45,
+      "from_chord_occurrences": 65
+    },
+    "C#m->F#m": {
+      "probability": 0.03076923076923077,
+      "count": 2,
+      "from_chord_occurrences": 65
+    },
+    "F#m->A#maj7": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "A#maj7->A#maj7": {
+      "probability": 0.625,
+      "count": 5,
+      "from_chord_occurrences": 8
+    },
+    "A#maj7->F": {
+      "probability": 0.25,
+      "count": 2,
+      "from_chord_occurrences": 8
+    },
+    "F->C#": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "G#->F": {
+      "probability": 0.017777777777777778,
+      "count": 4,
+      "from_chord_occurrences": 225
+    },
+    "F->D#m": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "D#m->F#m": {
+      "probability": 0.015151515151515152,
+      "count": 2,
+      "from_chord_occurrences": 132
+    },
+    "F#->F": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "Am->Gm": {
+      "probability": 0.008522727272727272,
+      "count": 3,
+      "from_chord_occurrences": 352
+    },
+    "Gm->A#7": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "A#7->G#": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "G#->Gm": {
+      "probability": 0.013333333333333334,
+      "count": 3,
+      "from_chord_occurrences": 225
+    },
+    "Gm->Dm": {
+      "probability": 0.015432098765432098,
+      "count": 5,
+      "from_chord_occurrences": 324
+    },
+    "Dm->Fm": {
+      "probability": 0.013986013986013986,
+      "count": 2,
+      "from_chord_occurrences": 143
+    },
+    "Fm->Gm": {
+      "probability": 0.029411764705882353,
+      "count": 1,
+      "from_chord_occurrences": 34
+    },
+    "Dm->G": {
+      "probability": 0.03496503496503497,
+      "count": 5,
+      "from_chord_occurrences": 143
+    },
+    "G->A#": {
+      "probability": 0.003861003861003861,
+      "count": 1,
+      "from_chord_occurrences": 259
+    },
+    "A#->Am": {
+      "probability": 0.003703703703703704,
+      "count": 1,
+      "from_chord_occurrences": 270
+    },
+    "Am->Dm": {
+      "probability": 0.011363636363636364,
+      "count": 4,
+      "from_chord_occurrences": 352
+    },
+    "D->Dm": {
+      "probability": 0.028089887640449437,
+      "count": 15,
+      "from_chord_occurrences": 534
+    },
+    "A->Dm": {
+      "probability": 0.0064516129032258064,
+      "count": 3,
+      "from_chord_occurrences": 465
+    },
+    "G->Dm7": {
+      "probability": 0.003861003861003861,
+      "count": 1,
+      "from_chord_occurrences": 259
+    },
+    "Dm7->Am": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "Am->D": {
+      "probability": 0.03409090909090909,
+      "count": 12,
+      "from_chord_occurrences": 352
+    },
+    "Gm->A#": {
+      "probability": 0.009259259259259259,
+      "count": 3,
+      "from_chord_occurrences": 324
+    },
+    "A#->Dm": {
+      "probability": 0.022222222222222223,
+      "count": 6,
+      "from_chord_occurrences": 270
+    },
+    "Dm->Gm": {
+      "probability": 0.03496503496503497,
+      "count": 5,
+      "from_chord_occurrences": 143
+    },
+    "Dm->A#": {
+      "probability": 0.04895104895104895,
+      "count": 7,
+      "from_chord_occurrences": 143
+    },
+    "Gm->D": {
+      "probability": 0.009259259259259259,
+      "count": 3,
+      "from_chord_occurrences": 324
+    },
+    "A->Dmaj7": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "Dmaj7->Dmaj7": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Dmaj7->Dm": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "A->Gm": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "Gm->G": {
+      "probability": 0.021604938271604937,
+      "count": 7,
+      "from_chord_occurrences": 324
+    },
+    "Dm->E": {
+      "probability": 0.013986013986013986,
+      "count": 2,
+      "from_chord_occurrences": 143
+    },
+    "E->Bm": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "Bm->Dm": {
+      "probability": 0.0196078431372549,
+      "count": 3,
+      "from_chord_occurrences": 153
+    },
+    "Fm->E": {
+      "probability": 0.029411764705882353,
+      "count": 1,
+      "from_chord_occurrences": 34
+    },
+    "E->Am": {
+      "probability": 0.04060913705583756,
+      "count": 8,
+      "from_chord_occurrences": 197
+    },
+    "Dm->F": {
+      "probability": 0.02097902097902098,
+      "count": 3,
+      "from_chord_occurrences": 143
+    },
+    "F->Cm": {
+      "probability": 0.009868421052631578,
+      "count": 3,
+      "from_chord_occurrences": 304
+    },
+    "Cm->Cm": {
+      "probability": 0.7723577235772358,
+      "count": 95,
+      "from_chord_occurrences": 123
+    },
+    "Cm->F": {
+      "probability": 0.016260162601626018,
+      "count": 2,
+      "from_chord_occurrences": 123
+    },
+    "Cm->D#": {
+      "probability": 0.024390243902439025,
+      "count": 3,
+      "from_chord_occurrences": 123
+    },
+    "D#->F": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "Am->F#m": {
+      "probability": 0.011363636363636364,
+      "count": 4,
+      "from_chord_occurrences": 352
+    },
+    "F#m->Bm": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "B->Bm": {
+      "probability": 0.025210084033613446,
+      "count": 3,
+      "from_chord_occurrences": 119
+    },
+    "Bm->Em": {
+      "probability": 0.0196078431372549,
+      "count": 3,
+      "from_chord_occurrences": 153
+    },
+    "Am->Em": {
+      "probability": 0.005681818181818182,
+      "count": 2,
+      "from_chord_occurrences": 352
+    },
+    "Cm->G": {
+      "probability": 0.032520325203252036,
+      "count": 4,
+      "from_chord_occurrences": 123
+    },
+    "Em->C": {
+      "probability": 0.056451612903225805,
+      "count": 7,
+      "from_chord_occurrences": 124
+    },
+    "C->C": {
+      "probability": 0.8418803418803419,
+      "count": 197,
+      "from_chord_occurrences": 234
+    },
+    "C->Em": {
+      "probability": 0.029914529914529916,
+      "count": 7,
+      "from_chord_occurrences": 234
+    },
+    "Em->E": {
+      "probability": 0.03225806451612903,
+      "count": 4,
+      "from_chord_occurrences": 124
+    },
+    "C->G": {
+      "probability": 0.021367521367521368,
+      "count": 5,
+      "from_chord_occurrences": 234
+    },
+    "G->Gm": {
+      "probability": 0.03861003861003861,
+      "count": 10,
+      "from_chord_occurrences": 259
+    },
+    "Gm->C": {
+      "probability": 0.018518518518518517,
+      "count": 6,
+      "from_chord_occurrences": 324
+    },
+    "G->C": {
+      "probability": 0.019305019305019305,
+      "count": 5,
+      "from_chord_occurrences": 259
+    },
+    "C->F": {
+      "probability": 0.03418803418803419,
+      "count": 8,
+      "from_chord_occurrences": 234
+    },
+    "F->Dm": {
+      "probability": 0.013157894736842105,
+      "count": 4,
+      "from_chord_occurrences": 304
+    },
+    "Gm->Cm": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "Cm->G#": {
+      "probability": 0.04878048780487805,
+      "count": 6,
+      "from_chord_occurrences": 123
+    },
+    "G#->Cm": {
+      "probability": 0.02666666666666667,
+      "count": 6,
+      "from_chord_occurrences": 225
+    },
+    "Cm->G#maj7": {
+      "probability": 0.008130081300813009,
+      "count": 1,
+      "from_chord_occurrences": 123
+    },
+    "G#maj7->G#maj7": {
+      "probability": 0.6,
+      "count": 3,
+      "from_chord_occurrences": 5
+    },
+    "G#maj7->G#": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "G#->D#": {
+      "probability": 0.017777777777777778,
+      "count": 4,
+      "from_chord_occurrences": 225
+    },
+    "D#->A#": {
+      "probability": 0.026119402985074626,
+      "count": 7,
+      "from_chord_occurrences": 268
+    },
+    "A#->F": {
+      "probability": 0.014814814814814815,
+      "count": 4,
+      "from_chord_occurrences": 270
+    },
+    "Am->A#": {
+      "probability": 0.005681818181818182,
+      "count": 2,
+      "from_chord_occurrences": 352
+    },
+    "A#->Gm": {
+      "probability": 0.018518518518518517,
+      "count": 5,
+      "from_chord_occurrences": 270
+    },
+    "A#->C#": {
+      "probability": 0.003703703703703704,
+      "count": 1,
+      "from_chord_occurrences": 270
+    },
+    "C#->C#": {
+      "probability": 0.7391304347826086,
+      "count": 51,
+      "from_chord_occurrences": 69
+    },
+    "C#->A#m": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "A#m->A#m": {
+      "probability": 0.6666666666666666,
+      "count": 20,
+      "from_chord_occurrences": 30
+    },
+    "A#m->D#": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "D#->D#m": {
+      "probability": 0.018656716417910446,
+      "count": 5,
+      "from_chord_occurrences": 268
+    },
+    "D#m->G#": {
+      "probability": 0.015151515151515152,
+      "count": 2,
+      "from_chord_occurrences": 132
+    },
+    "G#->D": {
+      "probability": 0.008888888888888889,
+      "count": 2,
+      "from_chord_occurrences": 225
+    },
+    "D->G#m": {
+      "probability": 0.003745318352059925,
+      "count": 2,
+      "from_chord_occurrences": 534
+    },
+    "G#m->G#m": {
+      "probability": 0.6976744186046512,
+      "count": 60,
+      "from_chord_occurrences": 86
+    },
+    "G#m->G#": {
+      "probability": 0.046511627906976744,
+      "count": 4,
+      "from_chord_occurrences": 86
+    },
+    "G#->Am": {
+      "probability": 0.008888888888888889,
+      "count": 2,
+      "from_chord_occurrences": 225
+    },
+    "D->D#": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "F#m->D": {
+      "probability": 0.10674157303370786,
+      "count": 19,
+      "from_chord_occurrences": 178
+    },
+    "F->F#": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "F#->D#m": {
+      "probability": 0.03153153153153153,
+      "count": 7,
+      "from_chord_occurrences": 222
+    },
+    "F#->Gm": {
+      "probability": 0.018018018018018018,
+      "count": 4,
+      "from_chord_occurrences": 222
+    },
+    "Gm->F#": {
+      "probability": 0.006172839506172839,
+      "count": 2,
+      "from_chord_occurrences": 324
+    },
+    "F#->D#": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "D#m->Bm": {
+      "probability": 0.015151515151515152,
+      "count": 2,
+      "from_chord_occurrences": 132
+    },
+    "Bm->D": {
+      "probability": 0.0718954248366013,
+      "count": 11,
+      "from_chord_occurrences": 153
+    },
+    "D->Bm": {
+      "probability": 0.020599250936329586,
+      "count": 11,
+      "from_chord_occurrences": 534
+    },
+    "Bm->Gm": {
+      "probability": 0.006535947712418301,
+      "count": 1,
+      "from_chord_occurrences": 153
+    },
+    "Gm->Bm": {
+      "probability": 0.012345679012345678,
+      "count": 4,
+      "from_chord_occurrences": 324
+    },
+    "Bm->D#m": {
+      "probability": 0.026143790849673203,
+      "count": 4,
+      "from_chord_occurrences": 153
+    },
+    "F->F#m": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "C#m->A": {
+      "probability": 0.09230769230769231,
+      "count": 6,
+      "from_chord_occurrences": 65
+    },
+    "Gm->A7": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "Am->F": {
+      "probability": 0.014204545454545454,
+      "count": 5,
+      "from_chord_occurrences": 352
+    },
+    "Am->E": {
+      "probability": 0.019886363636363636,
+      "count": 7,
+      "from_chord_occurrences": 352
+    },
+    "Gm->A": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "Am->G#": {
+      "probability": 0.011363636363636364,
+      "count": 4,
+      "from_chord_occurrences": 352
+    },
+    "C#->F#m": {
+      "probability": 0.043478260869565216,
+      "count": 3,
+      "from_chord_occurrences": 69
+    },
+    "F#m->C": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "C->Bm": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "A->Em": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "C->Am": {
+      "probability": 0.029914529914529916,
+      "count": 7,
+      "from_chord_occurrences": 234
+    },
+    "Am->C": {
+      "probability": 0.014204545454545454,
+      "count": 5,
+      "from_chord_occurrences": 352
+    },
+    "G->G#m": {
+      "probability": 0.011583011583011582,
+      "count": 3,
+      "from_chord_occurrences": 259
+    },
+    "G#m->E": {
+      "probability": 0.06976744186046512,
+      "count": 6,
+      "from_chord_occurrences": 86
+    },
+    "E->G": {
+      "probability": 0.01015228426395939,
+      "count": 2,
+      "from_chord_occurrences": 197
+    },
+    "D#->Gm7": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "Gm7->Gm7": {
+      "probability": 0.4,
+      "count": 2,
+      "from_chord_occurrences": 5
+    },
+    "Gm7->A#": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "A#->D#": {
+      "probability": 0.018518518518518517,
+      "count": 5,
+      "from_chord_occurrences": 270
+    },
+    "D#->Gm": {
+      "probability": 0.022388059701492536,
+      "count": 6,
+      "from_chord_occurrences": 268
+    },
+    "Gm->Am": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "C->Fm": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "Fm->C": {
+      "probability": 0.029411764705882353,
+      "count": 1,
+      "from_chord_occurrences": 34
+    },
+    "C->C#maj7": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "C#maj7->C#maj7": {
+      "probability": 0.6,
+      "count": 3,
+      "from_chord_occurrences": 5
+    },
+    "C#maj7->C#m": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "C#m->C#maj7": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "C#maj7->F": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "F->Bm7": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "Bm7->B7": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "B7->B7": {
+      "probability": 0.5,
+      "count": 4,
+      "from_chord_occurrences": 8
+    },
+    "B7->D#": {
+      "probability": 0.25,
+      "count": 2,
+      "from_chord_occurrences": 8
+    },
+    "D#->Em": {
+      "probability": 0.007462686567164179,
+      "count": 2,
+      "from_chord_occurrences": 268
+    },
+    "Fm->A#": {
+      "probability": 0.08823529411764706,
+      "count": 3,
+      "from_chord_occurrences": 34
+    },
+    "A#->C": {
+      "probability": 0.003703703703703704,
+      "count": 1,
+      "from_chord_occurrences": 270
+    },
+    "C->D7": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "D7->G": {
+      "probability": 0.25,
+      "count": 1,
+      "from_chord_occurrences": 4
+    },
+    "G->D": {
+      "probability": 0.02702702702702703,
+      "count": 7,
+      "from_chord_occurrences": 259
+    },
+    "D->D7": {
+      "probability": 0.003745318352059925,
+      "count": 2,
+      "from_chord_occurrences": 534
+    },
+    "D7->C": {
+      "probability": 0.25,
+      "count": 1,
+      "from_chord_occurrences": 4
+    },
+    "C->Cmaj7": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "Cmaj7->Em": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Em->Cmaj7": {
+      "probability": 0.008064516129032258,
+      "count": 1,
+      "from_chord_occurrences": 124
+    },
+    "Cmaj7->C": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "E->A": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "D->C#m": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "C#m->E": {
+      "probability": 0.06153846153846154,
+      "count": 4,
+      "from_chord_occurrences": 65
+    },
+    "E->D": {
+      "probability": 0.015228426395939087,
+      "count": 3,
+      "from_chord_occurrences": 197
+    },
+    "G#->G#m": {
+      "probability": 0.02666666666666667,
+      "count": 6,
+      "from_chord_occurrences": 225
+    },
+    "G#m->D#sus4": {
+      "probability": 0.011627906976744186,
+      "count": 1,
+      "from_chord_occurrences": 86
+    },
+    "D#sus4->D#": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "D#->G#": {
+      "probability": 0.011194029850746268,
+      "count": 3,
+      "from_chord_occurrences": 268
+    },
+    "E->G#m": {
+      "probability": 0.01015228426395939,
+      "count": 2,
+      "from_chord_occurrences": 197
+    },
+    "G#m->Am": {
+      "probability": 0.023255813953488372,
+      "count": 2,
+      "from_chord_occurrences": 86
+    },
+    "Am->G#m": {
+      "probability": 0.008522727272727272,
+      "count": 3,
+      "from_chord_occurrences": 352
+    },
+    "E->Amaj7": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "Amaj7->A": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "Em->Esus4": {
+      "probability": 0.008064516129032258,
+      "count": 1,
+      "from_chord_occurrences": 124
+    },
+    "Esus4->A": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "G#m->Bm": {
+      "probability": 0.023255813953488372,
+      "count": 2,
+      "from_chord_occurrences": 86
+    },
+    "G->G#": {
+      "probability": 0.003861003861003861,
+      "count": 1,
+      "from_chord_occurrences": 259
+    },
+    "Bm->Fm": {
+      "probability": 0.006535947712418301,
+      "count": 1,
+      "from_chord_occurrences": 153
+    },
+    "Fm->F": {
+      "probability": 0.058823529411764705,
+      "count": 2,
+      "from_chord_occurrences": 34
+    },
+    "F->A#": {
+      "probability": 0.01644736842105263,
+      "count": 5,
+      "from_chord_occurrences": 304
+    },
+    "A#->E": {
+      "probability": 0.011111111111111112,
+      "count": 3,
+      "from_chord_occurrences": 270
+    },
+    "D7->Am": {
+      "probability": 0.25,
+      "count": 1,
+      "from_chord_occurrences": 4
+    },
+    "Am->D7": {
+      "probability": 0.002840909090909091,
+      "count": 1,
+      "from_chord_occurrences": 352
+    },
+    "D7->Gm": {
+      "probability": 0.25,
+      "count": 1,
+      "from_chord_occurrences": 4
+    },
+    "Gm->Em": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "Em->Bm": {
+      "probability": 0.024193548387096774,
+      "count": 3,
+      "from_chord_occurrences": 124
+    },
+    "E->C#m": {
+      "probability": 0.02030456852791878,
+      "count": 4,
+      "from_chord_occurrences": 197
+    },
+    "F->G#m": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "Am->Amaj7": {
+      "probability": 0.002840909090909091,
+      "count": 1,
+      "from_chord_occurrences": 352
+    },
+    "Amaj7->G#m": {
+      "probability": 0.14285714285714285,
+      "count": 2,
+      "from_chord_occurrences": 14
+    },
+    "G#m->Amaj7": {
+      "probability": 0.011627906976744186,
+      "count": 1,
+      "from_chord_occurrences": 86
+    },
+    "Amaj7->E": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "G->Cm": {
+      "probability": 0.003861003861003861,
+      "count": 1,
+      "from_chord_occurrences": 259
+    },
+    "G#->Amaj7": {
+      "probability": 0.0044444444444444444,
+      "count": 1,
+      "from_chord_occurrences": 225
+    },
+    "Amaj7->Am": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "F->A#maj7": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "A#maj7->A#": {
+      "probability": 0.125,
+      "count": 1,
+      "from_chord_occurrences": 8
+    },
+    "C->Gm": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "A#m->A#m7": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "A#m7->C#": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "G#->D#m": {
+      "probability": 0.0044444444444444444,
+      "count": 1,
+      "from_chord_occurrences": 225
+    },
+    "D#m->D#": {
+      "probability": 0.022727272727272728,
+      "count": 3,
+      "from_chord_occurrences": 132
+    },
+    "D->F#m": {
+      "probability": 0.011235955056179775,
+      "count": 6,
+      "from_chord_occurrences": 534
+    },
+    "F#m->Gmaj7": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "Gmaj7->Gmaj7": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Gmaj7->Cm": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Cm->Gm7": {
+      "probability": 0.008130081300813009,
+      "count": 1,
+      "from_chord_occurrences": 123
+    },
+    "Gm7->Gm": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "C->Gm7": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "Gm7->F": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "F->F#maj7": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "F#maj7->F#maj7": {
+      "probability": 0.8571428571428571,
+      "count": 6,
+      "from_chord_occurrences": 7
+    },
+    "F#maj7->D#m": {
+      "probability": 0.14285714285714285,
+      "count": 1,
+      "from_chord_occurrences": 7
+    },
+    "D#m->Gm": {
+      "probability": 0.015151515151515152,
+      "count": 2,
+      "from_chord_occurrences": 132
+    },
+    "Gm->Em7": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "Em7->Em7": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Em7->Gm": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "Gm->D#m": {
+      "probability": 0.006172839506172839,
+      "count": 2,
+      "from_chord_occurrences": 324
+    },
+    "D#m->F#7": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "F#7->F#7": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "F#7->E": {
+      "probability": 0.5,
+      "count": 1,
+      "from_chord_occurrences": 2
+    },
+    "D->F#": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "F#->D": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "Bm->F#": {
+      "probability": 0.026143790849673203,
+      "count": 4,
+      "from_chord_occurrences": 153
+    },
+    "F#->A#m": {
+      "probability": 0.009009009009009009,
+      "count": 2,
+      "from_chord_occurrences": 222
+    },
+    "A#m->C#": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "C#->F#": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "F#->C#": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "F#->C#m": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "C#m->F#": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "Am->Bm": {
+      "probability": 0.002840909090909091,
+      "count": 1,
+      "from_chord_occurrences": 352
+    },
+    "A->Amaj7": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "F->Fm": {
+      "probability": 0.006578947368421052,
+      "count": 2,
+      "from_chord_occurrences": 304
+    },
+    "D->Em": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "Em->D": {
+      "probability": 0.008064516129032258,
+      "count": 1,
+      "from_chord_occurrences": 124
+    },
+    "F#m->Dm": {
+      "probability": 0.011235955056179775,
+      "count": 2,
+      "from_chord_occurrences": 178
+    },
+    "Dm->F#m": {
+      "probability": 0.006993006993006993,
+      "count": 1,
+      "from_chord_occurrences": 143
+    },
+    "A->C": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "Dm->Em": {
+      "probability": 0.013986013986013986,
+      "count": 2,
+      "from_chord_occurrences": 143
+    },
+    "Em->B": {
+      "probability": 0.016129032258064516,
+      "count": 2,
+      "from_chord_occurrences": 124
+    },
+    "Em->A": {
+      "probability": 0.016129032258064516,
+      "count": 2,
+      "from_chord_occurrences": 124
+    },
+    "A->A#m": {
+      "probability": 0.004301075268817204,
+      "count": 2,
+      "from_chord_occurrences": 465
+    },
+    "A#->A": {
+      "probability": 0.003703703703703704,
+      "count": 1,
+      "from_chord_occurrences": 270
+    },
+    "A->A#": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "A#m->A": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "A->C#m": {
+      "probability": 0.010752688172043012,
+      "count": 5,
+      "from_chord_occurrences": 465
+    },
+    "C#m->G#": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "Cm->Am": {
+      "probability": 0.008130081300813009,
+      "count": 1,
+      "from_chord_occurrences": 123
+    },
+    "Am->Cm": {
+      "probability": 0.005681818181818182,
+      "count": 2,
+      "from_chord_occurrences": 352
+    },
+    "Gm->A#m": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "A#m->F#": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "A#m->F": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "F#->Fm": {
+      "probability": 0.0045045045045045045,
+      "count": 1,
+      "from_chord_occurrences": 222
+    },
+    "Fm->G#m": {
+      "probability": 0.029411764705882353,
+      "count": 1,
+      "from_chord_occurrences": 34
+    },
+    "G#m->C#": {
+      "probability": 0.023255813953488372,
+      "count": 2,
+      "from_chord_occurrences": 86
+    },
+    "C#->G#m": {
+      "probability": 0.028985507246376812,
+      "count": 2,
+      "from_chord_occurrences": 69
+    },
+    "D#->Am": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "D->A#": {
+      "probability": 0.0056179775280898875,
+      "count": 3,
+      "from_chord_occurrences": 534
+    },
+    "A#->D": {
+      "probability": 0.011111111111111112,
+      "count": 3,
+      "from_chord_occurrences": 270
+    },
+    "F->D": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "F->C": {
+      "probability": 0.013157894736842105,
+      "count": 4,
+      "from_chord_occurrences": 304
+    },
+    "C->C#m": {
+      "probability": 0.004273504273504274,
+      "count": 1,
+      "from_chord_occurrences": 234
+    },
+    "C#m->C": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "C->Cm": {
+      "probability": 0.008547008547008548,
+      "count": 2,
+      "from_chord_occurrences": 234
+    },
+    "Cm->B": {
+      "probability": 0.016260162601626018,
+      "count": 2,
+      "from_chord_occurrences": 123
+    },
+    "B->F#": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "D#->B": {
+      "probability": 0.007462686567164179,
+      "count": 2,
+      "from_chord_occurrences": 268
+    },
+    "B->D#m": {
+      "probability": 0.04201680672268908,
+      "count": 5,
+      "from_chord_occurrences": 119
+    },
+    "A#m->Am": {
+      "probability": 0.03333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 30
+    },
+    "D->D#m": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "Gm->F": {
+      "probability": 0.0030864197530864196,
+      "count": 1,
+      "from_chord_occurrences": 324
+    },
+    "A->F#": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "D#m->B": {
+      "probability": 0.030303030303030304,
+      "count": 4,
+      "from_chord_occurrences": 132
+    },
+    "D#m->C#": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "C#->Fm": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "Dm->C#": {
+      "probability": 0.013986013986013986,
+      "count": 2,
+      "from_chord_occurrences": 143
+    },
+    "G#->C#m": {
+      "probability": 0.0044444444444444444,
+      "count": 1,
+      "from_chord_occurrences": 225
+    },
+    "C#m->C#": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "G#->Fm": {
+      "probability": 0.0044444444444444444,
+      "count": 1,
+      "from_chord_occurrences": 225
+    },
+    "D#m->Cm": {
+      "probability": 0.015151515151515152,
+      "count": 2,
+      "from_chord_occurrences": 132
+    },
+    "D#->Cm": {
+      "probability": 0.007462686567164179,
+      "count": 2,
+      "from_chord_occurrences": 268
+    },
+    "Cm->Fm": {
+      "probability": 0.024390243902439025,
+      "count": 3,
+      "from_chord_occurrences": 123
+    },
+    "Fm->Cm": {
+      "probability": 0.08823529411764706,
+      "count": 3,
+      "from_chord_occurrences": 34
+    },
+    "F->Gm": {
+      "probability": 0.006578947368421052,
+      "count": 2,
+      "from_chord_occurrences": 304
+    },
+    "E->A#": {
+      "probability": 0.01015228426395939,
+      "count": 2,
+      "from_chord_occurrences": 197
+    },
+    "E->Dm": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "Dm->Am": {
+      "probability": 0.006993006993006993,
+      "count": 1,
+      "from_chord_occurrences": 143
+    },
+    "D#->G": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "G#m->Cm": {
+      "probability": 0.023255813953488372,
+      "count": 2,
+      "from_chord_occurrences": 86
+    },
+    "D->G#": {
+      "probability": 0.003745318352059925,
+      "count": 2,
+      "from_chord_occurrences": 534
+    },
+    "Am->B7": {
+      "probability": 0.002840909090909091,
+      "count": 1,
+      "from_chord_occurrences": 352
+    },
+    "D#m->D": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "Cm->C": {
+      "probability": 0.024390243902439025,
+      "count": 3,
+      "from_chord_occurrences": 123
+    },
+    "B->F#m": {
+      "probability": 0.01680672268907563,
+      "count": 2,
+      "from_chord_occurrences": 119
+    },
+    "D->Cm": {
+      "probability": 0.003745318352059925,
+      "count": 2,
+      "from_chord_occurrences": 534
+    },
+    "D#->B7": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "B7->Am": {
+      "probability": 0.125,
+      "count": 1,
+      "from_chord_occurrences": 8
+    },
+    "Cm->A7": {
+      "probability": 0.008130081300813009,
+      "count": 1,
+      "from_chord_occurrences": 123
+    },
+    "A7->F#m": {
+      "probability": 0.08333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 12
+    },
+    "F#m->B7": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "B7->Cm": {
+      "probability": 0.125,
+      "count": 1,
+      "from_chord_occurrences": 8
+    },
+    "D#m->A": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "A#->F#": {
+      "probability": 0.007407407407407408,
+      "count": 2,
+      "from_chord_occurrences": 270
+    },
+    "F#->Bm": {
+      "probability": 0.013513513513513514,
+      "count": 3,
+      "from_chord_occurrences": 222
+    },
+    "Dm->D#m": {
+      "probability": 0.006993006993006993,
+      "count": 1,
+      "from_chord_occurrences": 143
+    },
+    "B->G#m": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "G#m->B": {
+      "probability": 0.023255813953488372,
+      "count": 2,
+      "from_chord_occurrences": 86
+    },
+    "B->E": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "E->D#m": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "G#m->D#m": {
+      "probability": 0.011627906976744186,
+      "count": 1,
+      "from_chord_occurrences": 86
+    },
+    "D#m->G#m": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "F#m->G": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "Bm->F#m": {
+      "probability": 0.0196078431372549,
+      "count": 3,
+      "from_chord_occurrences": 153
+    },
+    "C#->Dm": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "F#m->C#": {
+      "probability": 0.0056179775280898875,
+      "count": 1,
+      "from_chord_occurrences": 178
+    },
+    "C#->D": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "F->Bm": {
+      "probability": 0.003289473684210526,
+      "count": 1,
+      "from_chord_occurrences": 304
+    },
+    "B->Am": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "A#->Bm": {
+      "probability": 0.003703703703703704,
+      "count": 1,
+      "from_chord_occurrences": 270
+    },
+    "Bm->Am": {
+      "probability": 0.006535947712418301,
+      "count": 1,
+      "from_chord_occurrences": 153
+    },
+    "F#m->Amaj7": {
+      "probability": 0.011235955056179775,
+      "count": 2,
+      "from_chord_occurrences": 178
+    },
+    "Amaj7->C#m": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "Em->F#m": {
+      "probability": 0.008064516129032258,
+      "count": 1,
+      "from_chord_occurrences": 124
+    },
+    "Dm->B": {
+      "probability": 0.006993006993006993,
+      "count": 1,
+      "from_chord_occurrences": 143
+    },
+    "B->Dm": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "E->C#": {
+      "probability": 0.005076142131979695,
+      "count": 1,
+      "from_chord_occurrences": 197
+    },
+    "C#->E": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "G#m->D#": {
+      "probability": 0.03488372093023256,
+      "count": 3,
+      "from_chord_occurrences": 86
+    },
+    "C#m->G#m": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "B->D#": {
+      "probability": 0.008403361344537815,
+      "count": 1,
+      "from_chord_occurrences": 119
+    },
+    "D#->G#maj7": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "G#maj7->G#m": {
+      "probability": 0.2,
+      "count": 1,
+      "from_chord_occurrences": 5
+    },
+    "Cm->Em": {
+      "probability": 0.008130081300813009,
+      "count": 1,
+      "from_chord_occurrences": 123
+    },
+    "C#m->D#": {
+      "probability": 0.015384615384615385,
+      "count": 1,
+      "from_chord_occurrences": 65
+    },
+    "D#->Am7": {
+      "probability": 0.0037313432835820895,
+      "count": 1,
+      "from_chord_occurrences": 268
+    },
+    "Am7->Am": {
+      "probability": 1.0,
+      "count": 1,
+      "from_chord_occurrences": 1
+    },
+    "D#m->F": {
+      "probability": 0.007575757575757576,
+      "count": 1,
+      "from_chord_occurrences": 132
+    },
+    "A->C#": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "C#->C#m": {
+      "probability": 0.014492753623188406,
+      "count": 1,
+      "from_chord_occurrences": 69
+    },
+    "A->A7": {
+      "probability": 0.002150537634408602,
+      "count": 1,
+      "from_chord_occurrences": 465
+    },
+    "A7->D#": {
+      "probability": 0.08333333333333333,
+      "count": 1,
+      "from_chord_occurrences": 12
+    },
+    "Amaj7->F#m": {
+      "probability": 0.07142857142857142,
+      "count": 1,
+      "from_chord_occurrences": 14
+    },
+    "D->A#maj7": {
+      "probability": 0.0018726591760299626,
+      "count": 1,
+      "from_chord_occurrences": 534
+    },
+    "Fm->C#": {
+      "probability": 0.029411764705882353,
+      "count": 1,
+      "from_chord_occurrences": 34
+    }
+  },
+  "chord_frequencies": {
+    "Dm": 143,
+    "D": 534,
+    "Am": 352,
+    "A": 465,
+    "G": 259,
+    "Bm": 153,
+    "A7": 12,
+    "F": 304,
+    "Em": 124,
+    "G7": 1,
+    "E": 197,
+    "D#": 268,
+    "Gm": 324,
+    "F#m": 178,
+    "F#": 222,
+    "C#m": 65,
+    "Amaj7": 14,
+    "A#m7": 2,
+    "D#m": 132,
+    "A#": 270,
+    "A#m": 30,
+    "Fm": 34,
+    "G#": 225,
+    "C#": 69,
+    "Fm7": 2,
+    "B": 119,
+    "Dsus4": 1,
+    "A#maj7": 8,
+    "A#7": 1,
+    "Dm7": 1,
+    "Dmaj7": 2,
+    "Cm": 123,
+    "C": 234,
+    "G#maj7": 5,
+    "G#m": 86,
+    "Gm7": 5,
+    "C#maj7": 5,
+    "Bm7": 1,
+    "B7": 8,
+    "D7": 4,
+    "Cmaj7": 2,
+    "D#sus4": 1,
+    "Esus4": 1,
+    "Gmaj7": 2,
+    "F#maj7": 7,
+    "Em7": 2,
+    "F#7": 2,
+    "Am7": 1
+  },
+  "chord_durations": {
+    "Dm": {
+      "average": 0.11914434771577768,
+      "std": 0.18432163981303612,
+      "min": 0.07546485260769487,
+      "max": 1.7182766439909303
+    },
+    "D": {
+      "average": 0.09006429038531784,
+      "std": 0.06226240378062512,
+      "min": 0.07546485260769487,
+      "max": 0.9346031746031542
+    },
+    "Am": {
+      "average": 0.10544629973201389,
+      "std": 0.1149897224435305,
+      "min": 0.07546485260769487,
+      "max": 1.486077097505671
+    },
+    "A": {
+      "average": 0.09008343695901307,
+      "std": 0.08497856613882782,
+      "min": 0.07546485260769487,
+      "max": 1.6950566893424366
+    },
+    "G": {
+      "average": 0.1154049676498654,
+      "std": 0.2447573795980146,
+      "min": 0.07546485260769487,
+      "max": 2.8676643990929733
+    },
+    "Bm": {
+      "average": 0.10190980095741953,
+      "std": 0.15739710724226483,
+      "min": 0.07546485260769487,
+      "max": 1.9562811791383297
+    },
+    "A7": {
+      "average": 0.07933484504912869,
+      "std": 0.002736497898463466,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126984205
+    },
+    "F": {
+      "average": 0.10355412340374741,
+      "std": 0.17073344253000705,
+      "min": 0.07546485260769487,
+      "max": 2.52517006802721
+    },
+    "Em": {
+      "average": 0.08913466461853364,
+      "std": 0.040468680619891076,
+      "min": 0.07546485260769487,
+      "max": 0.37151927437642485
+    },
+    "G7": {
+      "average": 0.08126984126984205,
+      "std": 0.0,
+      "min": 0.08126984126984205,
+      "max": 0.08126984126984205
+    },
+    "E": {
+      "average": 0.1281517547797464,
+      "std": 0.3721811978908261,
+      "min": 0.07546485260769487,
+      "max": 5.021315192743771
+    },
+    "D#": {
+      "average": 0.1252621247503978,
+      "std": 0.3850736483191819,
+      "min": 0.07546485260769487,
+      "max": 6.0662131519274
+    },
+    "Gm": {
+      "average": 0.0859281655048849,
+      "std": 0.02806552139553072,
+      "min": 0.07546485260769487,
+      "max": 0.37151927437641774
+    },
+    "F#m": {
+      "average": 0.0932711661443611,
+      "std": 0.08658993841876789,
+      "min": 0.07546485260769487,
+      "max": 0.9055782312925089
+    },
+    "F#": {
+      "average": 0.16548157724628293,
+      "std": 0.7731823077449671,
+      "min": 0.07546485260769487,
+      "max": 11.023673469387745
+    },
+    "C#m": {
+      "average": 0.1047577184720017,
+      "std": 0.12231205004118868,
+      "min": 0.07546485260769487,
+      "max": 1.021678004535147
+    },
+    "Amaj7": {
+      "average": 0.0796112730806584,
+      "std": 0.0026224265662561797,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126985803
+    },
+    "A#m7": {
+      "average": 0.07836734693878178,
+      "std": 0.0029024943310584916,
+      "min": 0.07546485260772329,
+      "max": 0.08126984126984027
+    },
+    "D#m": {
+      "average": 0.08892187177901717,
+      "std": 0.03695873760121432,
+      "min": 0.07546485260769487,
+      "max": 0.4469841269841268
+    },
+    "A#": {
+      "average": 0.09255731922398588,
+      "std": 0.05891861374870096,
+      "min": 0.07546485260769487,
+      "max": 0.8068934240363035
+    },
+    "A#m": {
+      "average": 0.08378533635676415,
+      "std": 0.01821467763246437,
+      "min": 0.07546485260769487,
+      "max": 0.17414965986392872
+    },
+    "Fm": {
+      "average": 0.08844070961717974,
+      "std": 0.032045455760597724,
+      "min": 0.07546485260769487,
+      "max": 0.26702947845805625
+    },
+    "G#": {
+      "average": 0.08464963466868178,
+      "std": 0.019606501914867572,
+      "min": 0.07546485260769487,
+      "max": 0.23800453514739672
+    },
+    "C#": {
+      "average": 0.09666568076505896,
+      "std": 0.10798728969907952,
+      "min": 0.07546485260769487,
+      "max": 0.9810430839002038
+    },
+    "Fm7": {
+      "average": 0.07836734693877467,
+      "std": 0.002902494331065597,
+      "min": 0.07546485260770908,
+      "max": 0.08126984126984027
+    },
+    "B": {
+      "average": 0.10024581261075832,
+      "std": 0.06304348523673434,
+      "min": 0.07546485260769487,
+      "max": 0.6211337868480769
+    },
+    "Dsus4": {
+      "average": 0.08126984126984382,
+      "std": 0.0,
+      "min": 0.08126984126984382,
+      "max": 0.08126984126984382
+    },
+    "A#maj7": {
+      "average": 0.07836734693877201,
+      "std": 0.002902494331062932,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126984382
+    },
+    "A#7": {
+      "average": 0.07546485260770908,
+      "std": 0.0,
+      "min": 0.07546485260770908,
+      "max": 0.07546485260770908
+    },
+    "Dm7": {
+      "average": 0.11029478458050335,
+      "std": 0.0,
+      "min": 0.11029478458050335,
+      "max": 0.11029478458050335
+    },
+    "Dmaj7": {
+      "average": 0.07836734693877645,
+      "std": 0.0029024943310673734,
+      "min": 0.07546485260770908,
+      "max": 0.08126984126984382
+    },
+    "Cm": {
+      "average": 0.09160555279022119,
+      "std": 0.0667498244895707,
+      "min": 0.07546485260769487,
+      "max": 0.7488435374149702
+    },
+    "C": {
+      "average": 0.10109114871019703,
+      "std": 0.14280239364646863,
+      "min": 0.07546485260769487,
+      "max": 1.9562811791383297
+    },
+    "G#maj7": {
+      "average": 0.09984580498865796,
+      "std": 0.04011746985080499,
+      "min": 0.07546485260770908,
+      "max": 0.17995464852606347
+    },
+    "G#m": {
+      "average": 0.0855898328323594,
+      "std": 0.023324110378380482,
+      "min": 0.07546485260769487,
+      "max": 0.2612244897959499
+    },
+    "Gm7": {
+      "average": 0.0789478458049814,
+      "std": 0.0028438520369673793,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126982961
+    },
+    "C#maj7": {
+      "average": 0.2774784580498874,
+      "std": 0.39532612099879366,
+      "min": 0.07546485260769487,
+      "max": 1.068117913832225
+    },
+    "Bm7": {
+      "average": 0.08126984126982961,
+      "std": 0.0,
+      "min": 0.08126984126982961,
+      "max": 0.08126984126982961
+    },
+    "B7": {
+      "average": 0.09578231292517003,
+      "std": 0.029169707018223207,
+      "min": 0.07546485260772329,
+      "max": 0.1567346938775529
+    },
+    "D7": {
+      "average": 0.14802721088435788,
+      "std": 0.10902720708785732,
+      "min": 0.08126984126982961,
+      "max": 0.3366893424036448
+    },
+    "Cmaj7": {
+      "average": 0.08126984126984382,
+      "std": 1.4210854715202004e-14,
+      "min": 0.08126984126982961,
+      "max": 0.08126984126985803
+    },
+    "D#sus4": {
+      "average": 0.15092970521541815,
+      "std": 0.0,
+      "min": 0.15092970521541815,
+      "max": 0.15092970521541815
+    },
+    "Esus4": {
+      "average": 0.08126984126982961,
+      "std": 0.0,
+      "min": 0.08126984126982961,
+      "max": 0.08126984126982961
+    },
+    "Gmaj7": {
+      "average": 0.07836734693876224,
+      "std": 0.0029024943310673734,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126982961
+    },
+    "F#maj7": {
+      "average": 0.11195335276967658,
+      "std": 0.030356782220517773,
+      "min": 0.08126984126982961,
+      "max": 0.17995464852606347
+    },
+    "Em7": {
+      "average": 0.08126984126985803,
+      "std": 2.842170943040401e-14,
+      "min": 0.08126984126982961,
+      "max": 0.08126984126988646
+    },
+    "F#7": {
+      "average": 0.07836734693876224,
+      "std": 0.0029024943310673734,
+      "min": 0.07546485260769487,
+      "max": 0.08126984126982961
+    },
+    "Am7": {
+      "average": 0.08126984126982961,
+      "std": 0.0,
+      "min": 0.08126984126982961,
+      "max": 0.08126984126982961
+    }
+  },
+  "total_chords": 5000,
+  "unique_chords": 48,
+  "total_transitions": 4999
+}

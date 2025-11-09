@@ -25,6 +25,9 @@ class MusicalPhase:
     musical_density: float  # 0.0 to 1.0
     dynamic_level: float  # 0.0 to 1.0
     silence_ratio: float  # 0.0 to 1.0
+    # Autonomous root progression (Phase 8)
+    root_hint_frequency: Optional[float] = None  # Hz (from Groven method)
+    harmonic_tension_target: Optional[float] = None  # 0.0-1.0 (0=consonant, 1=tense)
 
 @dataclass
 class PerformanceArc:

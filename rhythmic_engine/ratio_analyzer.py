@@ -399,20 +399,26 @@ class RatioAnalyzer:
         Returns:
             (subdivision, position) tuple
         """
-        indis_2 = np.array([1, 0])
-        indis_3 = np.array([2, 0, 1])
+        # Define indispensability templates for different meters
+        # Higher values = stronger beats (downbeat positions)
+        # Based on Brandtsegg's original implementation
+        indis_2 = np.array([1, 0])  # Duple: strong-weak (2/4, 4/4)
+        indis_3 = np.array([2, 0, 1])  # Triple: strong-weak-medium (3/4, 6/8)
+        
+        # Normalize to 0-1 range
         indis_3 = (indis_3 / np.max(indis_3))
         
-        # All indispensabilities (in increasing order of preference)
+        # Original Brandtsegg ordering
         indis_all = [indis_3, indis_2]
         for i in range(len(indis_all)):
             # Tile until long enough
             indis_all[i] = np.tile(indis_all[i], 
                                   int(np.ceil(len(trigger_seq) / len(indis_all[i])) + 1))
         
-        # Score table: [length, max_score, confidence, rotation]
-        indis_scores = np.array([[3, 0., 0., 0],
-                                [2, 0., 0., 0]])
+        # Score table: [pulse_value, max_score, confidence, rotation]
+        # Row index corresponds to indis_all ordering: [pulse_3, pulse_2]
+        indis_scores = np.array([[3, 0., 0., 0],  # Triple meter (3/4, triplets)
+                                [2, 0., 0., 0]])  # Duple meter (2/4, 4/4)
         
         for i in range(len(indis_all)):
             subscores = np.zeros(int(indis_scores[i][0]))
@@ -433,21 +439,30 @@ class RatioAnalyzer:
                     indis_scores[i, 3] = j
                     found_max = True
         
-        # Rank by score
+        # Rank by score (ascending order)
         ranked = np.argsort(indis_scores[:, 1])
-        subdiv = indis_scores[ranked[-1], 0]
-        position = indis_scores[ranked[-1], 3]
         
-        # Handle ties using confidence
-        test_best = 2
-        while test_best <= len(indis_scores):
-            if indis_scores[ranked[-test_best], 1] == indis_scores[ranked[-1], 1]:
-                if indis_scores[ranked[-test_best], 2] > indis_scores[ranked[-1], 2]:
-                    subdiv = indis_scores[ranked[-test_best]][0]
-                    position = indis_scores[ranked[-test_best]][3]
-            test_best += 1
-            if test_best > len(indis_scores):
-                break
+        # Get all indices with the maximum score (handle ties)
+        max_score = indis_scores[ranked[-1], 1]
+        tied_indices = [i for i in range(len(indis_scores)) if indis_scores[i, 1] == max_score]
+        
+        if len(tied_indices) > 1:
+            # Multiple pulses have same score - prefer by original ordering
+            # Pick the FIRST tied pulse in preference order
+            best_idx = tied_indices[0]
+            
+            # Also check confidence as tiebreaker
+            best_confidence = indis_scores[best_idx, 2]
+            for idx in tied_indices[1:]:
+                if indis_scores[idx, 2] > best_confidence:
+                    best_idx = idx
+                    best_confidence = indis_scores[idx, 2]
+        else:
+            # Clear winner
+            best_idx = ranked[-1]
+        
+        subdiv = indis_scores[best_idx, 0]
+        position = indis_scores[best_idx, 3]
         
         return int(subdiv), int(position)
     
@@ -589,6 +604,39 @@ class RatioAnalyzer:
         # Calculate pulse from trigger sequence
         trigger_seq = self.make_box_notation(np.array(best_dur_pattern))
         pulse, pulsepos = self.indispensability_subdiv(trigger_seq)
+        
+        # SMART HEURISTIC: If all durations equal (no rhythmic variety),
+        # use pattern length to infer meter instead of relying on indispensability
+        # This fixes misclassification of straight 8-beat patterns as pulse 3
+        all_equal = len(set(best_dur_pattern)) == 1
+        if all_equal:
+            pattern_length = len(best_dur_pattern)
+            
+            # Priority 1: Check for triplet feel (multiples of 3)
+            # BUT: If also divisible by 4, check which is a "cleaner" fit
+            if pattern_length % 3 == 0:
+                # Check if it's PRIMARILY triplet (e.g., 6, 9, 12, 15...)
+                # vs. PRIMARILY quadruple (e.g., 8, 16...)
+                if pattern_length % 12 == 0:
+                    # Both work equally (12, 24...) - prefer triplet for now
+                    # (User can override in training if needed)
+                    pulse = 3
+                    pulsepos = 0
+                elif pattern_length % 4 != 0:
+                    # Multiple of 3 but NOT 4 → definitely triplet
+                    pulse = 3
+                    pulsepos = 0
+                else:
+                    # Multiple of both - ambiguous, keep indispensability result
+                    pass
+            # Priority 2: Check for quadruple (multiples of 4)
+            elif pattern_length % 4 == 0 and pattern_length >= 4:
+                pulse = 4
+                pulsepos = 0
+            # Priority 3: Duple as safe default
+            else:
+                pulse = 2
+                pulsepos = 0
         
         # Calculate complexity
         complexity = self.dur_pattern_height(np.array(best_dur_pattern))

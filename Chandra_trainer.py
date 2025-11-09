@@ -46,6 +46,9 @@ from rhythmic_engine.memory.rhythm_oracle import RhythmOracle
 from correlation_engine.correlation_analyzer import HarmonicRhythmicCorrelator
 from correlation_engine.unified_decision_engine import UnifiedDecisionEngine, CrossModalContext
 
+# Harmonic detection for training (same as live performance)
+from listener.harmonic_context import RealtimeHarmonicDetector, HarmonicContext
+
 # GPT-OSS integration
 from gpt_oss_client import GPTOSSClient, GPTOSSAnalysis, GPTOSSArcAnalysis
 
@@ -145,6 +148,11 @@ class EnhancedHybridTrainingPipeline:
         self.correlation_analyzer = HarmonicRhythmicCorrelator()
         self.unified_decision_engine = UnifiedDecisionEngine()
         print("🔗 Harmonic-rhythmic correlation analysis enabled")
+        
+        # Initialize harmonic detector for training (same as live performance)
+        self.harmonic_detector = RealtimeHarmonicDetector(window_size=8192, hop_length=2048)
+        self.chord_sequence = []  # Track detected chords for transition analysis
+        print("🎼 Real-time harmonic detector enabled for training")
         
         # Initialize GPT-OSS client
         if enable_gpt_oss:
@@ -533,6 +541,14 @@ class EnhancedHybridTrainingPipeline:
         
         self.training_stats['total_events'] = len(events)
         
+        # NEW: Real-time chord detection for accurate harmonic transitions
+        print("\n🎼 Step 4a: Real-time Chord Detection...")
+        chord_detection_start = time.time()
+        events = self._detect_chords_for_events(events, audio_file)
+        chord_detection_time = time.time() - chord_detection_start
+        print(f"✅ Chord detection complete in {chord_detection_time:.2f}s")
+        self.training_stats['chord_detection_time'] = chord_detection_time
+        
         # NEW: Hybrid/Dual Perception Feature Augmentation (if enabled)
         if self.dual_perception:
             # Dual perception: Wav2Vec + Ratios
@@ -835,6 +851,19 @@ class EnhancedHybridTrainingPipeline:
             except Exception as e:
                 print(f"❌ Failed to save RhythmOracle model: {e}")
         
+        # Build and save harmonic transition graph for learned chord progressions
+        harmonic_transition_graph = self._build_harmonic_transition_graph()
+        if harmonic_transition_graph:
+            transition_graph_file = f"{model_base}_harmonic_transitions.json"
+            print(f"🎼 Saving harmonic transition graph to {transition_graph_file}...")
+            try:
+                with open(transition_graph_file, 'w') as f:
+                    json.dump(harmonic_transition_graph, f, indent=2)
+                print(f"✅ Harmonic transition graph saved successfully!")
+                print(f"   Use this with HarmonicProgressor for intelligent chord selection")
+            except Exception as e:
+                print(f"❌ Failed to save harmonic transition graph: {e}")
+        
         # Save PerformanceArc for timeline/structured performances
         if performance_arc:
             # Determine arc filename (use ai_learning_data/ directory for persistent models)
@@ -845,8 +874,26 @@ class EnhancedHybridTrainingPipeline:
             print(f"🎭 Saving PerformanceArc to {arc_file}...")
             try:
                 arc_dict = performance_arc.to_dict()
+                
+                # Convert NumPy types to Python native types for JSON serialization
+                def convert_numpy_types(obj):
+                    """Recursively convert NumPy types to Python native types"""
+                    if isinstance(obj, dict):
+                        return {key: convert_numpy_types(value) for key, value in obj.items()}
+                    elif isinstance(obj, list):
+                        return [convert_numpy_types(item) for item in obj]
+                    elif isinstance(obj, (np.integer, np.int32, np.int64)):
+                        return int(obj)
+                    elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                        return float(obj)
+                    elif isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    else:
+                        return obj
+                
+                arc_dict = convert_numpy_types(arc_dict)
+                
                 with open(arc_file, 'w') as f:
-                    import json
                     json.dump(arc_dict, f, indent=2)
                 print(f"✅ PerformanceArc saved successfully!")
                 print(f"📊 Arc contains: {len(performance_arc.phases)} phases, "
@@ -883,7 +930,6 @@ class EnhancedHybridTrainingPipeline:
             }
             
             try:
-                import json
                 with open(correlation_file, 'w') as f:
                     json.dump(correlation_data, f, indent=2)
                 
@@ -911,6 +957,30 @@ class EnhancedHybridTrainingPipeline:
                     print(f"✅ Saved percussive vocabulary to {percussive_vocab_file}")
                 except Exception as e:
                     print(f"⚠️  Failed to save percussive vocabulary: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # CRITICAL FIX: Also save gesture quantizer for pattern matching
+                # In dual vocabulary mode, we use harmonic quantizer as the main gesture quantizer
+                # (both harmonic and percussive are gesture quantizers, but we need one for backwards compatibility)
+                gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
+                try:
+                    # Save harmonic quantizer as the main gesture quantizer
+                    # (it's trained on Wav2Vec features just like percussive)
+                    if self.dual_perception.harmonic_quantizer and self.dual_perception.harmonic_quantizer.is_fitted:
+                        self.dual_perception.harmonic_quantizer.save(gesture_quantizer_file)
+                        print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
+                        # Verify file was created
+                        import os
+                        if os.path.exists(gesture_quantizer_file):
+                            file_size = os.path.getsize(gesture_quantizer_file) / 1024  # KB
+                            print(f"   📁 File verified: {file_size:.1f} KB")
+                        else:
+                            print(f"   ❌ ERROR: File not found after save!")
+                    else:
+                        print(f"⚠️  Harmonic quantizer not fitted - cannot save gesture quantizer")
+                except Exception as e:
+                    print(f"⚠️  Failed to save gesture quantizer: {e}")
                     import traceback
                     traceback.print_exc()
             else:
@@ -950,29 +1020,83 @@ class EnhancedHybridTrainingPipeline:
         return enhanced_output
     
     def _train_rhythm_oracle(self, rhythmic_result: RhythmicAnalysis):
-        """Train RhythmOracle with rhythmic analysis results"""
+        """
+        Train RhythmOracle with rhythmic analysis results
         
-        print("🥁 Training RhythmOracle with rhythmic patterns...")
+        Now uses rational_structure analysis for tempo-independent patterns.
+        Each detected pattern gets its duration pattern extracted from rational analysis.
+        """
+        
+        print("🥁 Training RhythmOracle with tempo-independent patterns...")
         
         # Add each detected pattern to the RhythmOracle
+        patterns_with_ratios = 0
+        patterns_without_ratios = 0
+        
         for pattern in rhythmic_result.patterns:
+            # Try to extract rational structure for this pattern's onsets
+            pattern_onsets = []
+            for onset_time in rhythmic_result.onsets:
+                if pattern.start_time <= onset_time <= pattern.end_time:
+                    pattern_onsets.append(onset_time)
+            
+            # Analyze rational structure for this pattern if enough onsets
+            duration_pattern = None
+            pulse = 4
+            complexity = 0.0
+            
+            if len(pattern_onsets) >= 3:
+                try:
+                    rational = self.rhythmic_analyzer.analyze_rational_structure(np.array(pattern_onsets))
+                    if rational:
+                        duration_pattern = rational['duration_pattern']
+                        pulse = rational['pulse']
+                        complexity = rational['complexity']
+                        patterns_with_ratios += 1
+                except Exception as e:
+                    print(f"   ⚠️  Could not analyze rational structure for pattern: {e}")
+            
+            # Fallback: create simple duration pattern if rational analysis failed
+            if not duration_pattern:
+                # Use simple interval-based pattern
+                if len(pattern_onsets) >= 2:
+                    intervals = np.diff(pattern_onsets)
+                    # Normalize to smallest interval
+                    min_interval = np.min(intervals)
+                    if min_interval > 0:
+                        duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
+                    else:
+                        duration_pattern = [2, 2, 2, 2]  # Default
+                else:
+                    duration_pattern = [2, 2, 2, 2]  # Default for insufficient data
+                patterns_without_ratios += 1
+            
             pattern_data = {
-                'tempo': pattern.tempo,
+                'duration_pattern': duration_pattern,
                 'density': pattern.density,
                 'syncopation': pattern.syncopation,
+                'pulse': pulse,
+                'complexity': complexity,
                 'meter': pattern.meter,
                 'pattern_type': pattern.pattern_type,
                 'confidence': pattern.confidence,
                 'context': {
                     'start_time': pattern.start_time,
                     'end_time': pattern.end_time,
-                    'complexity': rhythmic_result.rhythmic_complexity
+                    'num_onsets': len(pattern_onsets),
+                    'rhythmic_complexity': rhythmic_result.rhythmic_complexity
                 }
             }
             
             self.rhythm_oracle.add_rhythmic_pattern(pattern_data)
         
         print(f"✅ RhythmOracle trained with {len(rhythmic_result.patterns)} patterns")
+        print(f"   📊 {patterns_with_ratios} with rational structure, {patterns_without_ratios} with fallback")
+        
+        # Print statistics
+        stats = self.rhythm_oracle.get_rhythmic_statistics()
+        print(f"   📈 Avg density: {stats['avg_density']:.2f}, Avg syncopation: {stats['avg_syncopation']:.2f}")
+        print(f"   📈 Avg complexity: {stats['avg_complexity']:.2f}")
     
     def _convert_event_to_dict(self, event) -> Dict:
         """
@@ -2333,7 +2457,6 @@ class EnhancedHybridTrainingPipeline:
     
     def _save_json_with_progress(self, data, filepath):
         """Save JSON data with progress bar for large datasets"""
-        import json
         import time
         
         # Use global tqdm availability
@@ -2507,6 +2630,198 @@ class EnhancedHybridTrainingPipeline:
             'key_stability': key_stability,
             'chord_change_rate': chord_change_rate
         }
+    
+    def _detect_chords_for_events(self, events: List[Dict], audio_file: str) -> List[Dict]:
+        """
+        Detect accurate chords for each event using RealtimeHarmonicDetector
+        This replaces chroma-based chord detection with proper harmonic analysis
+        
+        Args:
+            events: List of event dictionaries
+            audio_file: Path to audio file
+            
+        Returns:
+            Enhanced events with accurate chord data
+        """
+        print("🎼 Detecting chords using RealtimeHarmonicDetector...")
+        
+        try:
+            import librosa
+            
+            # Load audio file once
+            y, sr = librosa.load(audio_file, sr=44100, mono=True)
+            
+            # Initialize chord sequence tracking
+            chord_sequence = []
+            
+            # Process each event
+            enhanced_events = []
+            for i, event in enumerate(events):
+                event_time = event.get('t', 0.0)
+                
+                # Extract audio segment around this event
+                # Use 1-second window centered on onset for robust detection
+                window_duration = 1.0  # seconds
+                start_time = max(0, event_time - window_duration / 2)
+                end_time = min(len(y) / sr, event_time + window_duration / 2)
+                
+                start_sample = int(start_time * sr)
+                end_sample = int(end_time * sr)
+                
+                # Extract audio buffer
+                audio_buffer = y[start_sample:end_sample]
+                
+                # Detect chord using RealtimeHarmonicDetector
+                if len(audio_buffer) > 0:
+                    harmonic_context = self.harmonic_detector.update_from_audio(audio_buffer, sr=sr)
+                    
+                    # Store chord data in event
+                    event_enhanced = event.copy()
+                    event_enhanced['realtime_chord'] = harmonic_context.current_chord
+                    event_enhanced['realtime_key'] = harmonic_context.key_signature
+                    event_enhanced['chord_confidence'] = harmonic_context.confidence
+                    event_enhanced['chord_stability'] = harmonic_context.stability
+                    event_enhanced['chord_root'] = harmonic_context.chord_root
+                    event_enhanced['chord_type'] = harmonic_context.chord_type
+                    event_enhanced['scale_degrees'] = harmonic_context.scale_degrees
+                    
+                    # Track chord sequence for transition analysis
+                    chord_sequence.append({
+                        'time': event_time,
+                        'chord': harmonic_context.current_chord,
+                        'key': harmonic_context.key_signature,
+                        'confidence': harmonic_context.confidence
+                    })
+                    
+                    enhanced_events.append(event_enhanced)
+                else:
+                    # Fallback if audio buffer is empty
+                    enhanced_events.append(event)
+                
+                # Progress indicator
+                if (i + 1) % 100 == 0 or i == len(events) - 1:
+                    progress = (i + 1) / len(events) * 100
+                    print(f"   Progress: {progress:.1f}% ({i+1}/{len(events)} events)", end='\r')
+            
+            print()  # New line after progress
+            
+            # Analyze chord distribution
+            from collections import Counter
+            chord_counts = Counter([cs['chord'] for cs in chord_sequence])
+            unique_chords = len(chord_counts)
+            
+            print(f"✅ Chord detection complete:")
+            print(f"   Total events: {len(enhanced_events)}")
+            print(f"   Unique chords: {unique_chords}")
+            if unique_chords > 0:
+                print(f"   Top 5 chords: {dict(chord_counts.most_common(5))}")
+            
+            # Store chord sequence for transition graph building
+            self.chord_sequence = chord_sequence
+            
+            return enhanced_events
+            
+        except Exception as e:
+            print(f"❌ Chord detection failed: {e}")
+            print(f"   Falling back to events without realtime chord data")
+            return events
+    
+    def _build_harmonic_transition_graph(self) -> Dict[str, Any]:
+        """
+        Build harmonic transition graph from detected chord sequence
+        Learns probabilities of chord transitions from training data
+        
+        Returns:
+            Dictionary containing transition probabilities and chord statistics
+        """
+        print("\n🎼 Building harmonic transition graph...")
+        
+        if not hasattr(self, 'chord_sequence') or len(self.chord_sequence) < 2:
+            print("   ⚠️  No chord sequence available - skipping transition graph")
+            return {}
+        
+        from collections import defaultdict, Counter
+        
+        # Count transitions
+        transitions = defaultdict(int)
+        chord_durations = defaultdict(list)
+        chord_frequencies = Counter()
+        
+        for i in range(len(self.chord_sequence) - 1):
+            current = self.chord_sequence[i]
+            next_chord = self.chord_sequence[i + 1]
+            
+            current_chord_name = current['chord']
+            next_chord_name = next_chord['chord']
+            
+            # Track transition
+            transition_key = (current_chord_name, next_chord_name)
+            transitions[transition_key] += 1
+            
+            # Track chord frequency
+            chord_frequencies[current_chord_name] += 1
+            
+            # Track duration (time between chord changes)
+            duration = next_chord['time'] - current['time']
+            chord_durations[current_chord_name].append(duration)
+        
+        # Add last chord frequency
+        if self.chord_sequence:
+            last_chord = self.chord_sequence[-1]['chord']
+            chord_frequencies[last_chord] += 1
+        
+        # Normalize transitions to probabilities
+        transition_probabilities = {}
+        for (from_chord, to_chord), count in transitions.items():
+            from_chord_count = chord_frequencies[from_chord]
+            if from_chord_count > 0:
+                probability = count / from_chord_count
+                transition_probabilities[f"{from_chord}->{to_chord}"] = {
+                    'probability': float(probability),
+                    'count': int(count),
+                    'from_chord_occurrences': int(from_chord_count)
+                }
+        
+        # Calculate average durations
+        avg_durations = {}
+        for chord, durations in chord_durations.items():
+            if durations:
+                avg_durations[chord] = {
+                    'average': float(np.mean(durations)),
+                    'std': float(np.std(durations)),
+                    'min': float(np.min(durations)),
+                    'max': float(np.max(durations))
+                }
+        
+        # Build graph structure
+        transition_graph = {
+            'transitions': transition_probabilities,
+            'chord_frequencies': {k: int(v) for k, v in chord_frequencies.items()},
+            'chord_durations': avg_durations,
+            'total_chords': len(self.chord_sequence),
+            'unique_chords': len(chord_frequencies),
+            'total_transitions': sum(transitions.values())
+        }
+        
+        # Print summary
+        print(f"✅ Transition graph built:")
+        print(f"   Total chord events: {transition_graph['total_chords']}")
+        print(f"   Unique chords: {transition_graph['unique_chords']}")
+        print(f"   Total transitions: {transition_graph['total_transitions']}")
+        print(f"   Top 5 chords: {dict(chord_frequencies.most_common(5))}")
+        
+        # Print top transitions
+        if transition_probabilities:
+            sorted_transitions = sorted(
+                transition_probabilities.items(),
+                key=lambda x: x[1]['count'],
+                reverse=True
+            )[:5]
+            print(f"   Top 5 transitions:")
+            for trans, data in sorted_transitions:
+                print(f"      {trans}: {data['probability']:.2%} ({data['count']} times)")
+        
+        return transition_graph
     
     def _print_training_summary(self):
         """Print training summary"""

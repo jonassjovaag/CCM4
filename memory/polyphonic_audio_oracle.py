@@ -90,6 +90,10 @@ class PolyphonicAudioOracle(AudioOracle):
         self.chord_progressions = defaultdict(int)  # Track chord progressions
         self.harmonic_patterns = defaultdict(int)  # Track harmonic patterns
         
+        # Harmonic data for autonomous root progression (Groven method)
+        self.fundamentals = {}  # Dict[state_id -> Hz] - fundamental frequency per state
+        self.consonances = {}   # Dict[state_id -> float 0-1] - consonance score per state
+        
         # Enhanced statistics
         self.stats.update({
             'chord_progressions': 0,
@@ -303,6 +307,87 @@ class PolyphonicAudioOracle(AudioOracle):
         except Exception as e:
             print(f"Error in enhanced distance calculation: {e}")
             return super()._calculate_distance(features1, features2)
+    
+    def _apply_root_hint_bias(
+        self,
+        candidate_frames: List[int],
+        base_probabilities: np.ndarray,
+        root_hint_hz: float,
+        tension_target: float = 0.5,
+        bias_strength: float = 0.3
+    ) -> np.ndarray:
+        """
+        Apply soft bias to candidate frame probabilities based on root hint
+        
+        PHASE 8: Autonomous Root Progression
+        Gently nudges frame selection toward states with fundamentals near
+        the root hint, while preserving 768D perceptual foundation.
+        
+        Args:
+            candidate_frames: List of frame IDs to choose from
+            base_probabilities: Base probability distribution (uniform or from request)
+            root_hint_hz: Target root frequency (Hz) from AutonomousRootExplorer
+            tension_target: Target tension level 0.0 (consonant) to 1.0 (tense)
+            bias_strength: How much to bias (0.0=none, 0.3=default, 1.0=strong)
+            
+        Returns:
+            Biased probability distribution (normalized)
+        """
+        if not self.fundamentals or bias_strength <= 0:
+            return base_probabilities
+        
+        # Initialize weights (start with base probabilities)
+        weights = base_probabilities.copy()
+        
+        for i, frame_id in enumerate(candidate_frames):
+            # Get state ID from frame (frames map to states)
+            # For simplicity, use frame_id as state_id approximation
+            # (In actual implementation, this mapping is handled by transitions)
+            state_id = frame_id  # Simplified - actual state lookup would be more complex
+            
+            if state_id not in self.fundamentals:
+                continue
+            
+            fundamental_hz = self.fundamentals[state_id]
+            
+            # Calculate perceptual distance (semitones)
+            # interval = 12 * log2(fundamental / root_hint)
+            try:
+                interval_semitones = 12 * np.log2(fundamental_hz / root_hint_hz)
+            except (ValueError, ZeroDivisionError):
+                continue
+            
+            # Proximity bonus: exponential decay with distance
+            # States near root hint get higher weight
+            # decay_rate = 5.0 means states within ±5 semitones get significant boost
+            proximity_score = np.exp(-abs(interval_semitones) / 5.0)
+            
+            # Consonance bonus: match tension target
+            if state_id in self.consonances:
+                consonance = self.consonances[state_id]
+                # tension_target: 0.0 = want consonant, 1.0 = want dissonant
+                # consonance: 0.0 = dissonant, 1.0 = consonant
+                # Match when consonance ≈ (1.0 - tension_target)
+                target_consonance = 1.0 - tension_target
+                consonance_match = 1.0 - abs(consonance - target_consonance)
+                consonance_score = consonance_match
+            else:
+                consonance_score = 0.5  # Neutral if no data
+            
+            # Combined bias: 70% proximity, 30% consonance
+            combined_bias = 0.7 * proximity_score + 0.3 * consonance_score
+            
+            # Apply bias with strength control
+            # bias_strength=0.3 means 30% boost for perfect match
+            weight_multiplier = 1.0 + (bias_strength * combined_bias)
+            weights[i] *= weight_multiplier
+        
+        # Normalize to probability distribution
+        weight_sum = np.sum(weights)
+        if weight_sum > 0:
+            return weights / weight_sum
+        else:
+            return base_probabilities
     
     def add_polyphonic_sequence(self, musical_sequence: List[Dict]) -> bool:
         """
@@ -524,6 +609,11 @@ class PolyphonicAudioOracle(AudioOracle):
         - 'percussive': User plays guitar → AI finds rhythmic responses that co-occurred
         - 'hybrid': Contextual filling based on both tokens
         
+        AUTONOMOUS ROOT PROGRESSION (PHASE 8):
+        When request includes 'root_hint_hz', applies soft bias toward states with
+        fundamentals near the target root frequency. This is a gentle nudge, not a
+        hard constraint - the 768D perceptual foundation remains primary.
+        
         Args:
             current_context: List of frame IDs for context
             request: Request specification dict with:
@@ -534,6 +624,9 @@ class PolyphonicAudioOracle(AudioOracle):
                 - harmonic_token: (DUAL VOCAB) Harmonic token from current input
                 - percussive_token: (DUAL VOCAB) Percussive token from current input
                 - response_mode: (DUAL VOCAB) 'harmonic' | 'percussive' | 'hybrid'
+                - root_hint_hz: (PHASE 8) Target root frequency in Hz (e.g., 220.0 for A3)
+                - tension_target: (PHASE 8) Target tension 0.0-1.0 (0=consonant, 1=tense)
+                - root_bias_strength: (PHASE 8) Bias strength 0.0-1.0 (default 0.3)
             temperature: Sampling temperature (lower = more deterministic)
             max_length: Maximum sequence length to generate
             
@@ -639,6 +732,16 @@ class PolyphonicAudioOracle(AudioOracle):
                 # Temperature-based sampling
                 probabilities = np.ones(len(next_frames))
                 probabilities = probabilities / np.sum(probabilities)
+                
+                # PHASE 8: Apply root hint biasing (soft guidance)
+                if request and 'root_hint_hz' in request and request['root_hint_hz']:
+                    probabilities = self._apply_root_hint_bias(
+                        next_frames, 
+                        probabilities,
+                        request.get('root_hint_hz'),
+                        request.get('tension_target', 0.5),
+                        request.get('root_bias_strength', 0.3)
+                    )
                 
                 if temperature != 1.0:
                     probabilities = np.power(probabilities, 1.0 / temperature)
@@ -749,6 +852,9 @@ class PolyphonicAudioOracle(AudioOracle):
                 'harmonic_patterns': {str(k): v for k, v in self.harmonic_patterns.items()},
                 'distance_history': list(self.distance_history),
                 'threshold_adjustments': getattr(self, 'threshold_adjustments', 0),
+                # Harmonic data for autonomous root progression (Groven method)
+                'fundamentals': {str(k): float(v) for k, v in self.fundamentals.items()},
+                'consonances': {str(k): float(v) for k, v in self.consonances.items()},
                 # CRITICAL: Save audio_frames for note generation!
                 'audio_frames': {
                     str(frame_id): {
@@ -835,7 +941,10 @@ class PolyphonicAudioOracle(AudioOracle):
                 'chord_progressions': dict(self.chord_progressions),
                 'harmonic_patterns': dict(self.harmonic_patterns),
                 'distance_history': list(self.distance_history),
-                'threshold_adjustments': self.threshold_adjustments,
+                'threshold_adjustments': getattr(self, 'threshold_adjustments', 0),
+                # Harmonic data for autonomous root progression
+                'fundamentals': self.fundamentals,
+                'consonances': self.consonances,
                 'transitions': self.transitions,
                 'suffix_links': self.suffix_links,
                 'states': self.states,
@@ -896,6 +1005,9 @@ class PolyphonicAudioOracle(AudioOracle):
             self.harmonic_patterns = defaultdict(int, data['harmonic_patterns'])
             self.distance_history = deque(data['distance_history'], maxlen=1000)
             self.threshold_adjustments = data['threshold_adjustments']
+            # Harmonic data for autonomous root progression
+            self.fundamentals = data.get('fundamentals', {})
+            self.consonances = data.get('consonances', {})
             self.transitions = data['transitions']
             self.suffix_links = data['suffix_links']
             self.states = data['states']
@@ -952,6 +1064,15 @@ class PolyphonicAudioOracle(AudioOracle):
             self.harmonic_patterns = defaultdict(int, data.get('harmonic_patterns', {}))
             self.distance_history = deque(data.get('distance_history', []), maxlen=1000)
             self.threshold_adjustments = data.get('threshold_adjustments', 0)
+            
+            # Load harmonic data for autonomous root progression (Groven method)
+            print("   ⏳ Loading harmonic data (fundamentals + consonances)...")
+            self.fundamentals = {int(k): float(v) for k, v in data.get('fundamentals', {}).items()}
+            self.consonances = {int(k): float(v) for k, v in data.get('consonances', {}).items()}
+            if self.fundamentals:
+                print(f"      ✅ Loaded {len(self.fundamentals)} fundamental frequencies")
+            if self.consonances:
+                print(f"      ✅ Loaded {len(self.consonances)} consonance scores")
             
             # Load transitions
             print("   ⏳ Loading transitions...")

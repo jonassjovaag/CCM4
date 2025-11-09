@@ -8,6 +8,8 @@ This module bridges the gap between rhythmic analysis and musical expression:
 - Generates connected musical phrases (not single notes)
 - Implements silence/buildup/release musical arcs
 - Creates human-like musical timing and feel
+- INTERVAL-BASED HARMONIC TRANSLATION: Preserves learned melodic gestures
+  while adapting to current harmonic context
 """
 
 import time
@@ -16,6 +18,10 @@ import numpy as np
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+# Interval-based harmonic translation components
+from .interval_extractor import IntervalExtractor
+from .harmonic_translator import HarmonicTranslator
 
 @dataclass
 class MusicalPhrase:
@@ -50,10 +56,20 @@ class PhraseGenerator:
     - Voice-specific character (melody vs bass)
     """
     
-    def __init__(self, rhythm_oracle, audio_oracle=None, enable_silence: bool = True, visualization_manager=None):
+    def __init__(self, rhythm_oracle, audio_oracle=None, enable_silence: bool = True, 
+                 visualization_manager=None, harmonic_progressor=None, 
+                 harmonic_context_manager=None):
         self.rhythm_oracle = rhythm_oracle
         self.audio_oracle = audio_oracle  # AudioOracle for learned patterns
         self.visualization_manager = visualization_manager
+        self.harmonic_progressor = harmonic_progressor  # Learned harmonic progressions
+        self.harmonic_context_manager = harmonic_context_manager  # Manual override system
+        
+        # INTERVAL-BASED HARMONIC TRANSLATION
+        self.interval_extractor = IntervalExtractor()
+        self.harmonic_translator = HarmonicTranslator(
+            scale_constraint_func=self._apply_scale_constraint
+        )
         
         # Phrase-based context buffer for AudioOracle matching
         self.recent_human_notes = []  # List of recent human MIDI notes
@@ -98,9 +114,16 @@ class PhraseGenerator:
         self.current_chord = "C"
         self.scale_degrees = [0, 2, 4, 5, 7, 9, 11]  # C major
         
-        # DRAMATICALLY EXPANDED RANGES for maximum variety - ADJUSTMENT REQUESTED
-        self.melodic_range = (60, 96)   # C4 to C7 (3 octaves - expressive lead)
+        # MELODIC ENHANCEMENT: Narrower ranges for more singable, coherent melodies
+        # Changed from (60, 96) to (48, 72) for better melodic focus
+        self.melodic_range = (48, 72)   # C3 to C5 (2 octaves - singable lead range)
         self.bass_range = (36, 60)      # C2 to C4 (2 octaves - foundation)
+        
+        # Melodic constraints for more coherent lines
+        self.max_leap = 7              # Max interval jump (perfect 5th)
+        self.prefer_steps = 0.7        # 70% probability for stepwise motion
+        self.penalize_tritone = True   # Avoid augmented 4th/diminished 5th
+        self.scale_constraint = True   # Prefer diatonic notes in current key
     
     def track_event(self, event_data: Dict, source: str = 'human'):
         """
@@ -226,13 +249,14 @@ class PhraseGenerator:
         """
         Query RhythmOracle for rhythmic phrasing pattern based on current context
         
+        NOW TEMPO-INDEPENDENT: Queries with duration patterns and scales to current tempo.
         This provides WHEN/HOW to phrase notes (complements AudioOracle's WHAT notes)
         
         Args:
-            current_context: Dict with tempo, density, syncopation from Brandtsegg analysis
+            current_context: Dict with duration_pattern, density, syncopation, pulse
             
         Returns:
-            Dict with rhythmic phrasing parameters or None if unavailable
+            Dict with rhythmic phrasing parameters (including onsets at current tempo) or None
         """
         print(f"🥁 DEBUG: _get_rhythmic_phrasing_from_oracle called, rhythm_oracle={self.rhythm_oracle is not None}")
         
@@ -246,23 +270,37 @@ class PhraseGenerator:
             if not human_events:
                 return None
             
-            # Extract rhythmic features from recent input
-            tempos = [e.get('tempo', 120.0) for e in human_events if 'tempo' in e]
+            # Extract TEMPO-INDEPENDENT rhythmic features from recent input
+            # Calculate duration pattern from recent onsets
+            recent_onsets = [e.get('t', 0.0) for e in human_events if 't' in e]
+            
+            # Analyze current rhythm ratios
+            duration_pattern = [2, 2, 2, 2]  # Default
+            if len(recent_onsets) >= 3:
+                intervals = np.diff(recent_onsets)
+                if len(intervals) > 0:
+                    min_interval = np.min(intervals)
+                    if min_interval > 0:
+                        duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
+            
+            # Extract other tempo-free features
             densities = [e.get('density', 0.5) for e in human_events if 'density' in e]
             syncopations = [e.get('syncopation', 0.0) for e in human_events if 'syncopation' in e]
+            pulses = [e.get('pulse', 4) for e in human_events if 'pulse' in e]
             
             current_context = {
-                'tempo': float(np.mean(tempos)) if tempos else 120.0,
+                'duration_pattern': duration_pattern,
                 'density': float(np.mean(densities)) if densities else 0.5,
-                'syncopation': float(np.mean(syncopations)) if syncopations else 0.0
+                'syncopation': float(np.mean(syncopations)) if syncopations else 0.0,
+                'pulse': int(np.median(pulses)) if pulses else 4
             }
         
-        # Query RhythmOracle for similar patterns
+        # Query RhythmOracle for similar patterns (TEMPO-FREE MATCHING)
         try:
             print(f"🥁 DEBUG: Querying RhythmOracle with context: {current_context}")
             similar_patterns = self.rhythm_oracle.find_similar_patterns(
                 current_context, 
-                threshold=0.6  # 60% similarity threshold
+                threshold=0.3  # 30% similarity threshold (lowered due to density scale mismatch - query uses normalized 0-1, patterns use absolute events/sec)
             )
             print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
             
@@ -270,10 +308,53 @@ class PhraseGenerator:
                 # Use most similar pattern (first in sorted list)
                 best_pattern, similarity = similar_patterns[0]
                 
+                # Estimate current tempo from recent events (for scaling pattern to playback)
+                # IMPROVED: Detect subdivision level to avoid tempo inflation
+                human_events = self._get_recent_human_events(n=10)
+                current_tempo = 120.0  # Default
+                if len(human_events) >= 2:
+                    recent_onsets = [e.get('t', 0.0) for e in human_events if 't' in e]
+                    if len(recent_onsets) >= 2:
+                        avg_interval = np.mean(np.diff(recent_onsets))
+                        if avg_interval > 0:
+                            # Calculate raw tempo (assuming each interval = 1 beat)
+                            raw_tempo = 60.0 / avg_interval
+                            
+                            # SMART SUBDIVISION DETECTION:
+                            # If raw tempo > 180, likely playing 8th/16th notes, not quarter notes
+                            # Common subdivisions: 1/4, 1/8, 1/16
+                            # Divide by subdivision factor to get actual quarter-note tempo
+                            if raw_tempo > 350:
+                                # Likely 16th notes (1/4 of quarter note)
+                                current_tempo = raw_tempo / 4.0
+                                subdivision = "16th notes"
+                            elif raw_tempo > 180:
+                                # Likely 8th notes (1/2 of quarter note)
+                                current_tempo = raw_tempo / 2.0
+                                subdivision = "8th notes"
+                            else:
+                                # Likely quarter notes or slower
+                                current_tempo = raw_tempo
+                                subdivision = "quarter notes"
+                            
+                            # Clamp to reasonable range (after subdivision correction)
+                            current_tempo = max(60.0, min(200.0, current_tempo))
+                            
+                            print(f"🥁 DEBUG: Tempo estimation - avg_interval={avg_interval:.3f}s, "
+                                  f"raw_tempo={raw_tempo:.1f} BPM, subdivision={subdivision}, "
+                                  f"corrected_tempo={current_tempo:.1f} BPM")
+                
+                # Scale pattern to current tempo using to_absolute_timing()
+                absolute_onsets = best_pattern.to_absolute_timing(current_tempo, start_time=0.0)
+                
                 rhythmic_phrasing = {
-                    'tempo': best_pattern.tempo,
+                    'duration_pattern': best_pattern.duration_pattern,
+                    'absolute_onsets': absolute_onsets,  # Scaled to current tempo
+                    'current_tempo': current_tempo,  # For reference
                     'density': best_pattern.density,
                     'syncopation': best_pattern.syncopation,
+                    'pulse': best_pattern.pulse,
+                    'complexity': best_pattern.complexity,
                     'pattern_type': best_pattern.pattern_type,
                     'pattern_id': best_pattern.pattern_id,
                     'confidence': best_pattern.confidence * similarity,  # Scale by similarity
@@ -281,8 +362,21 @@ class PhraseGenerator:
                 }
                 
                 print(f"🥁 RhythmOracle phrasing: pattern={best_pattern.pattern_id}, "
-                      f"tempo={best_pattern.tempo:.1f}, density={best_pattern.density:.2f}, "
-                      f"similarity={similarity:.2f}")
+                      f"duration={best_pattern.duration_pattern}, tempo={current_tempo:.1f} BPM, "
+                      f"density={best_pattern.density:.2f}, similarity={similarity:.2f}")
+                
+                # 🎨 Emit RhythmOracle data to viewport (using dedicated rhythm_oracle_signal)
+                if self.visualization_manager:
+                    duration_str = str(best_pattern.duration_pattern[:8]) + ('...' if len(best_pattern.duration_pattern) > 8 else '')
+                    self.visualization_manager.emit_rhythm_oracle(
+                        pattern_id=best_pattern.pattern_id,
+                        tempo=current_tempo,
+                        density=best_pattern.density,
+                        similarity=similarity,
+                        duration_pattern=duration_str,
+                        pulse=best_pattern.pulse,
+                        syncopation=best_pattern.syncopation
+                    )
                 
                 return rhythmic_phrasing
             else:
@@ -291,6 +385,8 @@ class PhraseGenerator:
                 
         except Exception as e:
             print(f"⚠️ RhythmOracle query failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _apply_rhythmic_phrasing_to_timing(self, rhythmic_phrasing: Dict, num_notes: int, 
@@ -298,10 +394,11 @@ class PhraseGenerator:
         """
         Convert rhythmic phrasing parameters into actual note timing array
         
+        NOW TEMPO-INDEPENDENT: Uses absolute_onsets from RhythmOracle pattern scaled to current tempo.
         This is where RhythmOracle patterns become actual MIDI timing!
         
         Args:
-            rhythmic_phrasing: Dict with tempo, density, syncopation from RhythmOracle
+            rhythmic_phrasing: Dict with absolute_onsets (already scaled to current tempo)
             num_notes: Number of notes to generate timings for
             voice_type: "melodic" or "bass" for context
             
@@ -313,14 +410,30 @@ class PhraseGenerator:
             base = 0.5 if voice_type == "melodic" else 1.0
             return [base] * num_notes
         
-        # Extract rhythmic parameters
-        tempo = rhythmic_phrasing.get('tempo', 120.0)
+        # Use pre-scaled absolute onsets from RhythmOracle pattern
+        if 'absolute_onsets' in rhythmic_phrasing:
+            absolute_onsets = rhythmic_phrasing['absolute_onsets']
+            
+            # Convert to inter-onset intervals
+            if len(absolute_onsets) > 0:
+                intervals = []
+                for i in range(len(absolute_onsets) - 1):
+                    intervals.append(absolute_onsets[i+1] - absolute_onsets[i])
+                
+                # If we need more notes than pattern length, repeat pattern
+                while len(intervals) < num_notes:
+                    intervals.extend(intervals[:min(len(intervals), num_notes - len(intervals))])
+                
+                # Trim to exact number of notes needed
+                return intervals[:num_notes]
+        
+        # Fallback: use density/syncopation if no absolute_onsets
+        # (This should rarely happen now that we have duration patterns)
+        tempo = rhythmic_phrasing.get('current_tempo', 120.0)
         density = rhythmic_phrasing.get('density', 0.5)
         syncopation = rhythmic_phrasing.get('syncopation', 0.0)
         
         # Calculate base inter-onset interval from tempo
-        # tempo = BPM = beats per minute
-        # IOI in seconds = 60 / tempo
         beat_duration = 60.0 / tempo  # e.g., 120 BPM = 0.5 seconds per beat
         
         # Density affects note spacing:
@@ -337,8 +450,6 @@ class PhraseGenerator:
         base_ioi = beat_duration * spacing_multiplier
         
         # Apply syncopation as timing variation
-        # High syncopation → more varied timing offsets
-        # Low syncopation → steady, on-beat timing
         syncopation_amount = syncopation * 0.3  # Max 30% deviation
         
         timings = []
@@ -358,6 +469,125 @@ class PhraseGenerator:
               f"syncopation={syncopation:.2f} → avg_IOI={np.mean(timings):.3f}s")
         
         return timings
+    
+    # ========================================
+    # Melodic Constraint Helpers (Phase 2-4)
+    # ========================================
+    
+    def _apply_scale_constraint(self, note: int, scale_degrees: List[int] = None) -> int:
+        """
+        Phase 2: Snap note to nearest scale degree for more diatonic melodies
+        
+        Args:
+            note: MIDI note number to constrain
+            scale_degrees: List of scale degrees [0,2,4,5,7,9,11] for major, etc.
+            
+        Returns:
+            MIDI note snapped to nearest scale degree
+        """
+        if not self.scale_constraint:
+            return note
+        
+        if scale_degrees is None:
+            scale_degrees = self.scale_degrees  # Use default (C major)
+        
+        # Get the note's pitch class (0-11)
+        pitch_class = note % 12
+        
+        # Find nearest scale degree
+        min_distance = float('inf')
+        nearest_degree = pitch_class
+        
+        for degree in scale_degrees:
+            # Calculate distance (wrapping around octave)
+            distance = min(abs(pitch_class - degree), abs(pitch_class - degree + 12), abs(pitch_class - degree - 12))
+            if distance < min_distance:
+                min_distance = distance
+                nearest_degree = degree
+        
+        # Calculate adjustment
+        adjustment = nearest_degree - pitch_class
+        
+        # Handle wrapping (e.g., B -> C is +1, not +11)
+        if adjustment > 6:
+            adjustment -= 12
+        elif adjustment < -6:
+            adjustment += 12
+        
+        return note + adjustment
+    
+    def _calculate_interval_penalty(self, interval: int) -> float:
+        """
+        Phase 3: Calculate penalty for large melodic leaps
+        
+        Args:
+            interval: Interval in semitones (can be negative)
+            
+        Returns:
+            Penalty multiplier [0.0, 1.0] where 1.0 = no penalty, 0.0 = maximum penalty
+        """
+        if not self.penalize_tritone and abs(interval) <= self.max_leap:
+            return 1.0  # No penalty if constraints disabled
+        
+        abs_interval = abs(interval)
+        
+        # Tritone penalty (augmented 4th / diminished 5th)
+        if self.penalize_tritone and abs_interval == 6:
+            return 0.1  # Strong penalty for tritone
+        
+        # Leap penalty (beyond perfect 5th)
+        if abs_interval > self.max_leap:
+            # Gradually increase penalty for larger leaps
+            # Perfect 5th (7) = baseline
+            # Minor 6th (8) = 0.8 penalty
+            # Major 6th (9) = 0.6 penalty
+            # Minor 7th (10) = 0.4 penalty
+            # Octave (12) = 0.2 penalty
+            excess = abs_interval - self.max_leap
+            penalty = max(0.2, 1.0 - (excess * 0.2))
+            return penalty
+        
+        # Small intervals: no penalty
+        return 1.0
+    
+    def _apply_contour_smoothing(self, notes: List[int], i: int, interval: int, 
+                                 previous_direction: int) -> int:
+        """
+        Phase 4: Smooth melodic contour to create arch-like melodies
+        
+        Args:
+            notes: List of notes generated so far
+            i: Current index in note generation
+            interval: Proposed interval for next note
+            previous_direction: Previous melodic direction (-1, 0, 1)
+            
+        Returns:
+            Adjusted interval (may be reversed for contour smoothing)
+        """
+        if i < 2 or len(notes) < 2:
+            return interval  # Need at least 2 notes for direction detection
+        
+        current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
+        
+        # Detect if we've been moving in same direction for 2+ steps
+        if current_direction == previous_direction and previous_direction != 0:
+            # Calculate "run length" - how many steps in same direction?
+            run_length = 1
+            for j in range(len(notes) - 1, 0, -1):
+                if (notes[j] - notes[j-1]) * previous_direction > 0:
+                    run_length += 1
+                else:
+                    break
+            
+            # Bias toward direction reversal based on run length
+            # Longer runs = stronger reversal bias
+            reversal_probability = min(0.8, 0.3 + (run_length * 0.15))
+            
+            if random.random() < reversal_probability:
+                # Reverse direction to create arch-like contour
+                return -interval
+        
+        return interval
     
     def _build_shadowing_request(self, mode_params: Dict = None) -> Dict:
         """
@@ -561,16 +791,49 @@ class PhraseGenerator:
         mode_upper = mode.upper()
         
         if mode_upper == 'SHADOW':
-            return self._build_shadowing_request(mode_params)
+            request = self._build_shadowing_request(mode_params)
         elif mode_upper == 'MIRROR':
-            return self._build_mirroring_request(mode_params)
+            request = self._build_mirroring_request(mode_params)
         elif mode_upper == 'COUPLE':
-            return self._build_coupling_request(mode_params)
+            request = self._build_coupling_request(mode_params)
         elif mode_upper in ['IMITATE', 'CONTRAST', 'LEAD']:
             # Use shadowing as fallback for compatibility
-            return self._build_shadowing_request(mode_params)
+            request = self._build_shadowing_request(mode_params)
         else:
-            return None
+            request = None
+        
+        # PHASE 8: Add root hints from mode_params (from PerformanceState)
+        if request and mode_params:
+            request = self._add_root_hints_to_request(request, mode_params)
+        
+        return request
+    
+    def _add_root_hints_to_request(self, request: Dict, mode_params: Dict) -> Dict:
+        """
+        Add autonomous root progression hints to request
+        
+        PHASE 8: If mode_params contains root_hint_hz and tension_target
+        (from PerformanceTimelineManager → PerformanceState), add them
+        to the AudioOracle request for soft biasing.
+        
+        Args:
+            request: Existing request dict
+            mode_params: Parameters from calling context (may contain root hints)
+            
+        Returns:
+            Request dict with root hints added (if available)
+        """
+        if 'root_hint_hz' in mode_params and mode_params['root_hint_hz']:
+            request['root_hint_hz'] = mode_params['root_hint_hz']
+            
+        if 'tension_target' in mode_params and mode_params['tension_target'] is not None:
+            request['tension_target'] = mode_params['tension_target']
+        
+        # Optionally override bias strength
+        if 'root_bias_strength' in mode_params:
+            request['root_bias_strength'] = mode_params['root_bias_strength']
+        
+        return request
     
     def generate_phrase(self, current_event: Dict, voice_type: str, 
                        mode: str, harmonic_context: Dict, temperature: float = 0.8, 
@@ -650,8 +913,8 @@ class PhraseGenerator:
                 
                 return phrase
         
-        # Update harmonic context
-        self._update_harmonic_context(harmonic_context)
+        # Update harmonic context (with learned progression if available)
+        self._update_harmonic_context(harmonic_context, behavioral_mode=mode)
         
         # Build request based on mode (for AudioOracle pattern matching)
         request = self._build_request_for_mode(mode)
@@ -736,12 +999,55 @@ class PhraseGenerator:
         
         return self.current_arc
     
-    def _update_harmonic_context(self, harmonic_context: Dict):
-        """Update harmonic context for phrase generation"""
+    def _update_harmonic_context(self, harmonic_context: Dict, behavioral_mode: str = None):
+        """Update harmonic context for phrase generation
+        
+        If harmonic_progressor is available and enabled, will intelligently
+        choose next chord based on learned progressions + behavioral mode.
+        Otherwise, uses detected chord from harmonic_context.
+        """
         if not harmonic_context:
             return
+        
+        # Get detected chord from context
+        detected_chord = harmonic_context.get('current_chord', 'C')
+        detected_confidence = harmonic_context.get('chord_confidence', 0.0)
+        
+        # UPDATE HARMONIC CONTEXT MANAGER with detection
+        if self.harmonic_context_manager:
+            self.harmonic_context_manager.set_detected_chord(detected_chord, detected_confidence)
+            # Get active chord (override if active, otherwise detected)
+            active_chord = self.harmonic_context_manager.get_active_chord()
+        else:
+            # Fallback if no context manager
+            active_chord = detected_chord
+        
+        # LEARNED HARMONIC PROGRESSION: Choose next chord intelligently
+        # Use ACTIVE chord (which respects manual overrides) as starting point
+        if self.harmonic_progressor and self.harmonic_progressor.enabled and behavioral_mode:
+            # Map behavioral modes (SHADOW/MIRROR/COUPLE match HarmonicProgressor modes)
+            chosen_chord = self.harmonic_progressor.choose_next_chord(
+                current_chord=active_chord,  # ← Use active chord (respects override)
+                behavioral_mode=behavioral_mode,
+                temperature=0.8  # Could be parameterized
+            )
             
-        self.current_chord = harmonic_context.get('current_chord', 'C')
+            # Log decision for transparency
+            if chosen_chord != active_chord:
+                explanation = self.harmonic_progressor.explain_choice(
+                    current_chord=active_chord,
+                    chosen_chord=chosen_chord,
+                    behavioral_mode=behavioral_mode
+                )
+                print(f"🎼 Harmonic progression: {active_chord} → {chosen_chord}")
+                print(f"   {explanation}")
+            
+            # Use chosen chord for phrase generation
+            self.current_chord = chosen_chord
+        else:
+            # Fallback: use active chord (respects manual override)
+            self.current_chord = active_chord
+            
         key_name = harmonic_context.get('key_signature', 'C_major')
         
         # Parse key and mode
@@ -838,22 +1144,35 @@ class PhraseGenerator:
                     print(f"🔍 Oracle returned: {len(generated_frames) if generated_frames else 0} frames")  # DEBUG
                     
                     if generated_frames and len(generated_frames) > 0:
-                        # Extract MIDI notes from generated frame IDs
-                        oracle_notes = []
-                        for frame_id in generated_frames:
-                            # frame_id is an integer index into audio_frames
-                            if isinstance(frame_id, int) and frame_id < len(self.audio_oracle.audio_frames):
-                                frame_obj = self.audio_oracle.audio_frames[frame_id]
-                                audio_data = frame_obj.audio_data
-                                
-                                # Try to extract MIDI note
-                                if 'midi_note' in audio_data:
-                                    oracle_notes.append(int(audio_data['midi_note']))
-                                elif 'pitch_hz' in audio_data and audio_data['pitch_hz'] > 0:
-                                    # Convert Hz to MIDI
-                                    import math
-                                    midi_note = int(round(69 + 12 * math.log2(audio_data['pitch_hz'] / 440.0)))
-                                    oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION
+                        # Extract intervals instead of absolute MIDI notes
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            # Build harmonic context for translation
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            # Translate intervals to MIDI using harmonic context
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint  # Use existing flag
+                            )
+                            
+                            print(f"✅ Interval Translation: {len(intervals)} intervals → {len(oracle_notes)} MIDI notes")
+                            print(f"   Intervals: {intervals[:5]}...")
+                            print(f"   MIDI output: {oracle_notes[:5]}... (in {self.current_key})")
+                        else:
+                            oracle_notes = None
+                            print(f"⚠️  No intervals extracted from {len(generated_frames)} frames")
                         print(f"🔍 Extracted {len(oracle_notes)} notes from {len(generated_frames)} frames: {oracle_notes[:5]}...")  # DEBUG
             except Exception as e:
                 # Silently fall back to random generation
@@ -978,14 +1297,22 @@ class PhraseGenerator:
                 chosen_magnitude = random.choices(interval_choices, weights=probs)[0]
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
                 
-                # Melodic contour: Favor direction changes after 2-3 steps in same direction
-                # This creates arch-like melodies (up then down, or down then up)
-                if i >= 2:  # Need at least 2 previous notes to detect direction
+                # PHASE 4: Apply contour smoothing (arch-like melodies)
+                if voice_type == "melodic":
+                    interval = self._apply_contour_smoothing(notes, i, interval, previous_direction)
+                
+                # PHASE 3: Apply interval leap penalty (prefer small intervals)
+                # Re-roll interval if it has high penalty
+                if voice_type == "melodic":
+                    penalty = self._calculate_interval_penalty(interval)
+                    if penalty < 1.0 and random.random() > penalty:
+                        # Penalty failed - choose smaller interval
+                        # Fall back to stepwise motion (most melodic)
+                        interval = random.choice([-2, -1, 1, 2])  # Step only
+                
+                # Track melodic direction for contour analysis
+                if i >= 2:
                     current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
-                    if current_direction == previous_direction and previous_direction != 0:
-                        # Same direction for 2+ steps - bias toward reversing
-                        if random.random() < 0.4:  # 40% chance to force direction change
-                            interval = -interval  # Reverse direction
                     previous_direction = current_direction
                 
                 note = previous_note + interval
@@ -1001,6 +1328,10 @@ class PhraseGenerator:
                 
                 # Final clamping to ensure note is in range
                 note = max(min_note, min(note, max_note))
+                
+                # PHASE 2: Apply scale constraint (snap to diatonic notes)
+                if voice_type == "melodic":
+                    note = self._apply_scale_constraint(note)
                 
                 # Avoid repetition: if note equals previous, nudge it
                 if note == previous_note and (max_note - min_note) > 2:
@@ -1067,14 +1398,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (PEAK)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         
@@ -1091,6 +1435,7 @@ class PhraseGenerator:
         
         # DRAMATICALLY EXPANDED peak generation - use SAME algorithm as buildup
         previous_note = random.randint(min_note, max_note)
+        previous_direction = 0  # Track melodic direction: -1=down, 0=static, 1=up
         
         for i in range(phrase_length):
             if i == 0:
@@ -1128,8 +1473,25 @@ class PhraseGenerator:
                     magnitude_probs = [0.25, 0.20, 0.10, 0.10, 0.15, 0.15, 0.05]
                 
                 chosen_magnitude = random.choices(interval_magnitudes, weights=magnitude_probs)[0]
-                
                 interval = random.randint(chosen_magnitude[0], chosen_magnitude[1])
+                
+                # PHASE 4: Apply contour smoothing (peak phrases still get arch-like shape)
+                if voice_type == "melodic" and i >= 2:
+                    interval = self._apply_contour_smoothing(notes, i, interval, 
+                                                            previous_direction if 'previous_direction' in locals() else 0)
+                
+                # PHASE 3: Apply interval leap penalty (even peaks should be singable)
+                if voice_type == "melodic":
+                    penalty = self._calculate_interval_penalty(interval)
+                    if penalty < 1.0 and random.random() > penalty:
+                        # Fall back to stepwise motion
+                        interval = random.choice([-2, -1, 1, 2])
+                
+                # Track melodic direction
+                if i >= 2:
+                    current_direction = 1 if interval > 0 else (-1 if interval < 0 else 0)
+                    previous_direction = current_direction
+                
                 note = previous_note + interval
                 
                 # Wrap around range boundaries
@@ -1144,11 +1506,18 @@ class PhraseGenerator:
                 # Final clamping to ensure note is in range
                 note = max(min_note, min(note, max_note))
                 
+                # PHASE 2: Apply scale constraint (snap to diatonic notes)
+                if voice_type == "melodic":
+                    note = self._apply_scale_constraint(note)
+                
                 # Avoid repetition: if note equals previous, nudge it
                 if note == previous_note and (max_note - min_note) > 2:
                     nudge = random.choice([-2, -1, 1, 2])
                     note = previous_note + nudge
                     note = max(min_note, min(note, max_note))
+                    # Re-apply scale constraint after nudge
+                    if voice_type == "melodic":
+                        note = self._apply_scale_constraint(note)
             
             notes.append(note)
             previous_note = note
@@ -1201,14 +1570,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (RELEASE)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         
@@ -1290,14 +1672,27 @@ class PhraseGenerator:
                         temperature=0.8
                     )
                     if generated_frames and len(generated_frames) > 0:
-                        oracle_notes = []
-                        for frame in generated_frames:
-                            if 'midi_note' in frame:
-                                oracle_notes.append(int(frame['midi_note']))
-                            elif 'pitch_hz' in frame and frame['pitch_hz'] > 0:
-                                import math
-                                midi_note = int(round(69 + 12 * math.log2(frame['pitch_hz'] / 440.0)))
-                                oracle_notes.append(midi_note)
+                        # INTERVAL-BASED HARMONIC TRANSLATION (CONTEMPLATION)
+                        intervals = self.interval_extractor.extract_intervals(
+                            frame_ids=generated_frames,
+                            audio_frames=self.audio_oracle.audio_frames
+                        )
+                        
+                        if intervals:
+                            harmonic_context = {
+                                'current_chord': self.current_chord,
+                                'current_key': self.current_key,
+                                'scale_degrees': self.scale_degrees
+                            }
+                            
+                            oracle_notes = self.harmonic_translator.translate_intervals_to_midi(
+                                intervals=intervals,
+                                harmonic_context=harmonic_context,
+                                voice_type=voice_type,
+                                apply_constraints=self.scale_constraint
+                            )
+                        else:
+                            oracle_notes = None
             except:
                 oracle_notes = None
         

@@ -370,27 +370,42 @@ Unfortunately, there was an error gathering recent musical data: {summary['error
 Respond with a brief acknowledgment of the technical issue.
 """
         
-        # Format mode distribution
-        mode_str = ', '.join([f"{mode} ({count}x)" for mode, count in summary['mode_distribution']]) \
-                   if summary['mode_distribution'] else 'No mode data'
+        # Format mode distribution (handle empty or malformed data)
+        try:
+            mode_str = ', '.join([f"{mode} ({count}x)" for mode, count in summary['mode_distribution']]) \
+                       if summary.get('mode_distribution') else 'No mode data'
+        except (TypeError, ValueError, KeyError):
+            mode_str = 'No mode data'
         
-        # Format token distribution
-        token_str = ', '.join([f"token {token} ({count}x)" for token, count in summary['token_distribution'][:3]]) \
-                    if summary['token_distribution'] else 'No gesture data'
+        # Format token distribution (handle empty or malformed data)
+        try:
+            token_str = ', '.join([f"token {token} ({count}x)" for token, count in summary['token_distribution'][:3]]) \
+                        if summary.get('token_distribution') else 'No gesture data'
+        except (TypeError, ValueError, KeyError):
+            token_str = 'No gesture data'
         
-        # Build prompt
+        # Build prompt with safe access to summary fields
+        num_events = summary.get('num_events', 0)
+        chord_prog = summary.get('chord_progression', [])
+        harmonic_center = summary.get('harmonic_center', 'Unknown')
+        consonance_mean = summary.get('consonance_mean', 0.0)
+        consonance_trend = summary.get('consonance_trend', 'stable')
+        current_mode = summary.get('current_mode', 'unknown')
+        ai_activity = summary.get('ai_activity', 0.0)
+        performance_time = summary.get('performance_time', 0.0)
+        
         prompt = f"""
 You are analyzing a live musical improvisation between human and AI.
 
-Last 60 seconds of interaction ({summary['num_events']} events):
-- Chord progression: {', '.join(summary['chord_progression'][:10]) if summary['chord_progression'] else 'No chords detected'}
-- Harmonic center: {summary['harmonic_center']}
-- Average consonance: {summary['consonance_mean']:.2f} ({summary['consonance_trend']} trend)
+Last 60 seconds of interaction ({num_events} events):
+- Chord progression: {', '.join(chord_prog[:10]) if chord_prog else 'No chords detected'}
+- Harmonic center: {harmonic_center}
+- Average consonance: {consonance_mean:.2f} ({consonance_trend} trend)
 - AI behavioral modes: {mode_str}
-- Current mode: {summary['current_mode']}
+- Current mode: {current_mode}
 - Most common gesture tokens: {token_str}
-- AI activity level: {summary['ai_activity']:.0%}
-- Performance elapsed: {summary['performance_time']:.0f} seconds
+- AI activity level: {ai_activity:.0%}
+- Performance elapsed: {performance_time:.0f} seconds
 
 In 2-3 sentences, describe the musical relationship currently unfolding.
 Focus on: interaction dynamics (who's leading?), harmonic direction, emerging patterns.

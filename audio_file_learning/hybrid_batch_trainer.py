@@ -22,7 +22,7 @@ class HybridBatchTrainer:
     
     def __init__(self, 
                  distance_threshold: float = 0.15,
-                 distance_function: str = 'euclidean',
+                 distance_function: str = 'cosine',  # FIXED: Use cosine for high-D features (768D Wav2Vec)
                  chord_similarity_weight: float = 0.3,
                  cpu_threshold: int = 5000):
         """
@@ -242,8 +242,22 @@ class HybridBatchTrainer:
                 # Add single event to AudioOracle with musical features
                 if self.use_mps:
                     self.audio_oracle_mps.add_sequence([musical_features])
+                    # Capture harmonic data for autonomous root progression (Groven method)
+                    if 'fundamental_freq' in event_data and event_data['fundamental_freq'] > 0:
+                        state_id = self.audio_oracle_mps.last  # Current state ID
+                        self.audio_oracle_mps.fundamentals[state_id] = float(event_data['fundamental_freq'])
+                    if 'consonance' in event_data:
+                        state_id = self.audio_oracle_mps.last
+                        self.audio_oracle_mps.consonances[state_id] = float(event_data['consonance'])
                 else:
                     self.audio_oracle.add_sequence([musical_features])
+                    # Capture harmonic data for autonomous root progression (Groven method)
+                    if 'fundamental_freq' in event_data and event_data['fundamental_freq'] > 0:
+                        state_id = self.audio_oracle.last  # Current state ID
+                        self.audio_oracle.fundamentals[state_id] = float(event_data['fundamental_freq'])
+                    if 'consonance' in event_data:
+                        state_id = self.audio_oracle.last
+                        self.audio_oracle.consonances[state_id] = float(event_data['consonance'])
                 
                 processed += 1
                 

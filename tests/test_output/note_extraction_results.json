@@ -1,0 +1,40 @@
+{
+  "conversion_tests": {
+    "total": 5,
+    "errors": 0,
+    "error_details": []
+  },
+  "extraction_statistics": {
+    "total_frames": 5000,
+    "successful_extractions": 5000,
+    "success_rate": 100.0,
+    "field_distribution": {
+      "midi": 5000,
+      "midi_note": 0,
+      "pitch_hz": 0,
+      "f0": 0,
+      "none": 0
+    },
+    "primary_field": "midi",
+    "note_range": [
+      29,
+      96
+    ]
+  },
+  "membership_verification": {
+    "tests_run": 10,
+    "tests_passed": 10,
+    "success_rate": 100.0
+  },
+  "fixture_testing": {
+    "total_fixtures": 7,
+    "successful_extractions": 6,
+    "success_rate": 85.71428571428571
+  },
+  "validation": {
+    "conversion_accurate": true,
+    "extraction_rate_acceptable": true,
+    "membership_fix_working": true,
+    "fixtures_working": true
+  }
+}

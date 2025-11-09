@@ -134,6 +134,9 @@ simple_hierarchical_analysis.json
 itzama_smart*.json
 ground_truth_wav2vec_synthetic.json
 
+# Large pickle files (>100MB) - use Git LFS or exclude
+*.pkl.gz
+
 # Audio Files (keep small test files, exclude large ones)
 input_audio/*.wav
 input_audio/*.mp3

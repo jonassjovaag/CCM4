@@ -222,16 +222,30 @@ class AudioOracle:
             return float('inf')
     
     def _adjust_threshold(self):
-        """Adjust threshold based on recent distance distribution"""
+        """
+        Adjust threshold based on recent distance distribution
+        
+        FIXED: Use percentile-based threshold for better stability with high-D features
+        """
         if len(self.distance_history) < 50:
             return
         
         recent_distances = list(self.distance_history)[-100:]
-        mean_dist = np.mean(recent_distances)
-        std_dist = np.std(recent_distances)
         
-        # Adjust threshold to be mean + 0.5 * std
-        new_threshold = mean_dist + 0.5 * std_dist
+        # For cosine distance (0-2 range), use mean + 0.5*std approach
+        if self.distance_function == 'cosine':
+            mean_dist = np.mean(recent_distances)
+            std_dist = np.std(recent_distances)
+            new_threshold = mean_dist + 0.5 * std_dist
+            # Clamp to reasonable range for cosine [0.05, 0.5]
+            new_threshold = np.clip(new_threshold, 0.05, 0.5)
+        else:
+            # For Euclidean/Manhattan on high-D features, use percentile
+            # 25th percentile = accept closest 25% of distances
+            new_threshold = np.percentile(recent_distances, 25)
+            # Never let threshold grow beyond 2x the initial value
+            max_threshold = self.stats['distance_threshold'] * 2.0
+            new_threshold = min(new_threshold, max_threshold)
         
         # Only adjust if change is significant (>10%) and threshold is not zero
         if self.distance_threshold > 0 and abs(new_threshold - self.distance_threshold) / self.distance_threshold > 0.1:

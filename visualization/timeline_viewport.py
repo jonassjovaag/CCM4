@@ -210,7 +210,7 @@ class TimelineViewport(BaseViewport):
         self.content_widget.setLayout(content_layout)
         
         # Session duration (LARGE FONT FOR VISIBILITY DURING PERFORMANCE)
-        self.duration_label = QLabel("Session: 0:00")
+        self.duration_label = QLabel("0:00")
         self.duration_label.setAlignment(Qt.AlignCenter)
         duration_font = QFont()
         duration_font.setPointSize(72)  # Increased from 12pt to 72pt for live performance visibility
@@ -263,13 +263,13 @@ class TimelineViewport(BaseViewport):
         elapsed = time.time() - self.session_start_time
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
-        self.duration_label.setText(f"Session: {minutes}:{seconds:02d}")
+        self.duration_label.setText(f"{minutes}:{seconds:02d}")
     
     def clear(self):
         """Clear the viewport"""
         self.timeline_widget.clear()
         self.session_start_time = time.time()
-        self.duration_label.setText("Session: 0:00")
+        self.duration_label.setText("0:00")
 
 
 if __name__ == "__main__":
