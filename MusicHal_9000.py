@@ -34,6 +34,25 @@ import signal
 import sys
 import glob
 
+# OSC for TouchOSC chord override input
+try:
+    from pythonosc import dispatcher, osc_server
+    import socketserver
+    
+    # Custom OSC server class with SO_REUSEADDR enabled
+    class ReuseAddrOSCUDPServer(osc_server.ThreadingOSCUDPServer):
+        """OSC server that allows address reuse to prevent 'Address already in use' errors"""
+        def server_bind(self):
+            import socket
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            super().server_bind()
+    
+    OSC_AVAILABLE = True
+except ImportError:
+    OSC_AVAILABLE = False
+    print("⚠️  python-osc not installed - TouchOSC chord override disabled")
+    print("   Install with: pip install python-osc")
+
 # Existing harmonic components (unchanged)
 from listener.jhs_listener_core import DriftListener, Event
 from listener.dual_perception import ratio_to_chord_name
@@ -59,6 +78,9 @@ from correlation_engine.unified_decision_engine import UnifiedDecisionEngine, Cr
 
 # Hybrid detection components
 from listener.hybrid_detector import HybridDetector, DetectionResult
+
+# Harmonic context manager (manual override system)
+from listener.harmonic_context_manager import HarmonicContextManager
 
 # Visualization system
 try:
@@ -195,6 +217,13 @@ class EnhancedDriftEngineAI:
         self.clustering = None  # Will be initialized after loading model config
         self.ai_agent = None  # Will be initialized after visualization_manager is set up
         self.feature_mapper = FeatureMapper()
+        
+        # Harmonic progression learning (will be loaded with model)
+        self.harmonic_progressor = None
+        
+        # Harmonic context manager (manual override system for transparency & agency)
+        self.harmonic_context_manager = HarmonicContextManager(default_override_duration=30.0)
+        print("🎹 Harmonic context manager initialized - manual override available")
         
         # Musical decision explainer (for transparency and trust)
         self.decision_explainer = MusicalDecisionExplainer(enable_console_output=debug_decisions)
@@ -336,6 +365,10 @@ class EnhancedDriftEngineAI:
         self.timeline_manager: Optional[PerformanceTimelineManager] = None
         self.performance_duration = performance_duration
         self.performance_arc_path = performance_arc_path
+        
+        # OSC server for TouchOSC chord override (runs in background thread)
+        self.osc_server = None
+        self.osc_thread = None
         
         # Status bar state
         self._last_status_update = 0.0
@@ -557,6 +590,137 @@ class EnhancedDriftEngineAI:
             self._conversation_log_file = None
             self._terminal_log_file = None
     
+    def _osc_chord_handler(self, address, *args):
+        """
+        Handle OSC /chord messages from TouchOSC
+        
+        Message formats:
+        - /chord C              → Override to C major for 30s
+        - /chord Dm             → Override to D minor for 30s
+        - /chord C 60           → Override to C major for 60s
+        - /chord/clear          → Clear any active override
+        
+        Args:
+            address: OSC address (e.g., '/chord' or '/chord/clear')
+            args: Chord name and optional duration
+        """
+        print(f"\n🔍 DEBUG: OSC handler called - address={address}, args={args}")
+        try:
+            if address == '/chord/clear':
+                self.harmonic_context_manager.clear_override()
+                print("\n🎹 MANUAL OVERRIDE CLEARED")
+                # Emit visualization update immediately
+                if self.visualization_manager:
+                    print("🔍 DEBUG: Emitting clear to visualization")
+                    status = self.harmonic_context_manager.get_status()
+                    harmonic_data = {
+                        'detected_chord': '---',
+                        'detected_confidence': 0.0,
+                        'active_chord': status['active_chord'],
+                        'override_active': status['override_active'],
+                        'override_time_left': status['override_expires_in'],
+                        'timestamp': time.time()
+                    }
+                    self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
+                    print("🔍 DEBUG: Emit complete")
+                return
+            
+            if not args:
+                print(f"\n⚠️  TouchOSC: No chord specified in message")
+                return
+            
+            chord = str(args[0])
+            duration = float(args[1]) if len(args) > 1 else 30.0
+            
+            print(f"🔍 DEBUG: Setting override - chord={chord}, duration={duration}")
+            
+            # Set override
+            self.harmonic_context_manager.set_override(
+                chord=chord,
+                duration=duration,
+                reason="TouchOSC manual input"
+            )
+            
+            print(f"🔍 DEBUG: Override set, getting status...")
+            
+            # Print confirmation
+            print(f"\n🎹 MANUAL OVERRIDE: {chord} (for {duration:.0f}s)")
+            status = self.harmonic_context_manager.get_status()
+            if status.get('detected_chord'):
+                print(f"   Machine detected: {status['detected_chord']} (conf: {status.get('detected_confidence', 0):.2f})")
+                print(f"   You corrected to: {chord}")
+            
+            # Emit visualization update immediately
+            if self.visualization_manager:
+                print(f"🔍 DEBUG: Emitting to visualization - override={chord}, duration={duration}")
+                harmonic_data = {
+                    'detected_chord': status.get('detected_chord', '---'),
+                    'detected_confidence': status.get('detected_confidence', 0.0),
+                    'active_chord': chord,
+                    'override_active': True,
+                    'override_time_left': duration,
+                    'timestamp': time.time()
+                }
+                self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
+                print("🔍 DEBUG: Emit complete")
+            else:
+                print("🔍 DEBUG: No visualization_manager available!")
+            
+        except Exception as e:
+            print(f"\n❌ OSC chord handler error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _start_osc_server(self, port: int = 5007):
+        """Start OSC server in background thread for TouchOSC input"""
+        if not OSC_AVAILABLE:
+            print("⚠️  python-osc not available, skipping OSC server")
+            return
+        
+        print(f"🔍 DEBUG: Attempting to start OSC server on port {port}...")
+        
+        try:
+            # Create dispatcher
+            disp = dispatcher.Dispatcher()
+            disp.map("/chord", self._osc_chord_handler)
+            disp.map("/chord/clear", self._osc_chord_handler)
+            
+            # Create server with SO_REUSEADDR (custom class sets it before binding)
+            self.osc_server = ReuseAddrOSCUDPServer(
+                ("127.0.0.1", port), disp
+            )
+            
+            # Start in background thread
+            self.osc_thread = threading.Thread(
+                target=self.osc_server.serve_forever,
+                daemon=True
+            )
+            self.osc_thread.start()
+            
+            print(f"📱 TouchOSC server listening on port {port}")
+            print(f"   Send OSC messages to: 127.0.0.1:{port}")
+            print(f"   Messages: /chord <name> [duration], /chord/clear")
+            
+        except Exception as e:
+            print(f"⚠️  Could not start OSC server: {e}")
+            import traceback
+            traceback.print_exc()
+            self.osc_server = None
+            self.osc_thread = None
+    
+    def _get_local_ip(self) -> str:
+        """Get local IP address for TouchOSC configuration"""
+        import socket
+        try:
+            # Connect to external address to find local IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "localhost"
+    
     def start(self) -> bool:
         """Start the Enhanced Drift Engine AI system"""
         print("🎵 Starting Enhanced Drift Engine AI...")
@@ -591,6 +755,9 @@ class EnhancedDriftEngineAI:
                 a4_fn=lambda: 440.0,
                 device=self.input_device
             )
+            
+            # Start OSC server for TouchOSC chord override
+            self._start_osc_server(port=5007)
             
             # Initialize rhythmic analyzers now that listener is available
             if self.enable_rhythmic:
@@ -1443,16 +1610,38 @@ class EnhancedDriftEngineAI:
             # Consonance score
             consonance_display = f"{consonance:.2f}" if event_data and self.enable_hybrid_perception else "---"
             
+            # Harmonic context manager status (manual override info)
+            if self.harmonic_context_manager and self.harmonic_context_manager.is_override_active():
+                override_display = f"OVERRIDE: {self.harmonic_context_manager.get_active_chord()} ({self.harmonic_context_manager.get_override_time_remaining():.0f}s)"
+            else:
+                override_display = ""
+            
+            # 🎨 VISUALIZATION: Emit harmonic context to Request Parameters viewport
+            if self.visualization_manager and self.harmonic_context_manager:
+                # Get full status from context manager
+                status = self.harmonic_context_manager.get_status()
+                harmonic_data = {
+                    'detected_chord': chord_display,  # Use the ensemble detection result
+                    'detected_confidence': chord_conf,
+                    'active_chord': status['active_chord'],
+                    'override_active': status['override_active'],
+                    'override_time_left': status['override_expires_in'],
+                    'timestamp': current_time
+                }
+                # Emit via mode_change_signal (reused for harmonic context updates)
+                self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
+            
             # Recent MIDI notes (keep track of last few)
             if not hasattr(self, '_recent_midi_notes'):
                 self._recent_midi_notes = []
             
-            # Build minimal status line - one clean line
+            # Build minimal status line - one clean line (with optional override display)
             status = (
                 f"\r🎹 {note_name}{octave} | "
                 f"CHORD: {chord_display:12s} ({chord_conf:>4.0%}) | "
                 f"Consonance: {consonance_display} | "
-                f"MIDI: {self.stats['notes_sent']:3d} notes | "
+                + (f"{override_display} | " if override_display else "")
+                + f"MIDI: {self.stats['notes_sent']:3d} notes | "
                 f"Events: {self.stats['events_processed']:4d}"
             )
             
@@ -2157,6 +2346,22 @@ class EnhancedDriftEngineAI:
                     if "enhanced" in most_recent_file or "music_theory" in most_recent_file:
                         print("🧠 Music theory enhanced model detected!")
                     
+                    # Load harmonic transition graph for learned progressions (NEW!)
+                    base_filename = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '').replace('_model.json', '')
+                    harmonic_transitions_file = base_filename + '_harmonic_transitions.json'
+                    if os.path.exists(harmonic_transitions_file):
+                        from agent.harmonic_progressor import HarmonicProgressor
+                        self.harmonic_progressor = HarmonicProgressor(harmonic_transitions_file)
+                        if self.harmonic_progressor.enabled:
+                            print("🎼 Harmonic progression learning enabled!")
+                            prog_stats = self.harmonic_progressor.get_statistics_summary()
+                            print(f"   Learned: {prog_stats['total_chords']} chords, "
+                                  f"{prog_stats['total_transitions']} transitions")
+                    else:
+                        print("ℹ️  No harmonic transition graph found - using detected chords only")
+                        from agent.harmonic_progressor import HarmonicProgressor
+                        self.harmonic_progressor = HarmonicProgressor()  # Disabled
+                    
                     # Load gesture vocabulary (quantizer) if available
                     if self.hybrid_perception and self.enable_hybrid_perception:
                         # DUAL VOCABULARY: Check for dual vocabulary files first
@@ -2441,14 +2646,18 @@ class EnhancedDriftEngineAI:
         if self.rhythm_oracle:
             self.ai_agent.behavior_engine.phrase_generator = PhraseGenerator(
                 self.rhythm_oracle, 
-                visualization_manager=self.visualization_manager
+                visualization_manager=self.visualization_manager,
+                harmonic_progressor=self.harmonic_progressor,
+                harmonic_context_manager=self.harmonic_context_manager
             )
             print("🎼 AI Agent updated with rhythmic phrase generation")
         else:
             # Initialize phrase generator without rhythm oracle
             self.ai_agent.behavior_engine.phrase_generator = PhraseGenerator(
                 None,
-                visualization_manager=self.visualization_manager
+                visualization_manager=self.visualization_manager,
+                harmonic_progressor=self.harmonic_progressor,
+                harmonic_context_manager=self.harmonic_context_manager
             )
             print("🎼 AI Agent initialized with phrase generation (no rhythm oracle)")
         

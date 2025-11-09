@@ -64,6 +64,7 @@ class VisualizationManager:
                 'audio_analysis',
                 'rhythm_oracle',
                 'performance_timeline',
+                'performance_controls',  # RESTORED - Live parameter controls!
                 'webcam',
                 'gpt_reflection'
             ]
@@ -112,18 +113,19 @@ class VisualizationManager:
         grid_layout.setContentsMargins(20, 20, 20, 20)  # Margin around edges
         
         # Arrange viewports in 3-column layout
-        # Column 1 (3 rows @ 33% each): pattern_matching, request_parameters, phrase_memory
-        # Column 2 (3 rows @ 33% each): audio_analysis, rhythm_oracle (NEW), performance_timeline
-        # Column 3 (3 rows): gpt_reflection (spans rows 1-2 @ 66%), webcam (row 3 @ 33%)
+        # Column 1 (3 rows): pattern_matching, request_parameters, phrase_memory
+        # Column 2 (3 rows): audio_analysis, rhythm_oracle, performance_timeline
+        # Column 3 (3 rows): gpt_reflection (row 1), performance_controls (row 2), webcam (row 3)
         
         viewport_positions = {
             'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1
             'request_parameters': (1, 0, 1, 1),    # Col 1, Row 2
             'phrase_memory': (2, 0, 1, 1),         # Col 1, Row 3
             'audio_analysis': (0, 1, 1, 1),        # Col 2, Row 1
-            'rhythm_oracle': (1, 1, 1, 1),         # Col 2, Row 2 (NEW - RhythmOracle in middle!)
+            'rhythm_oracle': (1, 1, 1, 1),         # Col 2, Row 2
             'performance_timeline': (2, 1, 1, 1),  # Col 2, Row 3
-            'gpt_reflection': (0, 2, 2, 1),        # Col 3, Rows 1-2 (spans 2 rows for 66% height)
+            'gpt_reflection': (0, 2, 1, 1),        # Col 3, Row 1
+            'performance_controls': (1, 2, 1, 1),  # Col 3, Row 2 (RESTORED!)
             'webcam': (2, 2, 1, 1)                 # Col 3, Row 3
         }
         

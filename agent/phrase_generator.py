@@ -56,10 +56,14 @@ class PhraseGenerator:
     - Voice-specific character (melody vs bass)
     """
     
-    def __init__(self, rhythm_oracle, audio_oracle=None, enable_silence: bool = True, visualization_manager=None):
+    def __init__(self, rhythm_oracle, audio_oracle=None, enable_silence: bool = True, 
+                 visualization_manager=None, harmonic_progressor=None, 
+                 harmonic_context_manager=None):
         self.rhythm_oracle = rhythm_oracle
         self.audio_oracle = audio_oracle  # AudioOracle for learned patterns
         self.visualization_manager = visualization_manager
+        self.harmonic_progressor = harmonic_progressor  # Learned harmonic progressions
+        self.harmonic_context_manager = harmonic_context_manager  # Manual override system
         
         # INTERVAL-BASED HARMONIC TRANSLATION
         self.interval_extractor = IntervalExtractor()
@@ -909,8 +913,8 @@ class PhraseGenerator:
                 
                 return phrase
         
-        # Update harmonic context
-        self._update_harmonic_context(harmonic_context)
+        # Update harmonic context (with learned progression if available)
+        self._update_harmonic_context(harmonic_context, behavioral_mode=mode)
         
         # Build request based on mode (for AudioOracle pattern matching)
         request = self._build_request_for_mode(mode)
@@ -995,12 +999,55 @@ class PhraseGenerator:
         
         return self.current_arc
     
-    def _update_harmonic_context(self, harmonic_context: Dict):
-        """Update harmonic context for phrase generation"""
+    def _update_harmonic_context(self, harmonic_context: Dict, behavioral_mode: str = None):
+        """Update harmonic context for phrase generation
+        
+        If harmonic_progressor is available and enabled, will intelligently
+        choose next chord based on learned progressions + behavioral mode.
+        Otherwise, uses detected chord from harmonic_context.
+        """
         if not harmonic_context:
             return
+        
+        # Get detected chord from context
+        detected_chord = harmonic_context.get('current_chord', 'C')
+        detected_confidence = harmonic_context.get('chord_confidence', 0.0)
+        
+        # UPDATE HARMONIC CONTEXT MANAGER with detection
+        if self.harmonic_context_manager:
+            self.harmonic_context_manager.set_detected_chord(detected_chord, detected_confidence)
+            # Get active chord (override if active, otherwise detected)
+            active_chord = self.harmonic_context_manager.get_active_chord()
+        else:
+            # Fallback if no context manager
+            active_chord = detected_chord
+        
+        # LEARNED HARMONIC PROGRESSION: Choose next chord intelligently
+        # Use ACTIVE chord (which respects manual overrides) as starting point
+        if self.harmonic_progressor and self.harmonic_progressor.enabled and behavioral_mode:
+            # Map behavioral modes (SHADOW/MIRROR/COUPLE match HarmonicProgressor modes)
+            chosen_chord = self.harmonic_progressor.choose_next_chord(
+                current_chord=active_chord,  # ← Use active chord (respects override)
+                behavioral_mode=behavioral_mode,
+                temperature=0.8  # Could be parameterized
+            )
             
-        self.current_chord = harmonic_context.get('current_chord', 'C')
+            # Log decision for transparency
+            if chosen_chord != active_chord:
+                explanation = self.harmonic_progressor.explain_choice(
+                    current_chord=active_chord,
+                    chosen_chord=chosen_chord,
+                    behavioral_mode=behavioral_mode
+                )
+                print(f"🎼 Harmonic progression: {active_chord} → {chosen_chord}")
+                print(f"   {explanation}")
+            
+            # Use chosen chord for phrase generation
+            self.current_chord = chosen_chord
+        else:
+            # Fallback: use active chord (respects manual override)
+            self.current_chord = active_chord
+            
         key_name = harmonic_context.get('key_signature', 'C_major')
         
         # Parse key and mode

@@ -77,6 +77,30 @@ class RequestParamsViewport(BaseViewport):
         self.duration_label.setFont(duration_font)
         content_layout.addWidget(self.duration_label)
         
+        # Harmonic context frame (active chord used by AI)
+        harmonic_frame = QFrame()
+        harmonic_frame.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        harmonic_layout = QVBoxLayout()
+        harmonic_frame.setLayout(harmonic_layout)
+        
+        harmonic_title = QLabel("Active Chord (AI Input):")
+        harmonic_title_font = QFont()
+        harmonic_title_font.setPointSize(10)
+        harmonic_title_font.setBold(True)
+        harmonic_title.setFont(harmonic_title_font)
+        harmonic_layout.addWidget(harmonic_title)
+        
+        self.harmonic_label = QLabel("---")
+        self.harmonic_label.setWordWrap(True)
+        self.harmonic_label.setAlignment(Qt.AlignCenter)
+        harmonic_font = QFont()
+        harmonic_font.setPointSize(14)
+        harmonic_font.setBold(True)
+        self.harmonic_label.setFont(harmonic_font)
+        harmonic_layout.addWidget(self.harmonic_label)
+        
+        content_layout.addWidget(harmonic_frame)
+        
         # Request parameters frame
         request_frame = QFrame()
         request_frame.setFrameStyle(QFrame.Panel | QFrame.Sunken)
@@ -134,6 +158,12 @@ class RequestParamsViewport(BaseViewport):
             self.mode_end_time = time.time() + duration
             self._update_countdown()
         
+        # Update harmonic context
+        if 'harmonic_context' in data:
+            harmonic_data = data['harmonic_context']
+            harmonic_text = self._format_harmonic_context(harmonic_data)
+            self.harmonic_label.setText(harmonic_text)
+        
         # Update request parameters
         if 'request_params' in data:
             request_params = data['request_params']
@@ -144,6 +174,17 @@ class RequestParamsViewport(BaseViewport):
         if 'temperature' in data:
             temp = data['temperature']
             self.temp_label.setText(f"Temperature: {temp:.2f}")
+    
+    def _format_harmonic_context(self, harmonic_data: Dict[str, Any]) -> str:
+        """Format harmonic context for display (active chord only - detected chord shown in Audio Analysis)"""
+        active_chord = harmonic_data.get('active_chord', '---')
+        override_active = harmonic_data.get('override_active', False)
+        override_time_left = harmonic_data.get('override_time_left', 0.0)
+        
+        if override_active:
+            return f"{active_chord}\n⚠️ MANUAL OVERRIDE ({override_time_left:.0f}s left)"
+        else:
+            return f"{active_chord}\n(auto-detected)"
     
     def _format_request_params(self, params: Dict[str, Any]) -> str:
         """Format request parameters for display"""
