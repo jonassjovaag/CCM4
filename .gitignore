@@ -136,6 +136,10 @@ ground_truth_wav2vec_synthetic.json
 
 # Large pickle files (>100MB) - use Git LFS or exclude
 *.pkl.gz
+*.pkl
+*.exe
+*.dmg
+OllamaSetup.exe
 
 # Audio Files (keep small test files, exclude large ones)
 input_audio/*.wav
