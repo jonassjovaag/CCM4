@@ -209,37 +209,56 @@ class TimelineViewport(BaseViewport):
         content_layout = QVBoxLayout()
         self.content_widget.setLayout(content_layout)
         
-        # Session duration (LARGE FONT FOR VISIBILITY DURING PERFORMANCE)
-        self.duration_label = QLabel("0:00")
+        content_layout.setSpacing(5)
+        content_layout.setContentsMargins(10, 5, 10, 5)
+        
+        # Session info bar (compact, styled like rhythm oracle)
+        info_frame = QFrame()
+        info_frame.setStyleSheet("background-color: #0f0f1e; border-radius: 3px; padding: 5px;")
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+        info_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Session duration (prominent but not huge)
+        self.duration_label = QLabel("Session: 0:00")
+        self.duration_label.setFont(QFont("Monaco", 14, QFont.Bold))
+        self.duration_label.setStyleSheet("color: #00ff88;")
         self.duration_label.setAlignment(Qt.AlignCenter)
-        duration_font = QFont()
-        duration_font.setPointSize(72)  # Increased from 12pt to 72pt for live performance visibility
-        duration_font.setBold(True)
-        self.duration_label.setFont(duration_font)
-        content_layout.addWidget(self.duration_label)
+        info_layout.addWidget(self.duration_label)
+        
+        # Current phase (if using performance arc)
+        self.phase_label = QLabel("Phase: Waiting...")
+        self.phase_label.setFont(QFont("Monaco", 9))
+        self.phase_label.setStyleSheet("color: #88ddff;")
+        self.phase_label.setAlignment(Qt.AlignCenter)
+        info_layout.addWidget(self.phase_label)
+        
+        info_frame.setLayout(info_layout)
+        content_layout.addWidget(info_frame)
         
         # Timeline widget
         self.timeline_widget = TimelineWidget()
         content_layout.addWidget(self.timeline_widget)
         
-        # Legend
+        # Simplified legend (mode colors only, since mode is the main thing tracked)
         legend_frame = QFrame()
-        legend_frame.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        legend_frame.setStyleSheet("background-color: #0f0f1e; border-radius: 3px; padding: 3px;")
         legend_layout = QVBoxLayout()
+        legend_layout.setSpacing(1)
+        legend_layout.setContentsMargins(5, 3, 5, 3)
         legend_frame.setLayout(legend_layout)
         
-        legend_label = QLabel("Legend:")
-        legend_font = QFont()
-        legend_font.setPointSize(8)
-        legend_font.setBold(True)
-        legend_label.setFont(legend_font)
+        legend_label = QLabel("Mode Colors:")
+        legend_label.setFont(QFont("Monaco", 8, QFont.Bold))
+        legend_label.setStyleSheet("color: #888888;")
         legend_layout.addWidget(legend_label)
         
-        legend_text = QLabel("◾ Mode Change  ⭐ Thematic Recall  ● Response  ▲ Human Input")
+        # Mode color legend (horizontal, compact)
+        mode_colors_text = "SHADOW=Blue  MIRROR=Green  COUPLE=Orange  IMITATE=Purple  CONTRAST=Red  LEAD=Cyan"
+        legend_text = QLabel(mode_colors_text)
+        legend_text.setFont(QFont("Monaco", 7))
+        legend_text.setStyleSheet("color: #666666;")
         legend_text.setWordWrap(True)
-        legend_text_font = QFont()
-        legend_text_font.setPointSize(7)
-        legend_text.setFont(legend_text_font)
         legend_layout.addWidget(legend_text)
         
         content_layout.addWidget(legend_frame)
@@ -256,6 +275,11 @@ class TimelineViewport(BaseViewport):
         mode = data.get('mode', None)
         timestamp = data.get('timestamp', None)
         
+        # Update phase if provided
+        phase = data.get('phase', None)
+        if phase:
+            self.phase_label.setText(f"Phase: {phase}")
+        
         self.timeline_widget.add_event(event_type, mode, timestamp)
     
     def _update_duration(self):
@@ -263,13 +287,14 @@ class TimelineViewport(BaseViewport):
         elapsed = time.time() - self.session_start_time
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
-        self.duration_label.setText(f"{minutes}:{seconds:02d}")
+        self.duration_label.setText(f"Session: {minutes}:{seconds:02d}")
     
     def clear(self):
         """Clear the viewport"""
         self.timeline_widget.clear()
         self.session_start_time = time.time()
-        self.duration_label.setText("0:00")
+        self.duration_label.setText("Session: 0:00")
+        self.phase_label.setText("Phase: Waiting...")
 
 
 if __name__ == "__main__":

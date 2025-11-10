@@ -11,6 +11,7 @@ import sys
 
 from .layout_manager import LayoutManager, ViewportPosition
 from .event_bus import VisualizationEventBus
+from .status_bar_viewport import StatusBarViewport
 from .pattern_match_viewport import PatternMatchViewport
 from .request_params_viewport import RequestParamsViewport
 from .phrase_memory_viewport import PhraseMemoryViewport
@@ -58,6 +59,7 @@ class VisualizationManager:
         # Default viewport configuration
         if viewports_config is None:
             viewports_config = [
+                'status_bar',           # NEW: Primary status display
                 'pattern_matching',
                 'request_parameters',
                 'phrase_memory',
@@ -81,6 +83,7 @@ class VisualizationManager:
     def _create_viewports(self):
         """Create viewport instances based on configuration"""
         viewport_classes = {
+            'status_bar': StatusBarViewport,         # NEW: Primary status display
             'pattern_matching': PatternMatchViewport,
             'request_parameters': RequestParamsViewport,
             'phrase_memory': PhraseMemoryViewport,
@@ -112,42 +115,57 @@ class VisualizationManager:
         grid_layout.setSpacing(10)  # Padding between viewports
         grid_layout.setContentsMargins(20, 20, 20, 20)  # Margin around edges
         
-        # Arrange viewports in 3-column layout
-        # Column 1 (3 rows): pattern_matching, request_parameters, phrase_memory
-        # Column 2 (3 rows): audio_analysis, rhythm_oracle, performance_timeline
-        # Column 3 (3 rows): gpt_reflection (row 1), performance_controls (row 2), webcam (row 3)
+        # Dashboard Layout (Option C):
+        # Row 0 (10%): status_bar (full width, 3 columns)
+        # Row 1 (35%): audio_analysis (left, 1 col) | pattern_matching (right, 2 cols)
+        # Row 2 (35%): rhythm_oracle (left, 1 col) | request_parameters (right, 2 cols)
+        # Row 3 (15%): performance_timeline (full width, 3 columns)
+        # Row 4 (5%): performance_controls (full width, 3 columns, collapsible)
+        # Optional: phrase_memory, gpt_reflection, webcam (hidden for now)
         
         viewport_positions = {
-            'pattern_matching': (0, 0, 1, 1),      # Col 1, Row 1
-            'request_parameters': (1, 0, 1, 1),    # Col 1, Row 2
-            'phrase_memory': (2, 0, 1, 1),         # Col 1, Row 3
-            'audio_analysis': (0, 1, 1, 1),        # Col 2, Row 1
-            'rhythm_oracle': (1, 1, 1, 1),         # Col 2, Row 2
-            'performance_timeline': (2, 1, 1, 1),  # Col 2, Row 3
-            'gpt_reflection': (0, 2, 1, 1),        # Col 3, Row 1
-            'performance_controls': (1, 2, 1, 1),  # Col 3, Row 2 (RESTORED!)
-            'webcam': (2, 2, 1, 1)                 # Col 3, Row 3
+            'status_bar': (0, 0, 1, 3),            # Row 0, full width
+            'audio_analysis': (1, 0, 1, 1),        # Row 1, left column
+            'pattern_matching': (1, 1, 1, 2),      # Row 1, right (2 columns)
+            'rhythm_oracle': (2, 0, 1, 1),         # Row 2, left column
+            'request_parameters': (2, 1, 1, 2),    # Row 2, right (2 columns)
+            'performance_timeline': (3, 0, 1, 3),  # Row 3, full width
+            'performance_controls': (4, 0, 1, 3),  # Row 4, full width
+            # Optional viewports (hidden in dashboard layout):
+            # 'phrase_memory': not displayed
+            # 'gpt_reflection': not displayed
+            # 'webcam': not displayed
         }
         
         for viewport_id, (row, col, rowspan, colspan) in viewport_positions.items():
             if viewport_id in self.viewports:
                 viewport = self.viewports[viewport_id]
-                # Remove fixed size - let widgets fill their grid cells
-                viewport.setMinimumSize(400, 300)  # Set minimum size instead
+                # Set minimum sizes based on viewport type
+                if viewport_id == 'status_bar':
+                    viewport.setMinimumSize(800, 80)   # Short status bar
+                    viewport.setMaximumHeight(100)
+                elif viewport_id in ['performance_timeline', 'performance_controls']:
+                    viewport.setMinimumSize(800, 100)  # Medium height
+                else:
+                    viewport.setMinimumSize(400, 300)  # Normal viewports
                 grid_layout.addWidget(viewport, row, col, rowspan, colspan)
         
-        # Set column stretches (all equal width - 3 columns)
+        # Set column stretches (equal width - 3 columns)
         grid_layout.setColumnStretch(0, 1)
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 1)
         
-        # Set row stretches for proper proportions:
-        # Row 0: 33% height
-        # Row 1: 33% height  
-        # Row 2: 34% height
-        grid_layout.setRowStretch(0, 33)
+        # Set row stretches for dashboard proportions:
+        # Row 0: 8% - Status bar (critical info)
+        # Row 1: 33% - Main area top (audio input + AI decisions)
+        # Row 2: 33% - Main area bottom (rhythm + requests)
+        # Row 3: 16% - Performance timeline
+        # Row 4: 10% - Performance controls (increased for visibility)
+        grid_layout.setRowStretch(0, 8)
         grid_layout.setRowStretch(1, 33)
-        grid_layout.setRowStretch(2, 34)
+        grid_layout.setRowStretch(2, 33)
+        grid_layout.setRowStretch(3, 16)
+        grid_layout.setRowStretch(4, 10)
         
         central_widget.setLayout(grid_layout)
         self.main_window.setCentralWidget(central_widget)
