@@ -18,6 +18,10 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from dataclasses import asdict
 
+# Prevent TensorFlow import in transformers (NumPy 2.x compatibility)
+# Must be set before any transformers imports
+os.environ['USE_TF'] = '0'
+
 # Activate CCM3 virtual environment if available
 try:
     from ccm3_venv_manager import ensure_ccm3_venv_active
