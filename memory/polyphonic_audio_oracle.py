@@ -60,7 +60,7 @@ class PolyphonicAudioOracle(AudioOracle):
     """
     
     def __init__(self, 
-                 distance_threshold: float = 0.15, 
+                 distance_threshold: float = 0.25,  # Increased from 0.15 for 12D feature space
                  distance_function: str = 'euclidean',
                  max_pattern_length: int = 50,
                  feature_dimensions: int = 12,  # Increased for polyphonic features
@@ -150,6 +150,69 @@ class PolyphonicAudioOracle(AudioOracle):
                 continue
         
         return sanitized
+    
+    def add_sequence(self, musical_sequence: List[Any]) -> bool:
+        """
+        Override base class to preserve 768D Wav2Vec features if present
+        
+        Args:
+            musical_sequence: List of musical symbols or event data
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            if not musical_sequence:
+                return False
+            
+            import numpy as np
+            
+            for i, item in enumerate(musical_sequence):
+                if isinstance(item, dict):
+                    # DEBUG: Check first item
+                    if i == 0:
+                        print(f"\n   🔍 PolyphonicAudioOracle.add_sequence() called:")
+                        print(f"      Item type: dict")
+                        print(f"      Has 'features': {'features' in item}")
+                        if 'features' in item and item['features'] is not None:
+                            f_arr = np.array(item['features'])
+                            print(f"      Features length: {len(f_arr)}")
+                            print(f"      Features non-zero: {np.count_nonzero(f_arr)}")
+                    
+                    # CRITICAL: Check if 768D Wav2Vec features already exist
+                    if 'features' in item and item['features'] is not None:
+                        features_raw = item['features']
+                        features = np.array(features_raw, dtype=np.float32) if isinstance(features_raw, list) else features_raw
+                        
+                        # Verify we have real 768D features (not sparse)
+                        if len(features) > 20 and np.count_nonzero(features) > 20:
+                            # Use the pre-computed 768D Wav2Vec features!
+                            if i == 0:
+                                print(f"      ✅ USING pre-computed 768D features!")
+                            self.add_audio_frame(features, item)
+                            continue
+                        else:
+                            if i == 0:
+                                print(f"      ❌ Features too sparse ({np.count_nonzero(features)} non-zero), extracting polyphonic")
+                    
+                    # Fall back to extracting polyphonic features
+                    if i == 0:
+                        print(f"      ❌ No valid features, extracting polyphonic")
+                    features = self.extract_polyphonic_features(item)
+                    self.add_audio_frame(features, item)
+                else:
+                    # Convert symbol to features (fallback)
+                    features = self._symbol_to_features(str(item))
+                    audio_data = {'symbol': str(item), 'timestamp': time.time()}
+                    self.add_audio_frame(features, audio_data)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error adding sequence to Polyphonic AudioOracle: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     def extract_polyphonic_features(self, event_data: Dict) -> np.ndarray:
         """
@@ -404,9 +467,62 @@ class PolyphonicAudioOracle(AudioOracle):
             
             polyphonic_frames_added = 0
             
+            # DEBUG: Check first event
+            if len(musical_sequence) > 0:
+                first_event = musical_sequence[0]
+                print(f"\n🔍 AudioOracle DEBUG: First event features check:")
+                if 'features' in first_event:
+                    import numpy as np
+                    feats = np.array(first_event['features']) if isinstance(first_event['features'], list) else first_event['features']
+                    print(f"   Has 'features': YES")
+                    print(f"   Shape: {feats.shape if hasattr(feats, 'shape') else len(feats)}")
+                    print(f"   Non-zero: {np.count_nonzero(feats)}")
+                    print(f"   First 5: {feats[:5]}")
+                else:
+                    print(f"   Has 'features': NO")
+            
             for i, event_data in enumerate(musical_sequence):
-                # Extract enhanced features
-                features = self.extract_polyphonic_features(event_data)
+                # DEBUG: Check what we're receiving
+                if i == 0:
+                    print(f"\n   🔍 DEBUG - Event data received:")
+                    print(f"      Has 'features' key: {'features' in event_data}")
+                    if 'features' in event_data:
+                        f = event_data['features']
+                        if f is not None:
+                            f_array = np.array(f) if isinstance(f, list) else f
+                            print(f"      Features type: {type(f)}")
+                            print(f"      Features length: {len(f_array) if hasattr(f_array, '__len__') else 'N/A'}")
+                            print(f"      Features non-zero: {np.count_nonzero(f_array)}")
+                            print(f"      Features first 5: {f_array[:5]}")
+                        else:
+                            print(f"      Features is None!")
+                
+                # CRITICAL: Use 768D Wav2Vec features if available (from event_data['features'])
+                # Otherwise fall back to 15D polyphonic features
+                if 'features' in event_data and event_data['features'] is not None:
+                    # Use pre-computed features (768D Wav2Vec from Chandra_trainer.py)
+                    features_raw = event_data['features']
+                    if isinstance(features_raw, list):
+                        features = np.array(features_raw, dtype=np.float32)
+                    else:
+                        features = features_raw
+                    
+                    # Verify we got real features (not just None or empty)
+                    if features is not None and len(features) > 0 and np.count_nonzero(features) > 20:
+                        # Got good 768D features - use them!
+                        if i == 0:
+                            print(f"      ✅ USING 768D Wav2Vec features (non-zero: {np.count_nonzero(features)})")
+                    else:
+                        # Features exist but are bad - fall back
+                        if i == 0:
+                            nonzero_count = np.count_nonzero(features) if features is not None else 0
+                            print(f"      ❌ FALLING BACK to polyphonic (non-zero: {nonzero_count} ≤ 20)")
+                        features = self.extract_polyphonic_features(event_data)
+                else:
+                    # Fall back to extracting 15D polyphonic features
+                    if i == 0:
+                        print(f"      ❌ FALLING BACK to polyphonic (no features key)")
+                    features = self.extract_polyphonic_features(event_data)
                 
                 # Create polyphonic audio frame
                 polyphonic_frame = PolyphonicAudioFrame(
@@ -426,6 +542,12 @@ class PolyphonicAudioOracle(AudioOracle):
                     rolloff_85=event_data.get('rolloff_85', 0.0),
                     rolloff_95=event_data.get('rolloff_95', 0.0)
                 )
+                
+                # DEBUG: Check features right before adding to AudioOracle
+                if i == 0:
+                    print(f"   📍 Features being passed to add_audio_frame:")
+                    print(f"      Shape: {features.shape if hasattr(features, 'shape') else len(features)}")
+                    print(f"      Non-zero: {np.count_nonzero(features)}")
                 
                 # Add frame to AudioOracle
                 success = self.add_audio_frame(features, event_data)
@@ -1042,7 +1164,7 @@ class PolyphonicAudioOracle(AudioOracle):
             
             # Load basic parameters
             print("   ⏳ Loading parameters...")
-            self.distance_threshold = data.get('distance_threshold', 0.15)
+            self.distance_threshold = data.get('distance_threshold', 0.25)  # Updated default
             self.distance_function = data.get('distance_function', 'euclidean')
             self.max_pattern_length = data.get('max_pattern_length', 50)
             self.feature_dimensions = data.get('feature_dimensions', 12)

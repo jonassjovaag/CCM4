@@ -237,8 +237,8 @@ class AudioOracle:
             mean_dist = np.mean(recent_distances)
             std_dist = np.std(recent_distances)
             new_threshold = mean_dist + 0.5 * std_dist
-            # Clamp to reasonable range for cosine [0.05, 0.5]
-            new_threshold = np.clip(new_threshold, 0.05, 0.5)
+            # Clamp to reasonable range for cosine [0.15, 0.6] - increased for 768D features
+            new_threshold = np.clip(new_threshold, 0.15, 0.6)
         else:
             # For Euclidean/Manhattan on high-D features, use percentile
             # 25th percentile = accept closest 25% of distances
@@ -666,28 +666,25 @@ class AudioOracle:
                 else:
                     k = -1
             
-            # Set suffix link
-            if k == -1:
-                self.states[new_state]['link'] = 0
-                self.suffix_links[new_state] = 0
-            else:
-                # Find best transition (minimum distance)
-                best_state = None
-                min_distance = float('inf')
-                
-                for similar_frame_id in self._find_similar_frames(features):
-                    if (k, similar_frame_id) in self.transitions:
-                        distance = self._calculate_distance(features, self.audio_frames[similar_frame_id].features)
-                        if distance < min_distance:
-                            min_distance = distance
-                            best_state = self.transitions[(k, similar_frame_id)]
-                
-                if best_state is not None:
-                    self.states[new_state]['link'] = best_state
-                    self.suffix_links[new_state] = best_state
-                else:
-                    self.states[new_state]['link'] = 0
-                    self.suffix_links[new_state] = 0
+            # Set suffix link: Find best matching previous state
+            # Suffix link should point to the most similar previous state (Factor Oracle pattern matching)
+            best_state = 0  # Default to initial state
+            min_distance = float('inf')
+            
+            # Search through ALL previous states for best match
+            for prev_state in range(new_state):
+                if prev_state in self.audio_frames:
+                    prev_features = self.audio_frames[prev_state].features
+                    distance = self._calculate_distance(features, prev_features)
+                    
+                    # Find closest match within threshold
+                    if distance < min_distance and distance < self.distance_threshold:
+                        min_distance = distance
+                        best_state = prev_state
+            
+            # Set the suffix link
+            self.states[new_state]['link'] = best_state
+            self.suffix_links[new_state] = best_state
             
             # Update state
             self.last = new_state

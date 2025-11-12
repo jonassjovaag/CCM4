@@ -18,10 +18,6 @@ import numpy as np
 from typing import List, Dict, Any, Optional
 from dataclasses import asdict
 
-# Prevent TensorFlow import in transformers (NumPy 2.x compatibility)
-# Must be set before any transformers imports
-os.environ['USE_TF'] = '0'
-
 # Activate CCM3 virtual environment if available
 try:
     from ccm3_venv_manager import ensure_ccm3_venv_active
@@ -50,20 +46,14 @@ from rhythmic_engine.memory.rhythm_oracle import RhythmOracle
 from correlation_engine.correlation_analyzer import HarmonicRhythmicCorrelator
 from correlation_engine.unified_decision_engine import UnifiedDecisionEngine, CrossModalContext
 
-# Harmonic detection for training (same as live performance)
-from listener.harmonic_context import RealtimeHarmonicDetector, HarmonicContext
-
 # GPT-OSS integration
 from gpt_oss_client import GPTOSSClient, GPTOSSAnalysis, GPTOSSArcAnalysis
 
 # Performance arc components
 from performance_arc_analyzer import PerformanceArcAnalyzer, PerformanceArc
 
-# Temporal smoothing components (legacy)
+# Temporal smoothing components
 from core.temporal_smoothing import TemporalSmoother
-
-# Musical gesture processing (new approach)
-from core.musical_gesture_processor import MusicalGestureProcessor
 
 class EnhancedHybridTrainingPipeline:
     """
@@ -89,16 +79,7 @@ class EnhancedHybridTrainingPipeline:
                  enable_wav2vec: bool = True,
                  wav2vec_model: str = "facebook/wav2vec2-base",
                  use_gpu: bool = True,
-                 enable_dual_vocabulary: bool = False,
-                 temporal_window: float = 0.1,
-                 temporal_threshold: float = 0.2,
-                 enable_temporal_smoothing: bool = True,
-                 use_musical_gestures: bool = True,
-                 gesture_transition_threshold: float = 0.3,
-                 gesture_sustain_threshold: float = 0.15,
-                 gesture_min_duration: float = 0.2,
-                 gesture_max_duration: float = 2.0,
-                 gesture_consolidation_method: str = 'peak'):
+                 enable_dual_vocabulary: bool = False):
         """
         Initialize enhanced hybrid training pipeline
         
@@ -153,11 +134,6 @@ class EnhancedHybridTrainingPipeline:
         self.unified_decision_engine = UnifiedDecisionEngine()
         print("🔗 Harmonic-rhythmic correlation analysis enabled")
         
-        # Initialize harmonic detector for training (same as live performance)
-        self.harmonic_detector = RealtimeHarmonicDetector(window_size=8192, hop_length=2048)
-        self.chord_sequence = []  # Track detected chords for transition analysis
-        print("🎼 Real-time harmonic detector enabled for training")
-        
         # Initialize GPT-OSS client
         if enable_gpt_oss:
             self.gpt_oss_client = GPTOSSClient(auto_start=True)
@@ -170,46 +146,12 @@ class EnhancedHybridTrainingPipeline:
         self.performance_arc_analyzer = PerformanceArcAnalyzer()
         print("🎭 Performance arc analysis enabled")
         
-        # Store temporal smoothing parameters
-        self.temporal_window = temporal_window
-        self.temporal_threshold = temporal_threshold
-        self.enable_temporal_smoothing = enable_temporal_smoothing
-        
         # Initialize temporal smoother (prevents over-sampling of sustained notes)
-        if enable_temporal_smoothing:
-            # OPTIMIZED FOR RHYTHMIC VARIETY: User-configurable parameters
-            # Default: 0.1s window preserves rhythmic changes while preventing flicker
-            # Higher threshold ensures only genuine musical changes create new events
-            self.temporal_smoother = TemporalSmoother(
-                window_size=temporal_window,
-                min_change_threshold=temporal_threshold
-            )
-            print(f"✅ Temporal smoothing enabled: {temporal_window}s window, {temporal_threshold} threshold (optimized for rhythmic variety)")
-        else:
-            self.temporal_smoother = None
-            print("⚠️  Temporal smoothing DISABLED - pure rhythmic analysis mode")
-        
-        # Initialize musical gesture processor (NEW APPROACH - replaces temporal smoothing)
-        self.use_musical_gestures = use_musical_gestures and not enable_temporal_smoothing
-        self.gesture_consolidation_method = gesture_consolidation_method
-        if self.use_musical_gestures:
-            self.musical_gesture_processor = MusicalGestureProcessor(
-                transition_threshold=gesture_transition_threshold,
-                sustain_threshold=gesture_sustain_threshold,
-                min_gesture_duration=gesture_min_duration,
-                max_gesture_duration=gesture_max_duration,
-                consolidation_method=gesture_consolidation_method
-            )
-            print(f"🎵 Musical gesture processing enabled:")
-            print(f"   Transition threshold: {gesture_transition_threshold} (feature change = new gesture)")
-            print(f"   Sustain threshold: {gesture_sustain_threshold} (similarity = sustained gesture)")
-            print(f"   Gesture duration: {gesture_min_duration}s - {gesture_max_duration}s")
-            print(f"   Consolidation: {gesture_consolidation_method} (how to select representative moment)")
-        else:
-            self.musical_gesture_processor = None
-            if enable_temporal_smoothing:
-                print("   Using legacy temporal smoothing instead of musical gestures")
-
+        self.temporal_smoother = TemporalSmoother(
+            window_size=0.3,  # 300ms windows for event grouping
+            min_change_threshold=0.1  # Minimum feature change to create new event
+        )
+        print("✅ Temporal smoothing enabled (prevents chord flicker)")
         
         # Initialize perception system
         # NEW APPROACH: Dual perception (Wav2Vec + Ratios in parallel)
@@ -545,14 +487,6 @@ class EnhancedHybridTrainingPipeline:
         
         self.training_stats['total_events'] = len(events)
         
-        # NEW: Real-time chord detection for accurate harmonic transitions
-        print("\n🎼 Step 4a: Real-time Chord Detection...")
-        chord_detection_start = time.time()
-        events = self._detect_chords_for_events(events, audio_file)
-        chord_detection_time = time.time() - chord_detection_start
-        print(f"✅ Chord detection complete in {chord_detection_time:.2f}s")
-        self.training_stats['chord_detection_time'] = chord_detection_time
-        
         # NEW: Hybrid/Dual Perception Feature Augmentation (if enabled)
         if self.dual_perception:
             # Dual perception: Wav2Vec + Ratios
@@ -697,67 +631,18 @@ class EnhancedHybridTrainingPipeline:
             if unique_after:
                 print(f"   🔍 Sample tokens: {sorted(unique_after)[:10]}")
         
-        # Apply smoothing/gesture processing to prevent over-sampling of sustained notes
-        if self.use_musical_gestures and self.musical_gesture_processor:
-            # Check if gestures were already applied in Step 4b (new approach)
-            if hasattr(self, '_gestures_applied_in_step4b') and self._gestures_applied_in_step4b:
-                print(f"\n✅ Musical gestures already applied during vocabulary training (Step 4b)")
-                print(f"   Quantizer trained on consolidated gesture features")
-                print(f"   Method: {self.musical_gesture_processor.consolidation_method}")
-                print(f"   Events: {len(enhanced_events)}")
-                # Skip re-applying gestures - tokens are already based on consolidated features
-            else:
-                # Legacy path: apply gestures after token assignment (for backward compatibility)
-                print(f"\n⚠️  Applying musical gestures POST token assignment (legacy mode)")
-                print(f"   Note: This won't affect token diversity (tokens already assigned)")
-                # NEW APPROACH: Musical gesture processing
-                print(f"\n🎵 Applying musical gesture processing...")
-                print(f"   Before processing: {len(enhanced_events)} raw events")
-                
-                # Extract features and timestamps from events (use 't' key for timestamp)
-                features = np.array([e['features'] for e in enhanced_events if 'features' in e])
-                timestamps = np.array([e.get('t', e.get('timestamp', 0.0)) for e in enhanced_events])
-                
-                # Process into musical gestures
-                consolidated_features, consolidated_timestamps, gestures = self.musical_gesture_processor.process_features(
-                    features, timestamps
-                )
-                
-                # Reconstruct events from gestures
-                gesture_events = []
-                for i, (feature, timestamp, gesture) in enumerate(zip(consolidated_features, consolidated_timestamps, gestures)):
-                    # Copy first matching event as template
-                    template_event = enhanced_events[0].copy()
-                    template_event['features'] = feature
-                    template_event['t'] = timestamp  # Use 't' key for timestamp, not 'timestamp'
-                    template_event['gesture_metadata'] = {
-                        'duration': gesture.duration,
-                        'event_count': gesture.event_count,
-                        'variance': gesture.feature_variance,
-                        'boundary_type': gesture.boundary_type
-                    }
-                    gesture_events.append(template_event)
-                
-                enhanced_events = gesture_events
-                print(f"   After processing: {len(enhanced_events)} musical gestures")
-                self.musical_gesture_processor.print_statistics()
-            
-        elif self.enable_temporal_smoothing:
-            # LEGACY APPROACH: Temporal smoothing
-            print(f"\n🔄 Applying temporal smoothing ({self.temporal_window}s window, {self.temporal_threshold} threshold)...")
-            original_count = len(enhanced_events)
-            print(f"   Before smoothing: {original_count} events")
-            enhanced_events = self.temporal_smoother.smooth_events(enhanced_events)
-            smoothed_count = len(enhanced_events)
-            print(f"   After smoothing: {smoothed_count} events")
-            if original_count > smoothed_count:
-                reduction_percent = ((original_count - smoothed_count) / original_count) * 100
-                print(f"   ✅ Removed {original_count - smoothed_count} duplicate events ({reduction_percent:.1f}% reduction)")
-            else:
-                print(f"   ℹ️  No duplicates removed (all events represent distinct musical moments)")
+        # Apply temporal smoothing to prevent over-sampling of sustained notes
+        print(f"\n🔄 Applying temporal smoothing...")
+        original_count = len(enhanced_events)
+        print(f"   Before smoothing: {original_count} events")
+        enhanced_events = self.temporal_smoother.smooth_events(enhanced_events)
+        smoothed_count = len(enhanced_events)
+        print(f"   After smoothing: {smoothed_count} events")
+        if original_count > smoothed_count:
+            reduction_percent = ((original_count - smoothed_count) / original_count) * 100
+            print(f"   ✅ Removed {original_count - smoothed_count} duplicate events ({reduction_percent:.1f}% reduction)")
         else:
-            print(f"\n⚠️  No smoothing/gesture processing - using all {len(enhanced_events)} raw events for maximum rhythmic detail")
-
+            print(f"   ℹ️  No duplicates removed (all events represent distinct musical moments)")
         
         # Train AudioOracle
         training_success = self.hybrid_trainer.train_from_events(
@@ -813,13 +698,13 @@ class EnhancedHybridTrainingPipeline:
         else:
             model_base = output_file.replace('.json', '')  # Remove .json suffix
         
-        # Save AudioOracle model for live performance
-        model_file = f"{model_base}_model.json"
+        # Save AudioOracle model for live performance (separate file from analysis!)
+        audio_oracle_file = f"{model_base}_audio_oracle.json"
         if training_success:
             audio_oracle = self.hybrid_trainer.audio_oracle_mps if self.hybrid_trainer.use_mps else self.hybrid_trainer.audio_oracle
             if audio_oracle:
-                print(f"💾 Saving AudioOracle model to {model_file}...")
-                model_saved = audio_oracle.save_to_file(model_file)
+                print(f"💾 Saving AudioOracle model to {audio_oracle_file}...")
+                model_saved = audio_oracle.save_to_file(audio_oracle_file)
                 if model_saved:
                     print(f"✅ AudioOracle model saved successfully!")
                     # Get model statistics
@@ -827,17 +712,6 @@ class EnhancedHybridTrainingPipeline:
                     print(f"📊 Model contains: {stats.get('total_patterns', 0)} patterns, "
                           f"{stats.get('harmonic_patterns', 0)} harmonic patterns, "
                           f"{stats.get('polyphonic_patterns', 0)} polyphonic patterns")
-                    
-                    # Also save as pickle for faster loading
-                    pickle_file = f"{model_base}_model.pkl.gz"
-                    print(f"💾 Saving AudioOracle model to pickle format: {pickle_file}...")
-                    try:
-                        pickle_size = audio_oracle.save_to_pickle(pickle_file)
-                        print(f"✅ Pickle model saved successfully! ({pickle_size:.1f} MB)")
-                        print(f"💡 Pickle format loads 10-50× faster than JSON")
-                    except Exception as e:
-                        print(f"⚠️  Failed to save pickle format: {e}")
-                        print(f"   (JSON model is still available)")
                 else:
                     print(f"❌ Failed to save AudioOracle model")
         
@@ -854,59 +728,6 @@ class EnhancedHybridTrainingPipeline:
                       f"avg density {rhythm_stats['avg_density']:.2f}")
             except Exception as e:
                 print(f"❌ Failed to save RhythmOracle model: {e}")
-        
-        # Build and save harmonic transition graph for learned chord progressions
-        harmonic_transition_graph = self._build_harmonic_transition_graph()
-        if harmonic_transition_graph:
-            transition_graph_file = f"{model_base}_harmonic_transitions.json"
-            print(f"🎼 Saving harmonic transition graph to {transition_graph_file}...")
-            try:
-                with open(transition_graph_file, 'w') as f:
-                    json.dump(harmonic_transition_graph, f, indent=2)
-                print(f"✅ Harmonic transition graph saved successfully!")
-                print(f"   Use this with HarmonicProgressor for intelligent chord selection")
-            except Exception as e:
-                print(f"❌ Failed to save harmonic transition graph: {e}")
-        
-        # Save PerformanceArc for timeline/structured performances
-        if performance_arc:
-            # Determine arc filename (use ai_learning_data/ directory for persistent models)
-            import os
-            base_name = os.path.basename(audio_file).replace('.wav', '').replace('.mp3', '').replace('.flac', '')
-            arc_file = f"ai_learning_data/{base_name}_performance_arc.json"
-            
-            print(f"🎭 Saving PerformanceArc to {arc_file}...")
-            try:
-                arc_dict = performance_arc.to_dict()
-                
-                # Convert NumPy types to Python native types for JSON serialization
-                def convert_numpy_types(obj):
-                    """Recursively convert NumPy types to Python native types"""
-                    if isinstance(obj, dict):
-                        return {key: convert_numpy_types(value) for key, value in obj.items()}
-                    elif isinstance(obj, list):
-                        return [convert_numpy_types(item) for item in obj]
-                    elif isinstance(obj, (np.integer, np.int32, np.int64)):
-                        return int(obj)
-                    elif isinstance(obj, (np.floating, np.float32, np.float64)):
-                        return float(obj)
-                    elif isinstance(obj, np.ndarray):
-                        return obj.tolist()
-                    else:
-                        return obj
-                
-                arc_dict = convert_numpy_types(arc_dict)
-                
-                with open(arc_file, 'w') as f:
-                    json.dump(arc_dict, f, indent=2)
-                print(f"✅ PerformanceArc saved successfully!")
-                print(f"📊 Arc contains: {len(performance_arc.phases)} phases, "
-                      f"{performance_arc.total_duration:.1f}s duration, "
-                      f"{len(performance_arc.silence_patterns)} silence patterns")
-            except Exception as e:
-                print(f"❌ Failed to save PerformanceArc: {e}")
-                import traceback
-                traceback.print_exc()
         
         # Save correlation patterns for live use (use same base name)
         correlation_file = f"{model_base}_correlation_patterns.json"
@@ -934,6 +755,7 @@ class EnhancedHybridTrainingPipeline:
             }
             
             try:
+                import json
                 with open(correlation_file, 'w') as f:
                     json.dump(correlation_data, f, indent=2)
                 
@@ -961,30 +783,6 @@ class EnhancedHybridTrainingPipeline:
                     print(f"✅ Saved percussive vocabulary to {percussive_vocab_file}")
                 except Exception as e:
                     print(f"⚠️  Failed to save percussive vocabulary: {e}")
-                    import traceback
-                    traceback.print_exc()
-                
-                # CRITICAL FIX: Also save gesture quantizer for pattern matching
-                # In dual vocabulary mode, we use harmonic quantizer as the main gesture quantizer
-                # (both harmonic and percussive are gesture quantizers, but we need one for backwards compatibility)
-                gesture_quantizer_file = f"{model_base}_gesture_training_quantizer.joblib"
-                try:
-                    # Save harmonic quantizer as the main gesture quantizer
-                    # (it's trained on Wav2Vec features just like percussive)
-                    if self.dual_perception.harmonic_quantizer and self.dual_perception.harmonic_quantizer.is_fitted:
-                        self.dual_perception.harmonic_quantizer.save(gesture_quantizer_file)
-                        print(f"✅ Saved gesture vocabulary (Wav2Vec) to {gesture_quantizer_file}")
-                        # Verify file was created
-                        import os
-                        if os.path.exists(gesture_quantizer_file):
-                            file_size = os.path.getsize(gesture_quantizer_file) / 1024  # KB
-                            print(f"   📁 File verified: {file_size:.1f} KB")
-                        else:
-                            print(f"   ❌ ERROR: File not found after save!")
-                    else:
-                        print(f"⚠️  Harmonic quantizer not fitted - cannot save gesture quantizer")
-                except Exception as e:
-                    print(f"⚠️  Failed to save gesture quantizer: {e}")
                     import traceback
                     traceback.print_exc()
             else:
@@ -1024,83 +822,29 @@ class EnhancedHybridTrainingPipeline:
         return enhanced_output
     
     def _train_rhythm_oracle(self, rhythmic_result: RhythmicAnalysis):
-        """
-        Train RhythmOracle with rhythmic analysis results
+        """Train RhythmOracle with rhythmic analysis results"""
         
-        Now uses rational_structure analysis for tempo-independent patterns.
-        Each detected pattern gets its duration pattern extracted from rational analysis.
-        """
-        
-        print("🥁 Training RhythmOracle with tempo-independent patterns...")
+        print("🥁 Training RhythmOracle with rhythmic patterns...")
         
         # Add each detected pattern to the RhythmOracle
-        patterns_with_ratios = 0
-        patterns_without_ratios = 0
-        
         for pattern in rhythmic_result.patterns:
-            # Try to extract rational structure for this pattern's onsets
-            pattern_onsets = []
-            for onset_time in rhythmic_result.onsets:
-                if pattern.start_time <= onset_time <= pattern.end_time:
-                    pattern_onsets.append(onset_time)
-            
-            # Analyze rational structure for this pattern if enough onsets
-            duration_pattern = None
-            pulse = 4
-            complexity = 0.0
-            
-            if len(pattern_onsets) >= 3:
-                try:
-                    rational = self.rhythmic_analyzer.analyze_rational_structure(np.array(pattern_onsets))
-                    if rational:
-                        duration_pattern = rational['duration_pattern']
-                        pulse = rational['pulse']
-                        complexity = rational['complexity']
-                        patterns_with_ratios += 1
-                except Exception as e:
-                    print(f"   ⚠️  Could not analyze rational structure for pattern: {e}")
-            
-            # Fallback: create simple duration pattern if rational analysis failed
-            if not duration_pattern:
-                # Use simple interval-based pattern
-                if len(pattern_onsets) >= 2:
-                    intervals = np.diff(pattern_onsets)
-                    # Normalize to smallest interval
-                    min_interval = np.min(intervals)
-                    if min_interval > 0:
-                        duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
-                    else:
-                        duration_pattern = [2, 2, 2, 2]  # Default
-                else:
-                    duration_pattern = [2, 2, 2, 2]  # Default for insufficient data
-                patterns_without_ratios += 1
-            
             pattern_data = {
-                'duration_pattern': duration_pattern,
+                'tempo': pattern.tempo,
                 'density': pattern.density,
                 'syncopation': pattern.syncopation,
-                'pulse': pulse,
-                'complexity': complexity,
                 'meter': pattern.meter,
                 'pattern_type': pattern.pattern_type,
                 'confidence': pattern.confidence,
                 'context': {
                     'start_time': pattern.start_time,
                     'end_time': pattern.end_time,
-                    'num_onsets': len(pattern_onsets),
-                    'rhythmic_complexity': rhythmic_result.rhythmic_complexity
+                    'complexity': rhythmic_result.rhythmic_complexity
                 }
             }
             
             self.rhythm_oracle.add_rhythmic_pattern(pattern_data)
         
         print(f"✅ RhythmOracle trained with {len(rhythmic_result.patterns)} patterns")
-        print(f"   📊 {patterns_with_ratios} with rational structure, {patterns_without_ratios} with fallback")
-        
-        # Print statistics
-        stats = self.rhythm_oracle.get_rhythmic_statistics()
-        print(f"   📈 Avg density: {stats['avg_density']:.2f}, Avg syncopation: {stats['avg_syncopation']:.2f}")
-        print(f"   📈 Avg complexity: {stats['avg_complexity']:.2f}")
     
     def _convert_event_to_dict(self, event) -> Dict:
         """
@@ -1498,97 +1242,6 @@ class EnhancedHybridTrainingPipeline:
             if (i + 1) % 50 == 0 or (i + 1) == len(segments):
                 print(f"   Processed {i + 1}/{len(segments)} segments")
         
-        # === MUSICAL GESTURE CONSOLIDATION (Applied BEFORE quantizer training) ===
-        # This ensures the consolidation method (peak vs weighted_median) affects token diversity
-        gesture_metadata = {}  # Track gesture info for later mapping
-        
-        if self.use_musical_gestures and self.musical_gesture_processor:
-            print(f"\n   🎵 Applying musical gesture consolidation to Wav2Vec segments...")
-            print(f"      Method: {self.musical_gesture_processor.consolidation_method}")
-            print(f"      Segments before consolidation: {len(segment_features)}")
-            
-            if self.dual_perception.enable_dual_vocabulary:
-                # Apply to both harmonic and percussive streams
-                if harmonic_wav2vec_features:
-                    harmonic_features_array = np.array(harmonic_wav2vec_features)
-                    harmonic_timestamps = np.array([seg.start_time for seg in harmonic_segments])
-                    
-                    harmonic_consolidated, harmonic_times, harmonic_gestures = \
-                        self.musical_gesture_processor.process_features(harmonic_features_array, harmonic_timestamps)
-                    
-                    # Store mapping info for event assignment
-                    gesture_metadata['harmonic_original_features'] = harmonic_wav2vec_features
-                    gesture_metadata['harmonic_consolidated_features'] = harmonic_consolidated
-                    gesture_metadata['harmonic_consolidated_timestamps'] = harmonic_times
-                    
-                    harmonic_wav2vec_features = list(harmonic_consolidated)
-                    print(f"      Harmonic: {len(harmonic_features_array)} → {len(harmonic_consolidated)} gestures " +
-                          f"({len(harmonic_features_array) / len(harmonic_consolidated):.2f}x consolidation)")
-                
-                if percussive_wav2vec_features:
-                    percussive_features_array = np.array(percussive_wav2vec_features)
-                    percussive_timestamps = np.array([seg.start_time for seg in percussive_segments])
-                    
-                    percussive_consolidated, percussive_times, percussive_gestures = \
-                        self.musical_gesture_processor.process_features(percussive_features_array, percussive_timestamps)
-                    
-                    # Store mapping info for event assignment
-                    gesture_metadata['percussive_original_features'] = percussive_wav2vec_features
-                    gesture_metadata['percussive_consolidated_features'] = percussive_consolidated
-                    gesture_metadata['percussive_consolidated_timestamps'] = percussive_times
-                    
-                    percussive_wav2vec_features = list(percussive_consolidated)
-                    print(f"      Percussive: {len(percussive_features_array)} → {len(percussive_consolidated)} gestures " +
-                          f"({len(percussive_features_array) / len(percussive_consolidated):.2f}x consolidation)")
-            else:
-                # Single vocabulary mode
-                segment_features_array = np.array([sf['wav2vec_features'] for sf in segment_features])
-                segment_timestamps = np.array([sf['start_time'] for sf in segment_features])
-                
-                consolidated_features, consolidated_timestamps, gestures = \
-                    self.musical_gesture_processor.process_features(segment_features_array, segment_timestamps)
-                
-                print(f"      Consolidated: {len(segment_features_array)} → {len(consolidated_features)} gestures " +
-                      f"({len(segment_features_array) / len(consolidated_features):.2f}x consolidation)")
-                
-                # Store mapping from consolidated gestures back to original segments for event mapping
-                gesture_metadata['consolidated_features'] = consolidated_features
-                gesture_metadata['consolidated_timestamps'] = consolidated_timestamps
-                gesture_metadata['gestures'] = gestures
-                gesture_metadata['original_segment_features'] = segment_features
-                
-                # Update segment_features to use consolidated features for quantizer training
-                # Find nearest original segment for each gesture to preserve metadata
-                consolidated_segment_features = []
-                for i, (feat, ts, gest) in enumerate(zip(consolidated_features, consolidated_timestamps, gestures)):
-                    # Find original segment closest to this gesture timestamp
-                    closest_original = min(gesture_metadata['original_segment_features'], 
-                                          key=lambda s: abs(s['start_time'] - ts))
-                    
-                    # Debug: Check what fields are in closest_original
-                    if i == 0:
-                        print(f"      🔍 DEBUG: Original segment fields: {list(closest_original.keys())}")
-                    
-                    # Copy metadata from original segment, but use consolidated feature
-                    consolidated_seg = closest_original.copy()
-                    consolidated_seg['wav2vec_features'] = feat
-                    consolidated_seg['start_time'] = ts
-                    consolidated_seg['end_time'] = ts + gest.duration
-                    consolidated_seg['gesture_metadata'] = {
-                        'duration': gest.duration,
-                        'event_count': gest.event_count,
-                        'boundary_type': gest.boundary_type
-                    }
-                    consolidated_segment_features.append(consolidated_seg)
-                
-                segment_features = consolidated_segment_features
-            
-            # Mark that gestures were applied here (so Step 8 can skip)
-            self._gestures_applied_in_step4b = True
-            print(f"      ✅ Gesture consolidation complete (will train quantizer on consolidated features)")
-        else:
-            self._gestures_applied_in_step4b = False
-        
         # Train gesture vocabulary/vocabularies
         if self.dual_perception.enable_dual_vocabulary:
             print(f"   🎓 Training DUAL vocabularies from {len(segment_features)} segments...")
@@ -1621,18 +1274,21 @@ class EnhancedHybridTrainingPipeline:
         print(f"   🔍 DEBUG: Sample event timestamps: {sample_times}")
         print(f"   🔍 DEBUG: Segment time range: {segments[0].start_time:.2f} to {segments[-1].end_time:.2f}")
         
-        # Get audio duration for validation
+        # Get audio duration for normalization
         audio_duration = len(audio) / sr
+        normalized_count = 0
         
         for event in events:
             event_time = event.get('t', 0)
             
-            # Validate event timestamps are in correct range
+            # Normalize event time if it's absolute (e.g., Unix timestamp)
             # Audio events should be in range [0, audio_duration]
-            if event_time < 0 or event_time > audio_duration:
-                print(f"   ⚠️  WARNING: Event timestamp {event_time:.2f}s outside audio duration {audio_duration:.2f}s")
-                # Clamp to valid range
-                event_time = max(0, min(event_time, audio_duration))
+            if event_time > audio_duration:
+                # This is an absolute timestamp, normalize it
+                # Assume events are evenly distributed or use modulo
+                event_time = event_time % audio_duration
+                normalized_count += 1
+                # CRITICAL: Update the event timestamp with normalized value
                 event['t'] = event_time
             
             # Find closest segment
@@ -1644,41 +1300,23 @@ class EnhancedHybridTrainingPipeline:
             
             if self.dual_perception.enable_dual_vocabulary:
                 # DUAL VOCABULARY MODE: Assign both harmonic and percussive tokens
-                # Find closest consolidated features by timestamp
+                # Find corresponding harmonic and percussive features by matching to closest_segment
+                # Use the same segment index that was found for the combined audio
+                segment_idx = segment_features.index(closest_segment)
+                
+                # Assign harmonic token
                 harmonic_token = None
                 if self.dual_perception.harmonic_quantizer and self.dual_perception.harmonic_quantizer.is_fitted:
-                    if 'harmonic_consolidated_timestamps' in gesture_metadata:
-                        # Use consolidated features
-                        h_timestamps = gesture_metadata['harmonic_consolidated_timestamps']
-                        h_features = gesture_metadata['harmonic_consolidated_features']
-                        closest_h_idx = min(range(len(h_timestamps)),
-                                          key=lambda i: abs(h_timestamps[i] - event_time))
-                        harmonic_feat = h_features[closest_h_idx].astype(np.float64)
-                    else:
-                        # Fallback to direct lookup (if no consolidation)
-                        segment_idx = min(range(len(harmonic_wav2vec_features)),
-                                        key=lambda i: abs(harmonic_segments[i].start_time - event_time) if i < len(harmonic_segments) else float('inf'))
+                    if segment_idx < len(harmonic_wav2vec_features):
                         harmonic_feat = harmonic_wav2vec_features[segment_idx].astype(np.float64)
-                    
-                    harmonic_token = int(self.dual_perception.harmonic_quantizer.transform(harmonic_feat.reshape(1, -1))[0])
+                        harmonic_token = int(self.dual_perception.harmonic_quantizer.transform(harmonic_feat.reshape(1, -1))[0])
                 
                 # Assign percussive token
                 percussive_token = None
                 if self.dual_perception.percussive_quantizer and self.dual_perception.percussive_quantizer.is_fitted:
-                    if 'percussive_consolidated_timestamps' in gesture_metadata:
-                        # Use consolidated features
-                        p_timestamps = gesture_metadata['percussive_consolidated_timestamps']
-                        p_features = gesture_metadata['percussive_consolidated_features']
-                        closest_p_idx = min(range(len(p_timestamps)),
-                                          key=lambda i: abs(p_timestamps[i] - event_time))
-                        percussive_feat = p_features[closest_p_idx].astype(np.float64)
-                    else:
-                        # Fallback to direct lookup (if no consolidation)
-                        segment_idx = min(range(len(percussive_wav2vec_features)),
-                                        key=lambda i: abs(percussive_segments[i].start_time - event_time) if i < len(percussive_segments) else float('inf'))
+                    if segment_idx < len(percussive_wav2vec_features):
                         percussive_feat = percussive_wav2vec_features[segment_idx].astype(np.float64)
-                    
-                    percussive_token = int(self.dual_perception.percussive_quantizer.transform(percussive_feat.reshape(1, -1))[0])
+                        percussive_token = int(self.dual_perception.percussive_quantizer.transform(percussive_feat.reshape(1, -1))[0])
                 
                 # === MACHINE REPRESENTATION (What AI actually works with) ===
                 event['harmonic_token'] = harmonic_token
@@ -1717,8 +1355,8 @@ class EnhancedHybridTrainingPipeline:
             event['dual_active_pcs'] = closest_segment['active_pcs'].tolist()
         
         # Print timestamp normalization summary
-        print(f"   🔍 DEBUG: Sample event timestamps: {sample_times}")
-        print(f"   🔍 DEBUG: Segment time range: {segments[0].start_time:.2f} to {segments[-1].end_time:.2f}")
+        if normalized_count > 0:
+            print(f"   ℹ️  Normalized {normalized_count}/{len(events)} events with absolute timestamps")
         
         # Print summary showing DUAL representation
         unique_tokens = len(set(e.get('gesture_token') for e in events if e.get('gesture_token') is not None))
@@ -2461,6 +2099,7 @@ class EnhancedHybridTrainingPipeline:
     
     def _save_json_with_progress(self, data, filepath):
         """Save JSON data with progress bar for large datasets"""
+        import json
         import time
         
         # Use global tqdm availability
@@ -2635,198 +2274,6 @@ class EnhancedHybridTrainingPipeline:
             'chord_change_rate': chord_change_rate
         }
     
-    def _detect_chords_for_events(self, events: List[Dict], audio_file: str) -> List[Dict]:
-        """
-        Detect accurate chords for each event using RealtimeHarmonicDetector
-        This replaces chroma-based chord detection with proper harmonic analysis
-        
-        Args:
-            events: List of event dictionaries
-            audio_file: Path to audio file
-            
-        Returns:
-            Enhanced events with accurate chord data
-        """
-        print("🎼 Detecting chords using RealtimeHarmonicDetector...")
-        
-        try:
-            import librosa
-            
-            # Load audio file once
-            y, sr = librosa.load(audio_file, sr=44100, mono=True)
-            
-            # Initialize chord sequence tracking
-            chord_sequence = []
-            
-            # Process each event
-            enhanced_events = []
-            for i, event in enumerate(events):
-                event_time = event.get('t', 0.0)
-                
-                # Extract audio segment around this event
-                # Use 1-second window centered on onset for robust detection
-                window_duration = 1.0  # seconds
-                start_time = max(0, event_time - window_duration / 2)
-                end_time = min(len(y) / sr, event_time + window_duration / 2)
-                
-                start_sample = int(start_time * sr)
-                end_sample = int(end_time * sr)
-                
-                # Extract audio buffer
-                audio_buffer = y[start_sample:end_sample]
-                
-                # Detect chord using RealtimeHarmonicDetector
-                if len(audio_buffer) > 0:
-                    harmonic_context = self.harmonic_detector.update_from_audio(audio_buffer, sr=sr)
-                    
-                    # Store chord data in event
-                    event_enhanced = event.copy()
-                    event_enhanced['realtime_chord'] = harmonic_context.current_chord
-                    event_enhanced['realtime_key'] = harmonic_context.key_signature
-                    event_enhanced['chord_confidence'] = harmonic_context.confidence
-                    event_enhanced['chord_stability'] = harmonic_context.stability
-                    event_enhanced['chord_root'] = harmonic_context.chord_root
-                    event_enhanced['chord_type'] = harmonic_context.chord_type
-                    event_enhanced['scale_degrees'] = harmonic_context.scale_degrees
-                    
-                    # Track chord sequence for transition analysis
-                    chord_sequence.append({
-                        'time': event_time,
-                        'chord': harmonic_context.current_chord,
-                        'key': harmonic_context.key_signature,
-                        'confidence': harmonic_context.confidence
-                    })
-                    
-                    enhanced_events.append(event_enhanced)
-                else:
-                    # Fallback if audio buffer is empty
-                    enhanced_events.append(event)
-                
-                # Progress indicator
-                if (i + 1) % 100 == 0 or i == len(events) - 1:
-                    progress = (i + 1) / len(events) * 100
-                    print(f"   Progress: {progress:.1f}% ({i+1}/{len(events)} events)", end='\r')
-            
-            print()  # New line after progress
-            
-            # Analyze chord distribution
-            from collections import Counter
-            chord_counts = Counter([cs['chord'] for cs in chord_sequence])
-            unique_chords = len(chord_counts)
-            
-            print(f"✅ Chord detection complete:")
-            print(f"   Total events: {len(enhanced_events)}")
-            print(f"   Unique chords: {unique_chords}")
-            if unique_chords > 0:
-                print(f"   Top 5 chords: {dict(chord_counts.most_common(5))}")
-            
-            # Store chord sequence for transition graph building
-            self.chord_sequence = chord_sequence
-            
-            return enhanced_events
-            
-        except Exception as e:
-            print(f"❌ Chord detection failed: {e}")
-            print(f"   Falling back to events without realtime chord data")
-            return events
-    
-    def _build_harmonic_transition_graph(self) -> Dict[str, Any]:
-        """
-        Build harmonic transition graph from detected chord sequence
-        Learns probabilities of chord transitions from training data
-        
-        Returns:
-            Dictionary containing transition probabilities and chord statistics
-        """
-        print("\n🎼 Building harmonic transition graph...")
-        
-        if not hasattr(self, 'chord_sequence') or len(self.chord_sequence) < 2:
-            print("   ⚠️  No chord sequence available - skipping transition graph")
-            return {}
-        
-        from collections import defaultdict, Counter
-        
-        # Count transitions
-        transitions = defaultdict(int)
-        chord_durations = defaultdict(list)
-        chord_frequencies = Counter()
-        
-        for i in range(len(self.chord_sequence) - 1):
-            current = self.chord_sequence[i]
-            next_chord = self.chord_sequence[i + 1]
-            
-            current_chord_name = current['chord']
-            next_chord_name = next_chord['chord']
-            
-            # Track transition
-            transition_key = (current_chord_name, next_chord_name)
-            transitions[transition_key] += 1
-            
-            # Track chord frequency
-            chord_frequencies[current_chord_name] += 1
-            
-            # Track duration (time between chord changes)
-            duration = next_chord['time'] - current['time']
-            chord_durations[current_chord_name].append(duration)
-        
-        # Add last chord frequency
-        if self.chord_sequence:
-            last_chord = self.chord_sequence[-1]['chord']
-            chord_frequencies[last_chord] += 1
-        
-        # Normalize transitions to probabilities
-        transition_probabilities = {}
-        for (from_chord, to_chord), count in transitions.items():
-            from_chord_count = chord_frequencies[from_chord]
-            if from_chord_count > 0:
-                probability = count / from_chord_count
-                transition_probabilities[f"{from_chord}->{to_chord}"] = {
-                    'probability': float(probability),
-                    'count': int(count),
-                    'from_chord_occurrences': int(from_chord_count)
-                }
-        
-        # Calculate average durations
-        avg_durations = {}
-        for chord, durations in chord_durations.items():
-            if durations:
-                avg_durations[chord] = {
-                    'average': float(np.mean(durations)),
-                    'std': float(np.std(durations)),
-                    'min': float(np.min(durations)),
-                    'max': float(np.max(durations))
-                }
-        
-        # Build graph structure
-        transition_graph = {
-            'transitions': transition_probabilities,
-            'chord_frequencies': {k: int(v) for k, v in chord_frequencies.items()},
-            'chord_durations': avg_durations,
-            'total_chords': len(self.chord_sequence),
-            'unique_chords': len(chord_frequencies),
-            'total_transitions': sum(transitions.values())
-        }
-        
-        # Print summary
-        print(f"✅ Transition graph built:")
-        print(f"   Total chord events: {transition_graph['total_chords']}")
-        print(f"   Unique chords: {transition_graph['unique_chords']}")
-        print(f"   Total transitions: {transition_graph['total_transitions']}")
-        print(f"   Top 5 chords: {dict(chord_frequencies.most_common(5))}")
-        
-        # Print top transitions
-        if transition_probabilities:
-            sorted_transitions = sorted(
-                transition_probabilities.items(),
-                key=lambda x: x[1]['count'],
-                reverse=True
-            )[:5]
-            print(f"   Top 5 transitions:")
-            for trans, data in sorted_transitions:
-                print(f"      {trans}: {data['probability']:.2%} ({data['count']} times)")
-        
-        return transition_graph
-    
     def _print_training_summary(self):
         """Print training summary"""
         
@@ -2885,10 +2332,10 @@ def main():
     parser.add_argument('--no-transformer', action='store_true', help='Disable transformer analysis')
     parser.add_argument('--no-hierarchical', action='store_true', help='Disable hierarchical analysis')
     parser.add_argument('--no-rhythmic', action='store_true', help='Disable rhythmic analysis')
-    parser.add_argument('--no-gpt-oss', action='store_true', help='Disable GPT-OSS analysis')
+    parser.add_argument('--enable-gpt-oss', action='store_true', help='Enable GPT-OSS analysis (disabled by default)')
     parser.add_argument('--no-hybrid-perception', action='store_true', 
                        help='Disable hybrid perception (ratio + symbolic features)')
-    parser.add_argument('--vocab-size', type=int, default=64, 
+    parser.add_argument('--vocab-size', type=int, default=16, 
                        help='Symbolic vocabulary size (16, 64, or 256)')
     parser.add_argument('--no-wav2vec', action='store_true',
                        help='Disable Wav2Vec 2.0 neural encoding')
@@ -2902,31 +2349,6 @@ def main():
                        help='Analyze long-form arc structure (sections, tempo changes, phase mapping)')
     parser.add_argument('--section-duration', type=float, default=60.0,
                        help='Section duration for arc analysis in seconds (default: 60)')
-    
-    # Temporal smoothing parameters (LEGACY - being replaced by musical gesture processing)
-    parser.add_argument('--temporal-window', type=float, default=0.1,
-                       help='[LEGACY] Temporal smoothing window in seconds (use --gesture-* instead)')
-    parser.add_argument('--temporal-threshold', type=float, default=0.2,
-                       help='[LEGACY] Minimum feature change threshold (use --gesture-* instead)')
-    parser.add_argument('--no-temporal-smoothing', action='store_true', default=True,
-                       help='Disable temporal smoothing (default: True - musical gestures enabled by default)')
-    
-    # Musical gesture processing parameters (NEW APPROACH)
-    parser.add_argument('--use-musical-gestures', action='store_true', default=True,
-                       help='Use musical gesture processor instead of temporal smoothing (default: True)')
-    parser.add_argument('--no-musical-gestures', dest='use_musical_gestures', action='store_false',
-                       help='Disable musical gesture processing (use with --no-temporal-smoothing for raw data)')
-    parser.add_argument('--gesture-transition-threshold', type=float, default=0.5,
-                       help='Feature change indicating new musical gesture (0.2-0.6, default: 0.5)')
-    parser.add_argument('--gesture-sustain-threshold', type=float, default=0.3,
-                       help='Feature similarity indicating sustained gesture (0.1-0.4, default: 0.3)')
-    parser.add_argument('--gesture-min-duration', type=float, default=0.3,
-                       help='Minimum gesture duration in seconds (default: 0.3)')
-    parser.add_argument('--gesture-max-duration', type=float, default=3.0,
-                       help='Maximum gesture duration in seconds (default: 3.0)')
-    parser.add_argument('--gesture-consolidation', type=str, default='weighted_median',
-                       choices=['peak', 'first', 'mean', 'weighted_median', 'stable'],
-                       help='How to consolidate events within a gesture (default: weighted_median - best diversity + smoothness)')
     
     args = parser.parse_args()
     
@@ -2958,22 +2380,13 @@ def main():
         max_events=args.max_events,
         enable_hierarchical=not args.no_hierarchical,
         enable_rhythmic=not args.no_rhythmic,
-        enable_gpt_oss=not args.no_gpt_oss,
+        enable_gpt_oss=args.enable_gpt_oss,
         enable_hybrid_perception=not args.no_hybrid_perception,
         symbolic_vocabulary_size=args.vocab_size,
         enable_wav2vec=not args.no_wav2vec,
         wav2vec_model=args.wav2vec_model,
         use_gpu=not args.no_gpu,
-        enable_dual_vocabulary=not args.no_dual_vocabulary,
-        temporal_window=args.temporal_window,
-        temporal_threshold=args.temporal_threshold,
-        enable_temporal_smoothing=not args.no_temporal_smoothing,
-        use_musical_gestures=args.use_musical_gestures,
-        gesture_transition_threshold=args.gesture_transition_threshold,
-        gesture_sustain_threshold=args.gesture_sustain_threshold,
-        gesture_min_duration=args.gesture_min_duration,
-        gesture_max_duration=args.gesture_max_duration,
-        gesture_consolidation_method=args.gesture_consolidation
+        enable_dual_vocabulary=not args.no_dual_vocabulary
     )
     
     # Train from audio file

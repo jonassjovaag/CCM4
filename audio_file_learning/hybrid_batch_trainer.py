@@ -21,7 +21,7 @@ class HybridBatchTrainer:
     """
     
     def __init__(self, 
-                 distance_threshold: float = 0.15,
+                 distance_threshold: float = 0.35,  # Increased for 768D Wav2Vec features (cosine distance)
                  distance_function: str = 'cosine',  # FIXED: Use cosine for high-D features (768D Wav2Vec)
                  chord_similarity_weight: float = 0.3,
                  cpu_threshold: int = 5000):
@@ -86,7 +86,7 @@ class HybridBatchTrainer:
                 distance_threshold=self.distance_threshold,
                 distance_function=self.distance_function,
                 feature_dimensions=feature_dimensions,
-                adaptive_threshold=True,
+                adaptive_threshold=False,  # Disabled for 768D features - use fixed threshold
                 chord_similarity_weight=self.chord_similarity_weight,
                 use_mps=True
             )
@@ -98,7 +98,7 @@ class HybridBatchTrainer:
                 distance_threshold=self.distance_threshold,
                 distance_function=self.distance_function,
                 feature_dimensions=feature_dimensions,
-                adaptive_threshold=True,
+                adaptive_threshold=False,  # Disabled for 768D features - use fixed threshold
                 chord_similarity_weight=self.chord_similarity_weight
             )
             self.use_mps = False
