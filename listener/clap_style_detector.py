@@ -155,8 +155,19 @@ class CLAPStyleDetector:
                 return
 
             # Load model
+            # For laion-clap, we need to specify the model variant
+            # The model_name format should be a checkpoint path, not HuggingFace ID
+            # Use the default checkpoint loading
             self.model = laion_clap.CLAP_Module(enable_fusion=False)
-            self.model.load_ckpt(model_id=self.model_name)
+
+            # Load checkpoint - use default 'music_speech_audioset_epoch_15_esc_89.98.pt'
+            # Or download from HuggingFace if model_name is specified
+            try:
+                self.model.load_ckpt()  # Load default checkpoint
+            except:
+                # If default fails, try with model_name as path
+                self.model.load_ckpt(ckpt=self.model_name)
+
             self.model.eval()
 
             # Move to device (CLAP handles this internally)
@@ -170,7 +181,11 @@ class CLAPStyleDetector:
                 text_embeddings = self.model.get_text_embedding(style_texts)
 
             # Store as numpy for faster comparison
-            self.style_text_embeddings = text_embeddings.cpu().numpy()
+            # CLAP get_text_embedding() returns numpy by default
+            if isinstance(text_embeddings, torch.Tensor):
+                self.style_text_embeddings = text_embeddings.cpu().numpy()
+            else:
+                self.style_text_embeddings = text_embeddings
 
             self._initialized = True
             print(f"✅ CLAP model loaded!")
