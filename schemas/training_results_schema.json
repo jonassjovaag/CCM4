@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musichal9000.com/schemas/training_results.json",
+  "title": "TrainingResults",
+  "description": "Schema for training results data (output from Chandra_trainer.py)",
+  "type": "object",
+  "required": ["training_successful", "audio_oracle_stats"],
+  "properties": {
+    "training_successful": {
+      "type": "boolean",
+      "description": "Whether training completed successfully"
+    },
+    "audio_oracle_stats": {
+      "type": "object",
+      "description": "Statistics from AudioOracle training",
+      "required": ["total_states", "sequence_length", "is_trained"],
+      "properties": {
+        "total_patterns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_states": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sequence_length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_pattern_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "is_trained": {
+          "type": "boolean"
+        },
+        "last_update": {
+          "type": "number",
+          "description": "Unix timestamp of last update"
+        },
+        "memory_usage": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "distance_threshold": {
+          "type": "number",
+          "minimum": 0
+        },
+        "distance_function": {
+          "type": "string",
+          "enum": ["euclidean", "cosine", "manhattan"]
+        },
+        "feature_dimensions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "adaptive_threshold": {
+          "type": "boolean"
+        },
+        "total_distances_calculated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "average_distance": {
+          "type": "number"
+        },
+        "threshold_adjustments": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "harmonic_patterns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "polyphonic_patterns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chord_progressions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rhythmic_patterns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "musical_insights_used": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "polyphonic_frames": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chord_types": {
+          "type": "object"
+        },
+        "average_pitches_per_frame": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "events_processed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of audio events processed during training"
+    },
+    "harmonic_patterns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "polyphonic_patterns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sample_harmonic_patterns": {
+      "type": "array"
+    },
+    "sample_polyphonic_patterns": {
+      "type": "array"
+    },
+    "transformer_analysis": {
+      "type": "object"
+    },
+    "hierarchical_analysis": {
+      "type": "object"
+    },
+    "rhythmic_analysis": {
+      "type": "object"
+    },
+    "rhythm_oracle_stats": {
+      "type": "object"
+    },
+    "correlation_analysis": {
+      "type": "object"
+    },
+    "gpt_oss_analysis": {
+      "type": "object"
+    },
+    "performance_arc_analysis": {
+      "type": "object"
+    },
+    "training_statistics": {
+      "type": "object"
+    }
+  }
+}

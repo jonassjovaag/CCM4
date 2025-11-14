@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musichal9000.com/schemas/rhythm_oracle.json",
+  "title": "RhythmOracle",
+  "description": "Schema for RhythmOracle data structure",
+  "type": "object",
+  "properties": {
+    "events": {
+      "type": "array",
+      "description": "Rhythmic events",
+      "items": {
+        "type": "object"
+      }
+    },
+    "tempo": {
+      "type": "number",
+      "description": "Tempo in BPM",
+      "minimum": 0
+    },
+    "beat_grid": {
+      "type": "array",
+      "description": "Beat positions"
+    },
+    "syncopation": {
+      "type": "number",
+      "description": "Syncopation measure",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "states": {
+      "type": "object",
+      "description": "Oracle state graph for rhythmic patterns"
+    },
+    "transitions": {
+      "type": "object",
+      "description": "Rhythmic transition probabilities"
+    },
+    "total_states": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sequence_length": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

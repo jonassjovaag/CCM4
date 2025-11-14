@@ -1,0 +1,69 @@
+# Full Training Profile
+# Comprehensive training with all features enabled
+
+system:
+  environment: "production"
+
+audio_oracle:
+  # More sophisticated pattern matching
+  distance_threshold: 0.12  # Stricter matching
+  adaptive_threshold: true
+  max_pattern_length: 100  # Learn longer patterns
+
+  training:
+    max_events: 20000  # Extended training
+    hierarchical_enabled: true
+    rhythmic_analysis_enabled: true
+    correlation_analysis_enabled: true
+
+memory_buffer:
+  max_duration_seconds: 300.0  # 5 minutes of context
+
+logging:
+  log_level: "INFO"
+  performance_logging:
+    enabled: true
+    log_audio_analysis: true
+    log_decisions: true
+    log_midi_output: true
+
+persistence:
+  auto_save:
+    enabled: true
+    interval_seconds: 600  # Save every 10 minutes
+
+  backup:
+    enabled: true
+    max_backups: 20  # Keep more backups
+
+data_safety:
+  atomic_writes: true
+  create_backups: true
+  validate_on_save: true
+  add_metadata: true  # Full reproducibility
+
+  validation:
+    strict_mode: false
+    check_data_quality: true
+
+hierarchical_analysis:
+  enabled: true
+  timescales: [0.1, 0.5, 1.0, 2.0, 4.0, 8.0]  # More timescales
+  perceptual_filtering: true
+  significance_threshold: 0.3  # Lower threshold = more detail
+
+training:
+  components:
+    dual_perception: true
+    hierarchical_analysis: true
+    rhythmic_analysis: true
+    music_theory_analysis: true
+    correlation_analysis: true
+
+performance:
+  use_gpu: true
+  max_workers: 8  # More parallel processing
+
+debug:
+  enabled: false
+  save_intermediate_results: true  # Save for analysis

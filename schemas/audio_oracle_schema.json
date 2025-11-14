@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musichal9000.com/schemas/audio_oracle.json",
+  "title": "AudioOracle",
+  "description": "Schema for AudioOracle data structure (direct oracle state)",
+  "type": "object",
+  "required": ["distance_threshold", "distance_function", "feature_dimensions"],
+  "properties": {
+    "distance_threshold": {
+      "type": "number",
+      "description": "Threshold for pattern matching",
+      "minimum": 0
+    },
+    "distance_function": {
+      "type": "string",
+      "description": "Distance metric used",
+      "enum": ["euclidean", "cosine", "manhattan"]
+    },
+    "max_pattern_length": {
+      "type": "integer",
+      "description": "Maximum length of patterns to learn",
+      "minimum": 1
+    },
+    "feature_dimensions": {
+      "type": "integer",
+      "description": "Dimensionality of feature vectors",
+      "minimum": 1
+    },
+    "adaptive_threshold": {
+      "type": "boolean",
+      "description": "Whether threshold adapts during learning"
+    },
+    "chord_similarity_weight": {
+      "type": "number",
+      "description": "Weight for chord similarity in distance calculation"
+    },
+    "size": {
+      "type": "integer",
+      "description": "Number of states in oracle",
+      "minimum": 0
+    },
+    "last": {
+      "type": "integer",
+      "description": "Index of last state"
+    },
+    "frame_counter": {
+      "type": "integer",
+      "description": "Total frames processed"
+    },
+    "sequence_length": {
+      "type": "integer",
+      "description": "Length of learned sequence"
+    },
+    "audio_frames": {
+      "description": "Audio frame data (can be array or object)",
+      "oneOf": [
+        {"type": "array"},
+        {"type": "object"}
+      ]
+    },
+    "states": {
+      "type": "object",
+      "description": "Oracle state graph"
+    },
+    "transitions": {
+      "type": "object",
+      "description": "State transitions"
+    },
+    "suffix_links": {
+      "type": "object",
+      "description": "Suffix links for pattern matching"
+    }
+  }
+}

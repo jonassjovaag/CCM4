@@ -188,6 +188,7 @@ simple_bass_test_*.json
 # Large Training Model JSON Files (typically 100MB-800MB)
 JSON/*_training_model.json
 JSON/*_training_model.pkl.gz
+JSON/*_training_audio_oracle.json
 JSON/Curious_child_*_training.json
 JSON/Itzama_*_training.json
 JSON/short_Itzama_*_training.json

@@ -1,264 +1,346 @@
-# MusicHal 9000 - AI Musical Partner System
+# MusicHal 9000 - AI Musical Co-Improviser
 
-A real-time AI musical partner that learns from audio input and responds with MIDI output. Features **harmonic-rhythmic correlation analysis**, **hierarchical pattern recognition**, and **unified decision-making** for true musical intelligence.
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-57%2F57%20passing-brightgreen.svg)](tests/)
+[![Code Style](https://img.shields.io/badge/code%20style-professional-blue.svg)](musichal/)
 
-## 🎯 Main Commands
-
-### 🚀 Train Enhanced Model with Rhythmic Analysis (Best Quality)
-```bash
-python Chandra_trainer.py --file "input_audio/Curious_child.wav" --output "JSON/curious_child_rhythm_15k.json" --max-events 15000
-```
-
-### 🎵 Run Live Performance with Rhythmic Intelligence (Real-time)
-```bash
-python MusicHal_9000.py --enable-rhythmic
-```
-
-### 🎼 Run Traditional Harmonic-Only Mode
-```bash
-python main.py
-```
+A real-time AI musical partner that learns from audio and responds with intelligent MIDI improvisation. Features **Factor Oracle learning**, **Wav2Vec neural encoding**, **hierarchical pattern recognition**, and **type-safe architecture**.
 
 ---
 
-## 🚀 Quick Start
+## 🎯 Quick Start
 
-### 1. Install Dependencies
+### Installation
 ```bash
+# Clone repository
+git clone https://github.com/yourusername/musichal.git
+cd musichal
+
+# Install package in development mode
+pip install -e .
+
+# Or install dependencies only
 pip install -r requirements.txt
 ```
 
-### 2. Run Live System (Real-time Performance)
+### Train Your First Model
 ```bash
-python main.py
+# Using the modular training pipeline (recommended)
+python scripts/train/train_modular.py input_audio/your_audio.wav output/model.json
+
+# With configuration profile
+python scripts/train/train_modular.py audio.wav output.json --profile quick_test
 ```
-**This runs the live AI musical partner with <50ms latency**
 
-## 🎵 Enhanced Capabilities (MusicHal 9000)
-
-### 🥁 Rhythmic Intelligence
-- **RhythmOracle**: Learns rhythmic patterns (sparse, moderate, dense)
-- **Tempo Adaptation**: Adjusts to your playing tempo in real-time
-- **Syncopation Detection**: Recognizes rhythmic complexity
-- **Pattern Recognition**: Identifies familiar rhythmic contexts
-
-### 🔗 Harmonic-Rhythmic Correlation
-- **Cross-Modal Analysis**: Learns relationships between harmonic and rhythmic patterns
-- **Temporal Alignment**: Understands how chord changes align with rhythmic accents
-- **Unified Decision-Making**: Makes musically intelligent decisions considering both dimensions
-- **Correlation Patterns**: Discovers recurring harmonic-rhythmic relationships
-
-### 🏗️ Hierarchical Analysis
-- **Multi-Timescale**: Analyzes sections, phrases, and measures
-- **Perceptual Filtering**: Focuses on musically significant moments
-- **Adaptive Sampling**: Intelligently samples events for training
-- **Structural Understanding**: Recognizes musical form and structure
-
-### 🧠 Music Theory Integration
-- **Real Chord Detection**: Analyzes actual audio content for accurate chord progressions
-- **Music Theory Transformer**: Deep musical understanding with embedded music theory knowledge
-- **Key Signature Analysis**: Recognizes tonal centers and harmonic relationships
-- **Scale Analysis**: Understands melodic and harmonic scales
-
-### 3. Train Enhanced Models (Transformer + AudioOracle)
+### Live Performance
 ```bash
-# Enhanced training with rhythmic analysis (recommended)
-python Chandra_trainer.py --file "input_audio/Curious_child.wav" --output "JSON/curious_child_enhanced.json" --max-events 15000
+# Run live performance system
+python scripts/performance/MusicHal_9000.py
 
-# Enhanced training with custom sampling strategy
-python Chandra_trainer.py --file "audio.mp3" --output "enhanced_model.json" --max-events 10000 --sampling-strategy perceptual
-
-# Enhanced training without transformer (AudioOracle + Rhythmic only)
-python Chandra_trainer.py --file "audio.mp3" --output "oracle_model.json" --no-transformer
-
-# Traditional hybrid training with transformer enhancement
-python train_hybrid.py --file "input_audio/Grab-a-hold.mp3" --output "enhanced_model.json" --transformer
-
-# Efficient testing (2000 events processing, 100 events training)
-python train_hybrid.py --file "your_audio.mp3" --output "test_model.json" --transformer --max-events 2000 --training-events 100
+# Or traditional entry point
+python scripts/performance/main.py
 ```
-
-### 4. Train Basic Models (AudioOracle Only)
-```bash
-# MPS GPU acceleration
-python audio_file_learning/learn_from_files_mps_complete.py --file "your_audio.mp3" --output "basic_model.json" --stats
-
-# CPU version
-python audio_file_learning/learn_from_files.py --file "your_audio.mp3" --output "basic_model.json" --stats
-```
-
-## 📁 File Structure
-
-```
-├── main.py                          # Live performance system
-├── train_hybrid.py                  # Hybrid training pipeline
-├── hybrid_training/                 # Transformer enhancement
-│   ├── music_theory_transformer.py  # Music theory-based transformer (NEW!)
-│   └── transformer_analyzer.py      # Original transformer
-├── audio_file_learning/             # Basic audio training
-│   ├── learn_from_files_mps_complete.py  # MPS GPU training
-│   ├── learn_from_files.py          # CPU training
-│   └── file_processor.py            # Feature extraction
-├── memory/                          # AI learning algorithms
-│   ├── audio_oracle.py              # AudioOracle algorithm
-│   ├── audio_oracle_mps.py          # MPS GPU version
-│   └── memory_buffer.py              # Musical memory
-├── agent/                           # AI decision making
-├── midi_io/                         # MIDI input/output
-└── listener/                        # Audio input
-```
-
-## 🎯 Training Options
-
-### 🚀 Hybrid Training (Transformer + AudioOracle) - RECOMMENDED
-```bash
-# Full hybrid training with transformer enhancement
-python train_hybrid.py --file "audio.mp3" --output "enhanced_model.json" --transformer
-
-# Efficient testing (fast)
-python train_hybrid.py --file "audio.mp3" --output "test_model.json" --transformer --max-events 2000 --training-events 100
-
-# AudioOracle only (no transformer)
-python train_hybrid.py --file "audio.mp3" --output "basic_model.json" --oracle-only
-```
-
-### ⚡ Basic Training (AudioOracle Only)
-```bash
-# MPS GPU acceleration
-python audio_file_learning/learn_from_files_mps_complete.py --file "audio.mp3" --output "model.json" --stats
-
-# CPU version
-python audio_file_learning/learn_from_files.py --file "audio.mp3" --output "model.json" --stats
-```
-
-## ⚙️ Parameters
-
-### Hybrid Training Parameters
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--file` | Audio file to process | Required |
-| `--output` | Output model file | `hybrid_model.json` |
-| `--transformer` | Enable transformer enhancement | False |
-| `--oracle-only` | Use AudioOracle only | False |
-| `--max-events` | Limit events for processing | None (all events) |
-| `--training-events` | Limit events for training | None (all events) |
-| `--transformer-model` | Path to transformer model | None (random init) |
-| `--cpu-threshold` | CPU threshold for hybrid trainer | 5000 |
-
-### Basic Training Parameters
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `--file` | Audio file to process | Required |
-| `--output` | Output model file | `trained_model.json` |
-| `--max-events` | Limit events for testing | None (all events) |
-| `--distance-threshold` | Similarity threshold | 0.15 |
-| `--distance-function` | Distance function | `euclidean` |
-| `--stats` | Show detailed statistics | False |
-| `--verbose` | Verbose output | False |
-| `--no-mps` | Disable GPU acceleration | False |
-
-## 🎵 Usage Examples
-
-### 🚀 Hybrid Training (Recommended)
-```bash
-# Full hybrid training
-python train_hybrid.py --file "input_audio/Grab-a-hold.mp3" --output "grab-a-hold_enhanced.json" --transformer
-
-# Quick test
-python train_hybrid.py --file "jazz_sample.wav" --output "jazz_test.json" --transformer --max-events 2000 --training-events 100
-
-# AudioOracle only
-python train_hybrid.py --file "jazz_sample.wav" --output "jazz_basic.json" --oracle-only
-```
-
-### ⚡ Basic Training
-```bash
-# MPS GPU training
-python audio_file_learning/learn_from_files_mps_complete.py --file "jazz_sample.wav" --output "jazz_model.json" --stats
-
-# CPU training
-python audio_file_learning/learn_from_files.py --file "jazz_sample.wav" --output "jazz_model.json" --stats
-```
-
-### 🎵 Live Performance
-```bash
-# Run live AI musical partner
-python main.py
-```
-
-## 🚀 Performance
-
-| Method | Speed | GPU Usage | Best For | Accuracy |
-|--------|-------|-----------|----------|----------|
-| **Hybrid Training** | 10-15 events/sec | Yes | Production | **85-95%** |
-| **Basic MPS** | 15-20 events/sec | Yes | Fast training | 70-85% |
-| **Basic CPU** | 5-10 events/sec | No | Compatibility | 70-85% |
-| **Live Performance** | <50ms latency | No | Real-time | 70-85% |
-
-## 🔧 Troubleshooting
-
-### MPS Not Available
-```bash
-# Check PyTorch installation
-python -c "import torch; print(torch.backends.mps.is_available())"
-
-# Reinstall PyTorch
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-```
-
-### Training Too Slow
-- Use `--max-events` to test with smaller datasets
-- Enable MPS GPU acceleration
-- Check available memory
-
-### No MIDI Output
-- Check MIDI port settings in `main.py`
-- Verify IAC Driver is enabled
-- Test with `python test_midi_output.py`
-
-## 📊 Expected Results
-
-### Hybrid Training (Music Theory Enhanced)
-- **Training Time**: 10-30 minutes per audio file
-- **Model Size**: ~2-3 MB for 50,000 events
-- **Patterns Found**: 2000-5000+ musical patterns
-- **Musical Analysis**: Real chord progressions, scales, form, tempo (music theory-based!)
-- **Transformer Analysis**: 0.97s (vs 26.80s with random transformer)
-- **Real-time Response**: <50ms latency
-
-### Basic Training
-- **Training Time**: 2-3 hours (MPS) vs 9+ hours (CPU)
-- **Model Size**: ~1-2 MB for 50,000 events
-- **Patterns Found**: 1000-2000+ musical patterns
-- **Real-time Response**: <50ms latency
-
-## 🎯 Next Steps
-
-1. **Train enhanced model** with hybrid training
-2. **Run live system** with trained model
-3. **Adjust parameters** for your musical style
-4. **Integrate with DAW** via MIDI
-
-## 🎵 When to Use What
-
-### 🚀 Use Hybrid Training When:
-- You want **best accuracy** (85-95%)
-- You need **musical analysis** (chords, scales, form)
-- You have **time for training** (10-30 minutes)
-- You want **production-quality** models
-
-### ⚡ Use Basic Training When:
-- You want **fast training** (2-3 hours)
-- You need **compatibility** (CPU-only)
-- You're **testing** different parameters
-- You have **limited resources**
-
-### 🎵 Use Live Performance When:
-- You want **real-time interaction** (<50ms)
-- You're **performing live**
-- You need **immediate responses**
-- You're **collaborating** with the AI
 
 ---
 
-**Happy music making!** 🎵✨
+## ✨ Key Features
+
+### 🎵 **Musical Intelligence**
+- **Factor Oracle Algorithm**: Learns musical patterns and structures
+- **Wav2Vec 2.0 Encoding**: 768D neural audio representations
+- **Hierarchical Analysis**: Multi-timescale musical understanding
+- **Gesture Tokenization**: 64-token discrete musical vocabulary
+
+### 🏗️ **Professional Architecture**
+- **Type-Safe Models**: Pydantic validation throughout
+- **Modular Pipeline**: 5-stage training architecture
+- **Data Safety**: Atomic writes, backups, checksums
+- **Configuration Profiles**: YAML-based, environment-aware
+
+### 🔬 **Advanced Features**
+- **Dual Perception**: Wav2Vec + traditional features
+- **Rhythmic Oracle**: Tempo, syncopation, beat detection
+- **Harmonic Analysis**: Chord detection, key estimation
+- **Performance Arcs**: Dynamic tension and release
+
+---
+
+## 📁 Project Structure
+
+```
+musichal/                    # Main package
+├── core/                    # Core infrastructure
+│   ├── data_safety/        # Atomic writes, backups, validation
+│   ├── models/             # Pydantic data models
+│   ├── config_manager.py   # YAML configuration
+│   └── metadata_manager.py # Reproducibility tracking
+└── training/               # Training system
+    └── pipeline/           # Modular 5-stage pipeline
+        ├── stages/
+        └── orchestrators/
+
+scripts/                     # Executable scripts
+├── train/                  # Training scripts (15 files)
+│   ├── train_modular.py   # Main entry point ⭐
+│   └── ...
+├── performance/            # Live performance (5 files)
+│   ├── MusicHal_9000.py   # Main performance entry ⭐
+│   └── main.py
+├── analysis/               # Analysis tools (11 files)
+├── utils/                  # Utilities (18 files)
+├── demo/                   # Demos (3 files)
+└── testing/                # Test scripts (49 files)
+
+config/                      # Configuration files
+├── default_config.yaml     # Default configuration
+└── profiles/               # Configuration profiles
+    ├── quick_test.yaml
+    ├── full_training.yaml
+    └── live_performance.yaml
+
+tests/                       # Test suite (57 tests, 100% passing)
+docs/                        # Documentation
+data/                        # Data directories
+├── input_audio/
+└── training_output/
+```
+
+---
+
+## 🚀 Usage
+
+### Training Models
+
+#### Modular Pipeline (Recommended)
+```bash
+# Standard training
+python scripts/train/train_modular.py audio.wav output.json
+
+# Quick test profile (1000 events)
+python scripts/train/train_modular.py audio.wav output.json --profile quick_test
+
+# Full training profile (20000 events)
+python scripts/train/train_modular.py audio.wav output.json --profile full_training
+
+# Custom configuration
+python scripts/train/train_modular.py audio.wav output.json --config custom_config.yaml
+```
+
+#### Legacy Training
+```bash
+# Hybrid training with transformer
+python scripts/train/train_hybrid.py --file audio.mp3 --output model.json --transformer
+
+# Chord-based training
+python scripts/train/chord_ground_truth_trainer.py --file audio.wav --output chords.json
+```
+
+### Python API
+
+```python
+from musichal.core import ConfigManager, AudioEvent, TrainingResult
+from musichal.training import TrainingOrchestrator
+
+# Load configuration
+config = ConfigManager()
+config.load(profile='quick_test')
+
+# Customize settings
+config.set('audio_oracle.distance_threshold', 0.2)
+
+# Run training
+orchestrator = TrainingOrchestrator(config)
+result = orchestrator.run('audio.wav', 'output.json')
+
+# Validate result
+is_valid, issues = result.validate_training()
+print(f"Training valid: {is_valid}")
+```
+
+---
+
+## ⚙️ Configuration
+
+### Configuration Profiles
+
+**quick_test** - Fast iteration (1000 events, minimal features)
+```bash
+python scripts/train/train_modular.py audio.wav output.json --profile quick_test
+```
+
+**full_training** - Production quality (20000 events, all features)
+```bash
+python scripts/train/train_modular.py audio.wav output.json --profile full_training
+```
+
+**live_performance** - Low latency (<50ms response)
+```bash
+python scripts/performance/MusicHal_9000.py --profile live_performance
+```
+
+### Custom Configuration
+
+Create `my_config.yaml`:
+```yaml
+audio_oracle:
+  distance_threshold: 1.5
+  max_pattern_length: 50
+
+feature_extraction:
+  sample_rate: 44100
+  hop_length: 512
+
+training:
+  max_events: 10000
+```
+
+Use it:
+```bash
+python scripts/train/train_modular.py audio.wav output.json --config my_config.yaml
+```
+
+---
+
+## 🔬 Architecture
+
+### Training Pipeline (5 Stages)
+
+1. **Audio Extraction** - Extract features from audio
+2. **Feature Analysis** - Wav2Vec + dual perception
+3. **Hierarchical Sampling** - Multi-timescale significance filtering
+4. **Oracle Training** - Factor Oracle + Rhythm Oracle
+5. **Validation** - Model validation and output generation
+
+### Data Models (Pydantic)
+
+```python
+# Audio events with validation
+event = AudioEvent(
+    timestamp=1.5,
+    features=AudioEventFeatures(
+        f0=440.0,        # Validated: 0-10000 Hz
+        rms_db=-30.0,    # Validated: -120 to 0 dB
+        gesture_token=42 # Validated: 0-63
+    )
+)
+
+# Training results with metadata
+result = TrainingResult(
+    metadata=TrainingMetadata(
+        audio_file='test.wav',
+        git_commit='f81aa4a',
+        python_version='3.13.0'
+    ),
+    training_successful=True,
+    events_processed=1000,
+    audio_oracle_stats=oracle_stats
+)
+```
+
+### Data Safety
+
+- **Atomic Writes**: Temp file + rename (no corruption)
+- **Versioned Backups**: Time-stamped with checksums
+- **Schema Validation**: JSON schema enforcement
+- **Metadata Tracking**: Git commit, system info, parameters
+
+---
+
+## 📊 Performance
+
+| Operation | Latency | Throughput | GPU |
+|-----------|---------|------------|-----|
+| Live Performance | <50ms | Real-time | No |
+| Training (Quick) | 2-5 min | 10-20 events/sec | Optional |
+| Training (Full) | 10-30 min | 10-20 events/sec | Optional |
+| Feature Extraction | - | 100+ events/sec | Yes (MPS) |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test category
+pytest tests/test_models.py -v
+pytest tests/test_config_manager.py -v
+
+# Quick test run
+pytest tests/ -q
+
+# With coverage
+pytest tests/ --cov=musichal --cov-report=html
+```
+
+**Current Status:** 57/57 tests passing (100%) ✓
+
+---
+
+## 📖 Documentation
+
+- [Refactoring Complete Summary](docs/REFACTORING_COMPLETE.md) - Complete refactoring journey
+- [Phase 2.4 Completion](docs/phase_2_4_completion.md) - Project structure improvements
+- [Phase 2.3 Completion](docs/phase_2_3_completion.md) - Pydantic models
+- [Scripts README](scripts/README.md) - Scripts organization guide
+- [Legacy Code](legacy/README.md) - Deprecated code notices
+
+---
+
+## 🛠️ Development
+
+### Package Structure
+```python
+# Import from package
+from musichal.core import (
+    ConfigManager,          # Configuration management
+    AudioEvent,            # Audio event models
+    TrainingResult,        # Training output models
+    AtomicFileWriter,      # Safe file operations
+    BackupManager,         # Backup management
+    DataValidator          # Schema validation
+)
+
+from musichal.training import (
+    TrainingOrchestrator,  # Pipeline orchestration
+    PipelineStage,         # Stage base class
+    StageResult            # Stage output
+)
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Make changes with tests
+4. Run test suite (`pytest tests/`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push to branch (`git push origin feature/amazing-feature`)
+7. Open Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Factor Oracle algorithm (Assayag et al.)
+- Wav2Vec 2.0 (Meta AI)
+- Pydantic validation framework
+- PyTorch and TensorFlow ecosystems
+
+---
+
+## 📧 Contact
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/musichal/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/musichal/discussions)
+
+---
+
+**Made with ♥ for musicians and AI enthusiasts**

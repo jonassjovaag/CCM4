@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m venv:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(pip show:*)",
+      "Bash(python:*)",
+      "Bash(if [ -d \"ai_learning_data\" ])",
+      "Bash(then cp -r ai_learning_data backups/pre_refactor_20251113_124720/)",
+      "Bash(else echo \"ai_learning_data directory not found - skipping\")",
+      "Bash(fi)",
+      "Bash(backups/pre_refactor_20251113_124720/git_status.txt)",
+      "Bash(backups/pre_refactor_20251113_124720/git_recent_commits.txt)",
+      "Bash(backups/pre_refactor_20251113_124720/python_version.txt)",
+      "Bash(pip install:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(nul)",
+      "Bash(cat:*)",
+      "WebFetch(domain:arxiv.org)",
+      "Bash(timeout 15 tail:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(timeout 60 python:*)",
+      "Bash(if [ -f \"nul\" ])",
+      "Bash(then rm nul)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

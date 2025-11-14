@@ -1,9 +1,0 @@
-{
-  "files_processed": 1,
-  "total_events": 1000,
-  "total_duration": 252.29861678004536,
-  "training_time": 24.094995737075806,
-  "patterns_found": 3797,
-  "mps_acceleration": true,
-  "device": "mps"
-}

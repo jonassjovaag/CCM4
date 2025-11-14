@@ -1,0 +1,68 @@
+# Live Performance Profile
+# Optimized for real-time performance with minimal latency
+
+system:
+  environment: "production"
+
+audio:
+  buffer_size: 256  # Smaller buffer = lower latency
+
+audio_oracle:
+  distance_threshold: 0.15
+  adaptive_threshold: true
+  use_mps: true  # Hardware acceleration
+
+memory_buffer:
+  max_duration_seconds: 120.0  # 2 minutes for live performance
+
+ai_agent:
+  autonomous_when_silent: true
+  silence_threshold_seconds: 1.5  # Quicker response
+
+  density:
+    min_notes_per_second: 0.2
+    max_notes_per_second: 6.0
+    default_density: 1.5  # More responsive
+
+performance_arc:
+  enabled: true
+  default_duration_minutes: 10  # Standard performance length
+
+logging:
+  log_level: "WARNING"  # Reduce overhead
+  performance_logging:
+    enabled: true
+    log_audio_analysis: false  # Skip to reduce latency
+    log_decisions: true
+    log_midi_output: true
+
+persistence:
+  auto_save:
+    enabled: true
+    interval_seconds: 180  # Save every 3 minutes
+
+data_safety:
+  atomic_writes: true
+  create_backups: true
+  validate_on_save: false  # Skip validation for speed
+  add_metadata: true
+
+hierarchical_analysis:
+  enabled: false  # Skip for low latency
+
+training:
+  components:
+    dual_perception: true
+    hierarchical_analysis: false  # Not needed in live mode
+    rhythmic_analysis: true
+    music_theory_analysis: false
+    correlation_analysis: true
+
+performance:
+  use_gpu: true
+  max_workers: 4
+  cache_size: 2000  # Larger cache for performance
+
+debug:
+  enabled: false
+  profile_performance: false

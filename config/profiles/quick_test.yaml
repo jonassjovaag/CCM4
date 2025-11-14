@@ -1,0 +1,41 @@
+# Quick Test Profile
+# Fast iteration for development and debugging
+
+# Inherit from default config, override specific values
+system:
+  environment: "development"
+
+audio_oracle:
+  training:
+    max_events: 1000  # Quick training with limited events
+    hierarchical_enabled: false  # Skip slow analysis
+    rhythmic_analysis_enabled: false
+    correlation_analysis_enabled: false
+
+memory_buffer:
+  max_duration_seconds: 30.0  # Shorter history
+
+logging:
+  log_level: "DEBUG"
+  performance_logging:
+    log_audio_analysis: false  # Reduce log spam
+    log_decisions: false
+
+persistence:
+  auto_save:
+    enabled: false  # Manual save only
+
+data_safety:
+  create_backups: false  # Skip backups for speed
+  validate_on_save: false
+  add_metadata: false
+
+hierarchical_analysis:
+  enabled: false  # Skip for speed
+
+training:
+  verbose: false  # Less console output
+
+debug:
+  enabled: true
+  verbose_logging: false
