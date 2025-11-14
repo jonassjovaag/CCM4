@@ -167,6 +167,33 @@ feature_extraction:
     beat_tracking: true
     tempo_estimation: true
 
+# CLAP Style Detection Configuration (Phase 2.x)
+style_detection:
+  enabled: true  # Enable automatic style-aware mode selection
+  model: "laion/clap-htsat-unfused"  # CLAP model for audio-text alignment
+  # Alternative: "laion/larger_clap_music" (~1GB, more accurate)
+  use_gpu: true
+  auto_behavior_mode: true  # Auto-switch modes based on detected style
+  confidence_threshold: 0.3  # Minimum confidence to switch modes
+
+  # Style → Behavior Mode Mappings
+  style_mappings:
+    ballad: shadow      # Intimate following
+    jazz: shadow        # Supportive role
+    blues: shadow       # Emotional support
+    rock: couple        # Independent, loud
+    funk: couple        # Rhythmic independence
+    metal: couple       # Aggressive independence
+    punk: couple        # Energetic independence
+    ambient: mirror     # Balanced, contemplative
+    classical: mirror   # Phrase-aware
+    electronic: mirror  # Textural balance
+    world: mirror       # Cultural sensitivity
+
+  # Detection settings
+  update_interval: 5.0  # Re-detect style every N seconds
+  buffer_size: 3.0      # Audio buffer size for analysis (seconds)
+
 # Hierarchical Analysis Configuration
 hierarchical_analysis:
   enabled: true

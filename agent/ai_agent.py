@@ -26,11 +26,12 @@ class AIAgent:
     Integrates behavior engine, scheduler, and density control
     """
     
-    def __init__(self, rhythm_oracle=None, visualization_manager=None):
-        self.behavior_engine = BehaviorEngine(rhythm_oracle, visualization_manager=visualization_manager)
+    def __init__(self, rhythm_oracle=None, visualization_manager=None, config=None):
+        self.behavior_engine = BehaviorEngine(rhythm_oracle, visualization_manager=visualization_manager, config=config)
         self.scheduler = BehaviorScheduler()
         self.density_controller = DensityController()
         self.visualization_manager = visualization_manager
+        self.config = config
         
         # Agent state
         self.is_active = True

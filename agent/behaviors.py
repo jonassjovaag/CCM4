@@ -38,11 +38,54 @@ class BehaviorController:
     """
     Manages IRCAM-style interaction modes
     Based on IRCAM 2023 research best practices for mixed-initiative systems
+
+    Features:
+    - Manual mode selection
+    - CLAP-based automatic style detection and mode selection
+    - Smooth mode transitions
     """
-    
-    def __init__(self):
+
+    def __init__(self, enable_clap: bool = False, clap_config: Optional[Dict] = None):
+        """
+        Initialize behavior controller
+
+        Args:
+            enable_clap: Enable CLAP style detection for auto mode selection
+            clap_config: Configuration dict for CLAP (from config.yaml)
+        """
         self.mode = BehaviorMode.MIRROR  # Default to phrase-aware mode
-        
+
+        # CLAP style detection (optional)
+        self.enable_clap = enable_clap
+        self.style_detector = None
+        self.last_style_detection = None
+        self.last_detection_time = 0
+
+        if enable_clap and clap_config:
+            try:
+                from listener.clap_style_detector import CLAPStyleDetector
+
+                model_name = clap_config.get('model', 'laion/clap-htsat-unfused')
+                use_gpu = clap_config.get('use_gpu', True)
+                confidence_threshold = clap_config.get('confidence_threshold', 0.3)
+
+                self.style_detector = CLAPStyleDetector(
+                    model_name=model_name,
+                    use_gpu=use_gpu,
+                    confidence_threshold=confidence_threshold
+                )
+
+                self.clap_update_interval = clap_config.get('update_interval', 5.0)
+                self.auto_behavior_mode = clap_config.get('auto_behavior_mode', True)
+
+                print(f"🎨 CLAP style detection enabled")
+                print(f"   Auto-mode switching: {self.auto_behavior_mode}")
+
+            except Exception as e:
+                print(f"⚠️ Failed to initialize CLAP: {e}")
+                print("   Continuing with manual mode selection")
+                self.enable_clap = False
+
         # Mode-specific parameters (EXAGGERATED for clarity)
         self.mode_params = {
             BehaviorMode.SHADOW: {
@@ -112,7 +155,76 @@ class BehaviorController:
         """Change interaction mode"""
         self.mode = mode
         print(f"🎭 Behavior mode: {mode.value}")
-    
+
+    def auto_select_mode(self,
+                         audio: np.ndarray,
+                         sr: int = 44100,
+                         current_time: float = None) -> Optional[Dict]:
+        """
+        Automatically select behavioral mode based on detected musical style using CLAP
+
+        Args:
+            audio: Audio buffer for style detection
+            sr: Sample rate
+            current_time: Current timestamp (for throttling detection)
+
+        Returns:
+            Dict with style info if detection succeeded, None otherwise
+        """
+        if not self.enable_clap or not self.style_detector:
+            return None
+
+        # Throttle detection (don't detect too frequently)
+        if current_time is None:
+            current_time = time.time()
+
+        time_since_last = current_time - self.last_detection_time
+
+        if time_since_last < self.clap_update_interval:
+            # Too soon, return cached result
+            return self.last_style_detection
+
+        # Detect style using CLAP
+        style_result = self.style_detector.detect_style(audio, sr)
+
+        if style_result is None:
+            # Detection failed or confidence too low
+            return None
+
+        # Update cached result
+        self.last_style_detection = {
+            'style': style_result.style_label,
+            'confidence': style_result.confidence,
+            'recommended_mode': style_result.recommended_mode,
+            'secondary_styles': style_result.secondary_styles,
+            'timestamp': current_time
+        }
+        self.last_detection_time = current_time
+
+        # Auto-switch mode if enabled
+        if self.auto_behavior_mode:
+            recommended_mode = style_result.recommended_mode
+
+            if recommended_mode != self.mode:
+                print(f"\n🎨 Style detected: {style_result.style_label} "
+                      f"(confidence: {style_result.confidence:.2f})")
+                print(f"🎭 Auto-switching: {self.mode.value} → {recommended_mode.value}")
+
+                self.set_mode(recommended_mode)
+            else:
+                print(f"🎨 Style: {style_result.style_label} "
+                      f"(confidence: {style_result.confidence:.2f}) "
+                      f"- mode unchanged")
+
+        else:
+            # Just suggest, don't auto-switch
+            print(f"🎨 Style detected: {style_result.style_label} "
+                  f"(confidence: {style_result.confidence:.2f})")
+            print(f"💡 Suggested mode: {style_result.recommended_mode.value} "
+                  f"(current: {self.mode.value})")
+
+        return self.last_style_detection
+
     def get_similarity_threshold(self) -> float:
         """Get pattern matching threshold for current mode"""
         return self.mode_params[self.mode]['similarity_threshold']
@@ -175,7 +287,7 @@ class BehaviorEngine:
     Implements imitate, contrast, and lead behaviors
     """
     
-    def __init__(self, rhythm_oracle=None, visualization_manager=None):
+    def __init__(self, rhythm_oracle=None, visualization_manager=None, config: Optional[Dict] = None):
         # Randomly select initial mode for variety
         self.current_mode = random.choice([
             BehaviorMode.IMITATE,
@@ -188,10 +300,47 @@ class BehaviorEngine:
         self.mode_history = []
         self.decision_history = []
         self.visualization_manager = visualization_manager
-        
+
         # Phrase generation
         self.phrase_generator = PhraseGenerator(rhythm_oracle, visualization_manager=visualization_manager) if rhythm_oracle else None
         self.active_phrases = {}  # Store active phrases by voice_type
+
+        # CLAP style detection (optional, Phase 2.x)
+        self.enable_clap = False
+        self.style_detector = None
+        self.last_style_detection = None
+        self.last_detection_time = 0
+        self.clap_update_interval = 5.0  # Re-detect style every N seconds
+        self.auto_behavior_mode = False
+
+        if config:
+            style_config = config.get('style_detection', {})
+            self.enable_clap = style_config.get('enabled', False)
+            self.auto_behavior_mode = style_config.get('auto_behavior_mode', False)
+            self.clap_update_interval = style_config.get('update_interval', 5.0)
+
+            if self.enable_clap:
+                try:
+                    from listener.clap_style_detector import CLAPStyleDetector
+
+                    model_name = style_config.get('model', 'laion/clap-htsat-unfused')
+                    use_gpu = style_config.get('use_gpu', True)
+                    confidence_threshold = style_config.get('confidence_threshold', 0.3)
+
+                    self.style_detector = CLAPStyleDetector(
+                        model_name=model_name,
+                        use_gpu=use_gpu,
+                        confidence_threshold=confidence_threshold
+                    )
+
+                    print(f"🎨 CLAP style detection enabled in BehaviorEngine")
+                    if self.auto_behavior_mode:
+                        print(f"   Auto-mode selection: ON")
+
+                except Exception as e:
+                    print(f"⚠️  Failed to initialize CLAP: {e}")
+                    print(f"   Continuing without style detection")
+                    self.enable_clap = False
         
         # Behavior parameters
         self.imitate_strength = 0.8
@@ -1334,6 +1483,68 @@ class BehaviorEngine:
     def get_decision_history(self) -> List[MusicalDecision]:
         """Get history of musical decisions"""
         return self.decision_history
+
+    def auto_select_mode(self, audio: np.ndarray, sr: int = 44100, current_time: float = None) -> Optional[Dict]:
+        """
+        Automatically select behavioral mode based on detected musical style using CLAP
+
+        Args:
+            audio: Audio buffer (mono, float32 or float64)
+            sr: Sample rate
+            current_time: Current timestamp (defaults to time.time())
+
+        Returns:
+            Dict with detection results or None if CLAP disabled/failed
+        """
+        if not self.enable_clap or not self.style_detector:
+            return None
+
+        # Throttle detection (don't detect too frequently)
+        if current_time is None:
+            current_time = time.time()
+
+        time_since_last = current_time - self.last_detection_time
+
+        if time_since_last < self.clap_update_interval:
+            # Return cached result
+            return self.last_style_detection
+
+        # Detect style using CLAP
+        style_result = self.style_detector.detect_style(audio, sr)
+
+        if style_result is None:
+            return None
+
+        # Auto-switch mode if enabled
+        if self.auto_behavior_mode:
+            recommended_mode = style_result.recommended_mode
+            if recommended_mode != self.current_mode:
+                print(f"\n🎨 Style detected: {style_result.style_label} "
+                      f"(confidence: {style_result.confidence:.2f})")
+                print(f"🎭 Auto-switching: {self.current_mode.value} → {recommended_mode.value}")
+
+                # Change mode
+                self.current_mode = recommended_mode
+
+                # Record mode change
+                self.mode_history.append({
+                    'timestamp': current_time,
+                    'mode': recommended_mode.value,
+                    'reason': f'CLAP style detection: {style_result.style_label}',
+                    'confidence': style_result.confidence
+                })
+
+        # Cache result
+        self.last_style_detection = {
+            'style': style_result.style_label,
+            'confidence': float(style_result.confidence),
+            'recommended_mode': style_result.recommended_mode.value,
+            'secondary_styles': style_result.secondary_styles,
+            'timestamp': current_time
+        }
+        self.last_detection_time = current_time
+
+        return self.last_style_detection
 
     def _generate_percussion_decision(self, mode: BehaviorMode, current_event: Dict,
                                     memory_buffer, clustering) -> MusicalDecision:
