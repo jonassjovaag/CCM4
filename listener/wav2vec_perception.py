@@ -90,16 +90,25 @@ class Wav2VecMusicEncoder:
             print(f"🔄 Loading Wav2Vec model: {self.model_name}...")
             
             # Import transformers (only when needed)
+            # Support both Wav2Vec2 and MERT models
             try:
-                from transformers import Wav2Vec2Processor, Wav2Vec2Model
+                from transformers import Wav2Vec2FeatureExtractor, AutoModel
             except ImportError:
                 print("❌ transformers library not installed!")
                 print("   Install: pip install transformers")
                 return
             
             # Load processor and model
-            self.processor = Wav2Vec2Processor.from_pretrained(self.model_name)
-            self.model = Wav2Vec2Model.from_pretrained(self.model_name)
+            # Use AutoModel to support both Wav2Vec2 and MERT
+            # trust_remote_code=True required for MERT models
+            self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
+                self.model_name,
+                trust_remote_code=True
+            )
+            self.model = AutoModel.from_pretrained(
+                self.model_name,
+                trust_remote_code=True
+            )
             
             # Move to device
             self.model = self.model.to(self.device)
@@ -147,11 +156,12 @@ class Wav2VecMusicEncoder:
             if len(audio.shape) > 1:
                 audio = audio.flatten()
             
-            # Resample if needed (Wav2Vec expects 16kHz)
-            if sr != 16000:
+            # Resample if needed (MERT expects 24kHz, Wav2Vec expects 16kHz)
+            # Using 24kHz for MERT music-optimized features
+            if sr != 24000:
                 import librosa
-                audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
-                sr = 16000
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=24000)
+                sr = 24000
             
             # Normalize audio
             if np.abs(audio).max() > 0:
