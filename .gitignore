@@ -177,6 +177,7 @@ docs/build/
 *.bak
 *.backup
 *.BACKUP
+backups/
 # Note: Made patterns more specific to allow backup_manager.py source code
 
 # Large JSON and CSV Files (logs/exports)
