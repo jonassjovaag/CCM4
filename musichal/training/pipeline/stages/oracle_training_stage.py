@@ -62,6 +62,12 @@ class OracleTrainingStage(PipelineStage):
         sampled_events = context.get('sampled_events') or context.get('enriched_events')
         audio_file = context.get('audio_file')
 
+        # Apply training_events limit if specified
+        training_events_limit = self.config.get('training', {}).get('training_events')
+        if training_events_limit and len(sampled_events) > training_events_limit:
+            self.logger.info(f"Limiting training to {training_events_limit} of {len(sampled_events)} events")
+            sampled_events = sampled_events[:training_events_limit]
+
         self.logger.info(f"Training oracles on {len(sampled_events)} events")
 
         # Train AudioOracle

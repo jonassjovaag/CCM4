@@ -64,7 +64,13 @@ def main():
     parser.add_argument(
         '--max-events',
         type=int,
-        help="Maximum number of events (overrides config)"
+        help="Maximum number of events to extract (overrides config)"
+    )
+
+    parser.add_argument(
+        '--training-events',
+        type=int,
+        help="Maximum events for oracle training (subset of max-events)"
     )
 
     parser.add_argument(
@@ -98,6 +104,14 @@ def main():
     # Apply overrides
     if args.max_events:
         config.set('audio_oracle.training.max_events', args.max_events)
+
+    if args.training_events:
+        config.set('audio_oracle.training.training_events', args.training_events)
+        # Ensure max_events is at least as large as training_events
+        if args.max_events and args.training_events > args.max_events:
+            print(f"Warning: --training-events ({args.training_events}) > --max-events ({args.max_events})")
+            print(f"         Increasing max-events to {args.training_events}")
+            config.set('audio_oracle.training.max_events', args.training_events)
 
     if args.no_hierarchical:
         config.set('hierarchical_analysis.enabled', False)
