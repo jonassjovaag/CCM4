@@ -94,9 +94,9 @@ class HierarchicalSamplingStage(PipelineStage):
         if self.config.get('temporal_smoothing', True):
             from core.temporal_smoothing import TemporalSmoother
             smoother = TemporalSmoother(
-                window_seconds=self.config.get('smoothing_window', 0.5)
+                window_size=self.config.get('smoothing_window', 0.5)
             )
-            sampled_events = smoother.smooth(sampled_events)
+            sampled_events = smoother.smooth_events(sampled_events)
 
         self.logger.info(f"Sampled {len(sampled_events)} significant events")
 
