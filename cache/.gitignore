@@ -1,0 +1,6 @@
+# Ignore all cached event files (can be large)
+events/*.pkl
+events/*.pickle
+
+# But track the directory structure
+!events/.gitkeep

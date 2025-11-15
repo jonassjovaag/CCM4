@@ -85,6 +85,12 @@ def main():
         help="Disable rhythmic analysis"
     )
 
+    parser.add_argument(
+        '--cached-events',
+        type=Path,
+        help="Path to cached events pickle file (skips audio extraction)"
+    )
+
     args = parser.parse_args()
 
     # Validate input
@@ -139,7 +145,8 @@ def main():
         results = orchestrator.run(
             audio_file=args.audio_file,
             output_file=output_file,
-            checkpoint_dir=args.checkpoint_dir
+            checkpoint_dir=args.checkpoint_dir,
+            cached_events_file=args.cached_events
         )
 
         # Print summary
