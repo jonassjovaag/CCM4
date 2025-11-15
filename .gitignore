@@ -118,7 +118,7 @@ tempo_new_test.log
 tempo_test.log
 
 # Machine Learning Models & Data
-models/
+/models/
 *.pkl
 *.pt
 *.h5
@@ -176,8 +176,8 @@ docs/build/
 # Backup Files
 *.bak
 *.backup
-*BACKUP*
-*backup*
+*.BACKUP
+# Note: Made patterns more specific to allow backup_manager.py source code
 
 # Large JSON and CSV Files (logs/exports)
 *conversation_*.csv
