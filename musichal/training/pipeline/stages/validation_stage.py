@@ -157,7 +157,7 @@ class ValidationStage(PipelineStage):
             training_result = TrainingResult(
                 metadata=metadata,
                 training_successful=validation_report['is_valid'],
-                events_processed=len(context.get('sampled_events', [])),
+                events_processed=len(context.get('sampled_events') or context.get('enriched_events') or []),
                 audio_oracle_stats=oracle_stats,
                 harmonic_patterns=len([c for c in context.get('chord_detections', []) if c]),
                 warnings=validation_report.get('warnings', [])
@@ -174,8 +174,39 @@ class ValidationStage(PipelineStage):
                     }
                 training_result.pipeline_metrics = pipeline_metrics
 
+            # Serialize AudioOracle to dict for complete model preservation
+            audio_oracle = context.get('audio_oracle')
+            oracle_dict = None
+            
+            if audio_oracle:
+                if hasattr(audio_oracle, 'to_dict'):
+                    self.logger.info("Serializing AudioOracle to dictionary...")
+                    try:
+                        oracle_dict = audio_oracle.to_dict()
+                        self.logger.info(f"Oracle serialized: {len(oracle_dict.get('states', {}))} states, "
+                                       f"{len(oracle_dict.get('audio_frames', {}))} frames")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to serialize oracle: {e}")
+                else:
+                    self.logger.warning("AudioOracle does not have to_dict() method - full model not saved")
+            
             # Return as dict (validated by Pydantic)
-            return training_result.to_json_dict()
+            result_dict = training_result.to_json_dict()
+            
+            # Add full oracle if serialized successfully
+            if oracle_dict:
+                result_dict['audio_oracle'] = oracle_dict
+            
+            return result_dict
+            
+            return result_dict
+            
+            # Add full oracle serialization if available
+            if oracle_dict:
+                result_dict['audio_oracle'] = oracle_dict
+                self.logger.info("Full AudioOracle structure included in training results")
+            
+            return result_dict
 
         except Exception as e:
             self.logger.error(f"Failed to create TrainingResult model: {e}")
