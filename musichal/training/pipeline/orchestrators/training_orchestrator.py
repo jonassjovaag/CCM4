@@ -140,6 +140,7 @@ class TrainingOrchestrator:
                 result = StageResult(
                     stage_name="AudioExtraction",
                     success=True,
+                    duration_seconds=0.0,
                     data={
                         'audio_events': cached_events,
                         'total_events': len(cached_events),
