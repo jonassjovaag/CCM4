@@ -71,14 +71,23 @@ class HierarchicalSamplingStage(PipelineStage):
                 metrics={'events_sampled': min(len(enriched_events), max_events)}
             )
 
-        # Import here
-        from scripts.utils.simple_hierarchical_integration import SimpleHierarchicalAnalyzer
+        # TEMPORARY FIX: SimpleHierarchicalAnalyzer expects audio files, not events
+        # For now, just apply simple sampling without hierarchical analysis
+        # TODO: Refactor SimpleHierarchicalAnalyzer to work with event lists
+        self.logger.warning("Hierarchical analysis not yet integrated with modular pipeline")
+        self.logger.warning("Applying simple sampling strategy instead")
 
-        # Create analyzer
-        analyzer = SimpleHierarchicalAnalyzer(max_events=max_events)
+        # Simple sampling: just take first N events
+        sampled_events = enriched_events[:max_events]
 
-        # Analyze
-        result = analyzer.analyze(enriched_events)
+        # Create mock result
+        from collections import namedtuple
+        MockResult = namedtuple('MockResult', ['sampled_events', 'significance_scores', 'timescale_stats'])
+        result = MockResult(
+            sampled_events=sampled_events,
+            significance_scores=[1.0] * len(sampled_events),
+            timescale_stats={}
+        )
 
         # Apply temporal smoothing if enabled
         sampled_events = result.sampled_events
