@@ -63,8 +63,14 @@ class AudioExtractionStage(PipelineStage):
         # Import here to avoid circular dependencies
         from audio_file_learning.polyphonic_processor import PolyphonicAudioProcessor
 
-        # Create processor
-        processor = PolyphonicAudioProcessor()
+        # Get max_events from config if specified
+        max_events = context.get('config', {}).get('training', {}).get('max_events')
+        
+        if max_events:
+            self.logger.info(f"Limiting extraction to {max_events} events")
+
+        # Create processor with max_events
+        processor = PolyphonicAudioProcessor(max_events=max_events)
 
         # Process audio file (returns tuple of events and file_info)
         audio_events, file_info = processor.process_audio_file(str(audio_file))

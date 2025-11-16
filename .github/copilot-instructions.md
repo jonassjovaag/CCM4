@@ -37,21 +37,33 @@ MPS-accelerated version uses Apple Silicon GPU for real-time distance calculatio
 
 ### Feature Extraction Philosophy
 
-**Dual perception approach** (subsymbolic + symbolic):
+**Multi-modal perception** (subsymbolic + symbolic + semantic):
 
-1. **Wav2Vec 2.0** (`listener/hybrid_detector.py`): 768D neural embeddings → quantized to gesture tokens
-   - Captures timbral/spectral qualities without symbolic transcription
-   - "How it sounds" not "what chord it is"
+1. **MERT-v1-95M** (`listener/mert_encoder.py`): 768D music-optimized neural embeddings → gesture tokens
+   - Music-specific transformer pre-trained on 160K hours of music
+   - Superior musical understanding vs. general-purpose Wav2Vec
+   - Captures harmony, rhythm, timbre, and musical semantics
+   - Primary feature extractor for new models
 
-2. **Brandtsegg Ratios** (`listener/ratio_analyzer.py`): frequency ratio analysis → consonance scores
+2. **CLAP Style Detection** (`listener/clap_style_detector.py`): Audio-text alignment → behavioral modes
+   - LAION `clap-htsat-unfused` model for semantic style understanding
+   - Maps musical styles (ballad/rock/jazz/ambient) to behavioral modes (SHADOW/MIRROR/COUPLE)
+   - Enables automatic mode selection based on musical context
+   - Optional, falls back to manual mode selection
+
+3. **Wav2Vec 2.0** (`listener/hybrid_detector.py`): 768D general audio embeddings (legacy support)
+   - Kept for backward compatibility with older models
+   - General-purpose audio representation without music bias
+
+4. **Brandtsegg Ratios** (`listener/ratio_analyzer.py`): frequency ratio analysis → consonance scores
    - Mathematical harmonic relationships independent of cultural chord naming
    - Outputs: `consonance`, `dissonance`, `ratio_features[3]`, `frequency_ratios[6]`
 
-3. **Rhythm Analysis** (`rhythmic_engine/`): onset detection + tempo tracking + syncopation
+5. **Rhythm Analysis** (`rhythmic_engine/`): onset detection + tempo tracking + syncopation
    - RhythmOracle learns rhythmic patterns parallel to harmonic AudioOracle
    - Correlation engine discovers harmonic-rhythmic relationships
 
-**Why this matters**: Chord names (Cmaj7, Dm7) are post-hoc symbolic labels. The system learns from perceptual features first, symbolic interpretation second. This aligns with practice-based artistic research goals.
+**Why this matters**: MERT provides music-aware perceptual features that understand musical concepts (chords, keys, genres) without requiring symbolic transcription. CLAP adds semantic layer for style-driven behavioral adaptation. Chord names (Cmaj7, Dm7) are post-hoc symbolic labels—the system learns from perceptual features first, symbolic interpretation second. This aligns with practice-based artistic research goals.
 
 ## Development Workflows
 
@@ -125,7 +137,9 @@ python test_system_components.py
 │   └── decision_explainer.py          # Transparency logging
 ├── listener/
 │   ├── jhs_listener_core.py          # Audio input + onset detection
-│   ├── hybrid_detector.py            # Wav2Vec gesture tokens
+│   ├── mert_encoder.py               # MERT-v1-95M music embeddings
+│   ├── clap_style_detector.py        # CLAP style-based mode selection
+│   ├── hybrid_detector.py            # Wav2Vec gesture tokens (legacy)
 │   └── ratio_analyzer.py             # Brandtsegg ratio analysis
 ├── rhythmic_engine/                   # Parallel rhythmic intelligence
 │   ├── memory/rhythm_oracle.py       # Rhythmic pattern memory
@@ -145,7 +159,8 @@ python test_system_components.py
 ### 1. Feature Vector Dimensions Matter
 
 - AudioOracle expects **15-dimensional** features (polyphonic)
-- Wav2Vec outputs **768-dimensional** → quantized to gesture tokens
+- MERT outputs **768-dimensional** → quantized to gesture tokens (primary encoder)
+- Wav2Vec outputs **768-dimensional** → quantized to gesture tokens (legacy support)
 - Ratio analyzer outputs **3D consonance vector + 6D frequency ratios**
 - **Never mix dimensions** - each analysis layer has specific shapes
 

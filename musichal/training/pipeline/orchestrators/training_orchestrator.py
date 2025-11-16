@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import logging
 import json
+import pickle
 
 from ..stages.base_stage import PipelineStage, StageResult
 from ..stages.audio_extraction_stage import AudioExtractionStage
@@ -80,7 +81,8 @@ class TrainingOrchestrator:
         self,
         audio_file: str | Path,
         output_file: Optional[str | Path] = None,
-        checkpoint_dir: Optional[str | Path] = None
+        checkpoint_dir: Optional[str | Path] = None,
+        cached_events_file: Optional[str | Path] = None
     ) -> Dict[str, Any]:
         """
         Run complete training pipeline.
@@ -89,6 +91,7 @@ class TrainingOrchestrator:
             audio_file: Path to input audio file
             output_file: Path to save training results (optional)
             checkpoint_dir: Directory to save checkpoints (optional)
+            cached_events_file: Path to cached events pickle (skips extraction) (optional)
 
         Returns:
             Training results dictionary
@@ -102,6 +105,22 @@ class TrainingOrchestrator:
         logger.info(f"Starting training pipeline: {audio_file.name}")
         logger.info("=" * 60)
 
+        # Load cached events if provided
+        cached_events = None
+        if cached_events_file:
+            cached_events_file = Path(cached_events_file)
+            if not cached_events_file.exists():
+                raise FileNotFoundError(f"Cached events file not found: {cached_events_file}")
+            
+            logger.info(f"Loading cached events from: {cached_events_file.name}")
+            with open(cached_events_file, 'rb') as f:
+                cache_data = pickle.load(f)
+            
+            cached_events = cache_data['events']
+            logger.info(f"Loaded {len(cached_events)} cached events")
+            logger.info(f"Original audio: {cache_data.get('audio_path', 'unknown')}")
+            logger.info("Skipping Stage 1 (AudioExtraction)")
+
         # Initialize context
         self.context = {
             'audio_file': str(audio_file),
@@ -111,6 +130,30 @@ class TrainingOrchestrator:
 
         # Execute each stage
         for i, stage in enumerate(self.stages, 1):
+            # Skip AudioExtraction if we have cached events
+            if cached_events and stage.name == "AudioExtraction":
+                logger.info(f"\nStage {i}/{len(self.stages)}: {stage.name} [SKIPPED - using cache]")
+                logger.info("-" * 60)
+                
+                # Create a fake result with cached data
+                from ..stages.base_stage import StageResult
+                result = StageResult(
+                    stage_name="AudioExtraction",
+                    success=True,
+                    duration_seconds=0.0,
+                    data={
+                        'audio_events': cached_events,
+                        'total_events': len(cached_events),
+                        'sample_rate': 44100,  # Default, adjust if needed
+                        'duration': cached_events[-1].t if cached_events else 0.0
+                    },
+                    metrics={'events_extracted': len(cached_events), 'from_cache': True}
+                )
+                self.results.append(result)
+                self.context.update(result.data)
+                self.context['previous_results'] = self.results
+                continue
+            
             logger.info(f"\nStage {i}/{len(self.stages)}: {stage.name}")
             logger.info("-" * 60)
 

@@ -10,11 +10,11 @@ November 2025
 
 ## Abstract
 
-Can a machine truly listen? This question demands understanding what listening *is*, accepting that it is contextual, and seeking where the common ground between human listening and machine listening might exist—or even, what that common ground might look like. This exposition documents an approximately 12-month long practice-based development of MusicHal 9000, an AI musical partner built on gesture-based memory architecture. Through the integration of Wav2Vec 2.0 neural encoding (768-dimensional perceptual features), musical gesture consolidation, dual vocabulary separation (harmonic/percussive), and ratio-based analysis in both of these, the system might have learned to respond with musical intent rather than algorithmic randomness. I say *might*, because, like all music, the definition will largely be dependant on how it is received. 
+Can a machine truly listen? This question demands understanding what listening *is*, accepting that it is contextual, and seeking where the common ground between human listening and machine listening might exist—or even, what that common ground might look like. This exposition documents an approximately 12-month long practice-based development of MusicHal 9000, an AI musical partner built on gesture-based memory architecture. Through the integration of music-optimized neural encoding (MERT-v1-95M providing 768-dimensional perceptual features), semantic style detection (CLAP for automatic behavioral mode selection), musical gesture consolidation, dual vocabulary separation (harmonic/percussive), and ratio-based analysis in both of these, the system has learned to respond with musical intent rather than algorithmic randomness. I say *has*, because, like all music, the definition will largely be dependant on how it is received, but the evolution from Wav2Vec to MERT represents a significant leap in musical understanding.
 
-The research contributes a gesture consolidation architecture that extends IRCAM's Musical Agents framework (Bujard et al., 2025), a transparency framework for explainable AI decision-making, and a practice-based methodology where technical competence (drums, code, theory) shapes architectural decisions. This exposition demonstrates how trust in human-AI musical partnership emerges not from perfection, but from trying to understand *why* the machine makes its choices—both while identifying a common ground between two fundamentally different cognitive substrates: 768-dimensional neural space and The Brain, and also from how the machinal response, through trusting that it is not entirely random or statically generative, can shape my own response to it. 
+The research contributes a gesture consolidation architecture that extends IRCAM's Musical Agents framework (Bujard et al., 2025), a music-specific encoding approach using MERT, a semantic behavioral layer using CLAP, a transparency framework for explainable AI decision-making, and a practice-based methodology where technical competence (drums, code, theory) shapes architectural decisions. This exposition demonstrates how trust in human-AI musical partnership emerges not from perfection, but from trying to understand *why* the machine makes its choices—both while identifying a common ground between two fundamentally different cognitive substrates: 768-dimensional neural space and The Brain, and also from how the machinal response, through trusting that it is not entirely random or statically generative, can shape my own response to it.
 
-**Keywords**: AI musical partnership, gesture-based memory, Wav2Vec 2.0, AudioOracle, explainable AI, practice-based research, improvisation, trust, dual perception, drummer cognition
+**Keywords**: AI musical partnership, gesture-based memory, MERT, CLAP, Wav2Vec 2.0, AudioOracle, explainable AI, practice-based research, improvisation, trust, dual perception, drummer cognition, music-optimized transformers
 
 ---
 
@@ -85,7 +85,7 @@ This research began with a simple observation: computational musical partners fe
 
 In my opinion, a machine will never think like a human, nor will humans think like machines. The term "common ground" therefore means finding functional **translation layers** between fundamentally different cognitive architectures.
 
-Computers must be allowed to understand the way they do best: currently, and as far as I know, **Wav2Vec 2.0's 768-dimensional neural encoding** of audio as perceptual features (Baevski et al., 2020) is the better option. This is not symbolic music theory like the system humans use (chord names, scales, quantized rhythms)—it's pure pattern space, capturing timbre, attack, spectral shape, and harmonic content in 768 numbers per audio frame. I have to note here that another variant of this model exists as well, titled called Wav2Vec-mus (Ragano et al., 2023); it is the same basic system, but trained exclusively on music. I have used the original model as it was easier to get a hold of at the time of programming this. 
+Computers must be allowed to understand the way they do best: currently, **MERT-v1-95M's 768-dimensional neural encoding** of audio as perceptual features (Li et al., 2023) provides music-optimized understanding. This is not symbolic music theory like the system humans use (chord names, scales, quantized rhythms)—it's pure pattern space, capturing timbre, attack, spectral shape, and harmonic content in 768 numbers per audio frame. MERT is specifically pre-trained on 160,000 hours of music, unlike general-purpose audio models like Wav2Vec 2.0 (Baevski et al., 2020) which was designed for speech. Another variant exists called Wav2Vec-mus (Ragano et al., 2023), trained exclusively on music, but MERT's deeper musical understanding and superior capture of harmonic progressions, rhythmic patterns, and genre-specific characteristics made it the clear choice for this research. Earlier versions of MusicHal used Wav2Vec 2.0, which remains supported for backward compatibility. 
 
 Humans, on the other hand, understand everything through **The Brain** (duh..)—and how that works, well, who really knows. Possibly, we chunk sound into gestures, recognize patterns, predict continuations, and respond with embodied knowledge accumulated through years of practice. For drummers, this means *feeling* rhythmic momentum in the body as neurological transmitters fires in the brain, making my muscles twitch a little whenever I hear ghost notes and accents, thus making me *feel* them as meaningful variations (Brean & Skeie, 2019, kap. 1), and therefore, physically helping me to know when to support versus when to create tension, and, specifically for percussionists, I think, the ability to see a long string of short transient non-harmonic attacks as a connected series of expression, ie, a looong note. 
 
@@ -191,13 +191,15 @@ It's a **gesture**: sometimes an emphatic punctuation mark, other times an endin
 
 ---
 
-### 2.2 The Machine Substrate: 768D Neural Space
+### 2.2 The Machine Substrate: 768D Musical Neural Space
 
-Where humans have The Brain, MusicHal has **Wav2Vec 2.0**—a pre-trained neural network that converts audio waveforms into 768-dimensional feature vectors (Baevski et al., 2020).
+Where humans have The Brain, MusicHal has **MERT-v1-95M**—a music-optimized pre-trained neural network that converts audio waveforms into 768-dimensional feature vectors (Li et al., 2023). Additionally, **CLAP** (Contrastive Language-Audio Pretraining) provides semantic understanding, mapping musical styles to behavioral modes.
 
-**What is Wav2Vec 2.0?**
+**What is MERT-v1-95M?**
 
-Wav2Vec 2.0 is a self-supervised learning model originally designed for speech recognition, adapted for music by Ragano et al. (2023), but as noted in the beginning of this document, I use the original model here. It lives inside the Chandra_trainer.py script, and provides a method of understanding how audio should be represented by solving a pre-training task where it predicts masked portions of the audio signal from context. The result is a neural encoder that captures perceptual audio qualities without human symbolic labels.
+MERT (Music Audio Representation Transformer) is a self-supervised learning model specifically designed for music understanding, pre-trained on 160,000 hours of musical audio. Unlike Wav2Vec 2.0 (Baevski et al., 2020)—originally designed for speech recognition—MERT learns musical concepts: chord progressions, rhythmic patterns, genre characteristics, and harmonic function. It lives inside the Chandra_trainer.py script, and provides a method of understanding how audio should be represented by solving a music-specific pre-training task. The result is a neural encoder that captures musical audio qualities with deep understanding of musical semantics, far superior to general-purpose audio models.
+
+**Why MERT over Wav2Vec?** Earlier versions of MusicHal used Wav2Vec 2.0, which captured general audio features but lacked music-specific inductive biases. MERT's training on music enables it to understand musical phrasing, harmonic movement, and genre-specific patterns that Wav2Vec misses. The shift to MERT improved musical coherence, harmonic sensibility, and stylistic awareness significantly.
 
 **Why 768 dimensions?**
 
@@ -210,16 +212,20 @@ Each dimension captures some aspect of the audio: timbre, attack characteristics
 
 [DIAGRAM: Audio waveform → Wav2Vec encoder → 768D feature vector, with visualization of how different sounds map to different regions of 768D space]
 
-#### From Continuous Audio to Discrete Features
+#### From Continuous Audio to Discrete Musical Features
 
-The Wav2Vec encoding process:
+The MERT encoding process:
 
 ```
-Input: Audio waveform (44,100 samples per second, continuous)
+Input: Audio waveform (16,000 samples per second, resampled for MERT)
   ↓
-Wav2Vec 2.0 encoder (CNN + transformer layers)
+MERT-v1-95M encoder (13 transformer layers, music-optimized)
   ↓
-Output: 768D feature vector every 20ms (discrete, perceptual)
+Output: 768D feature vector every ~20ms (discrete, perceptual, music-aware)
+  ↓
+CLAP style detection (parallel, for behavioral mode selection)
+  ↓
+Style → Behavioral Mode mapping (SHADOW/MIRROR/COUPLE)
 ```
 
 **Example encoding** (conceptual, actual values are normalized):
@@ -256,13 +262,15 @@ The machine's loop mirrors the human loop, but uses different tools:
 ```
 Listen (audio input via microphone)
   ↓
-Encode (Wav2Vec: audio waveform → 768D vector)
+Encode (MERT: audio waveform → 768D music-aware vector)
+  ↓
+Style Detection (CLAP: detect musical style → behavioral mode)
   ↓
 Quantize (768D → gesture token 0-63, see Section 2.3)
   ↓
 Memory query (AudioOracle: "What patterns follow token 42?")
   ↓
-Generate (Select next state based on patterns + constraints)
+Generate (Select next state based on patterns + mode + constraints)
   ↓
 Output (MIDI note to instrument)
   ↓
@@ -277,7 +285,9 @@ This parallelism is what enables partnership. We're both listening, remembering,
 
 **Citations to integrate:**
 
-- Baevski, A., Zhou, Y., Mohamed, A., & Auli, M. (2020). wav2vec 2.0: A framework for self-supervised learning of speech representations. *Advances in Neural Information Processing Systems*, 33, 12449-12460.
+- Li, Y., Yuan, R., Zhang, G., Ma, Y., Chen, X., Yin, H., Lin, C., Ragni, A., Benetos, E., Gyenge, N., et al. (2023). MERT: Acoustic Music Understanding Model with Large-Scale Self-supervised Training. *arXiv preprint arXiv:2306.00107*.
+- Wu, Y., Chen, K., Zhang, T., Hui, Y., Berg-Kirkpatrick, T., & Dubnov, S. (2023). Large-scale Contrastive Language-Audio Pretraining with Feature Fusion and Keyword-to-Caption Augmentation. In *IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*.
+- Baevski, A., Zhou, Y., Mohamed, A., & Auli, M. (2020). wav2vec 2.0: A framework for self-supervised learning of speech representations. *Advances in Neural Information Processing Systems*, 33, 12449-12460. [Legacy support]
 - Ragano, A., Benetos, E., & Hockman, J. (2023). Learning music audio representations via weak language supervision. In *Proceedings of the IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)* (pp. 1-5).
 - Bujard, T., Chemla-Romeu-Santos, A., & Esling, P. (2025). Musical agents: A typology and framework for co-creative AI systems. *Computer Music Journal*.
 

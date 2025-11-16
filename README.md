@@ -47,7 +47,9 @@ python scripts/performance/main.py
 
 ### 🎵 **Musical Intelligence**
 - **Factor Oracle Algorithm**: Learns musical patterns and structures
-- **Wav2Vec 2.0 Encoding**: 768D neural audio representations
+- **MERT-v1-95M Encoding**: Music-optimized transformer for deep audio understanding ⭐ **NEW**
+- **CLAP Style Detection**: Automatic behavioral mode selection via audio-text alignment ⭐ **NEW**
+- **Wav2Vec 2.0 Encoding**: 768D neural audio representations (legacy support)
 - **Hierarchical Analysis**: Multi-timescale musical understanding
 - **Gesture Tokenization**: 64-token discrete musical vocabulary
 
@@ -280,6 +282,13 @@ pytest tests/ --cov=musichal --cov-report=html
 
 ## 📖 Documentation
 
+### Core Documentation
+- **[RECENT_UPDATES.md](RECENT_UPDATES.md)** - November 2025 changelog (MERT, CLAP, modular pipeline)
+- **[MERT_INTEGRATION.md](MERT_INTEGRATION.md)** - Music-optimized transformer encoding ⭐ **NEW**
+- **[CLAP_STYLE_DETECTION.md](CLAP_STYLE_DETECTION.md)** - Automatic behavioral mode selection ⭐ **NEW**
+- **[COMPLETE_ARTISTIC_RESEARCH_DOCUMENTATION.md](COMPLETE_ARTISTIC_RESEARCH_DOCUMENTATION.md)** - Full system context
+
+### Architecture & Refactoring
 - [Refactoring Complete Summary](docs/REFACTORING_COMPLETE.md) - Complete refactoring journey
 - [Phase 2.4 Completion](docs/phase_2_4_completion.md) - Project structure improvements
 - [Phase 2.3 Completion](docs/phase_2_3_completion.md) - Pydantic models
