@@ -170,11 +170,21 @@ class TemporalSmoother:
         if 'wav2vec_features' in events[0]:
             try:
                 wav2vec_stack = np.array([e['wav2vec_features'] for e in events])
-                avg_event['wav2vec_features'] = np.mean(wav2vec_stack, axis=0).tolist()
+                avg_features = np.mean(wav2vec_stack, axis=0).tolist()
+                avg_event['wav2vec_features'] = avg_features
+                avg_event['features'] = avg_features  # AudioOracle expects 'features' key
             except:
                 # Keep first if averaging fails
                 avg_event['wav2vec_features'] = events[0].get('wav2vec_features')
-        
+                avg_event['features'] = events[0].get('wav2vec_features')
+        elif 'features' in events[0]:
+            # Handle case where only 'features' field exists
+            try:
+                features_stack = np.array([e['features'] for e in events])
+                avg_event['features'] = np.mean(features_stack, axis=0).tolist()
+            except:
+                avg_event['features'] = events[0].get('features')
+
         # Take most common gesture token (mode)
         if 'gesture_token' in events[0]:
             tokens = [e.get('gesture_token') for e in events if e.get('gesture_token') is not None]
