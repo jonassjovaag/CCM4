@@ -95,10 +95,23 @@ class HierarchicalSamplingStage(PipelineStage):
             from core.temporal_smoothing import TemporalSmoother
             
             # Convert Event objects to dicts for temporal smoother
+            # CRITICAL: Preserve enriched features (wav2vec_features, gesture_token, etc.)
             events_as_dicts = []
             for event in sampled_events:
                 if hasattr(event, 'to_dict'):
-                    events_as_dicts.append(event.to_dict())
+                    event_dict = event.to_dict()
+                    # Add enriched features that aren't in base to_dict()
+                    if hasattr(event, 'features'):
+                        event_dict['features'] = event.features
+                    if hasattr(event, 'wav2vec_features'):
+                        event_dict['wav2vec_features'] = event.wav2vec_features
+                    if hasattr(event, 'gesture_token'):
+                        event_dict['gesture_token'] = event.gesture_token
+                    if hasattr(event, 'chord'):
+                        event_dict['chord'] = event.chord
+                    if hasattr(event, 'consonance'):
+                        event_dict['consonance'] = event.consonance
+                    events_as_dicts.append(event_dict)
                 elif isinstance(event, dict):
                     events_as_dicts.append(event)
                 else:
