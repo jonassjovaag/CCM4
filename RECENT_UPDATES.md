@@ -1,5 +1,32 @@
 # Recent Updates - November 2025
 
+## Latest: Event Caching System (16 Nov 2025)
+**93x Training Speedup**
+
+- **What**: Implemented event caching system to avoid redundant audio extraction during testing
+- **Performance**: 3.86 hours → 149.66s for 1000 events (93x faster)
+- **New Files**:
+  - `cache/events/` - Pickle cache storage
+  - `scripts/train/extract_and_cache_events.py` - Extraction-only script
+  - `cache/README.md` - Usage documentation
+- **Pipeline Changes**:
+  - `train_modular.py` accepts `--cached-events` flag
+  - `training_orchestrator.py` loads cached events and skips Stage 1
+  - Temporal smoothing bug fixes (Event → dict conversion, features preservation)
+  - Oracle serialization fixes (complete graph structure now saved)
+- **Status**: Production-ready, tested on Mac and PC
+
+## CLAP Integration Status (16 Nov 2025)
+**Installed and Validated**
+
+- **Installation**: ✅ `laion-clap==1.1.7` installed in CCM3 environment
+- **Model**: ✅ Downloaded (2.3GB) - `laion/clap-htsat-unfused`
+- **GPU**: ✅ Apple Silicon MPS detected and used
+- **Detector**: ✅ `CLAPStyleDetector` class initializes successfully
+- **Configuration**: ✅ Enabled in `config/default_config.yaml` (line 177)
+- **Known Issue**: ⚠️ Type mismatch in detection (np.ndarray vs float32) - graceful fallback
+- **Impact**: System ready for automatic behavioral mode selection, fallback to manual modes if detection fails
+
 ## Major Feature Additions
 
 ### 🎼 MERT-v1-95M Integration (Commit 30c6bbb)
