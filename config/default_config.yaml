@@ -142,6 +142,11 @@ data_safety:
 
 # Feature Extraction Configuration
 feature_extraction:
+  # Dual vocabulary mode (harmonic/percussive separation)
+  enable_dual_vocabulary: true  # Separate 64 harmonic + 64 percussive tokens
+  symbolic_vocabulary_size: 64
+  use_gpu: true
+
   # Neural audio features (MERT or Wav2Vec)
   wav2vec:
     enabled: true

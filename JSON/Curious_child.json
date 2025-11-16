@@ -1,0 +1,301 @@
+{
+  "metadata": {
+    "version": "2.0",
+    "created_at": "2025-11-15T17:32:47.214558",
+    "description": "Training results for Curious_child.wav",
+    "training_source": "input_audio/Curious_child.wav",
+    "source_file_size": 299471956,
+    "source_file_modified": "2025-09-21T20:36:48.027017",
+    "parameters": {
+      "system": {
+        "name": "MusicHal 9000",
+        "version": "2.0",
+        "environment": "development"
+      },
+      "audio": {
+        "input_device": null,
+        "sample_rate": 44100,
+        "buffer_size": 512,
+        "channels": 1
+      },
+      "audio_oracle": {
+        "distance_threshold": 0.15,
+        "distance_function": "euclidean",
+        "feature_dimensions": 15,
+        "adaptive_threshold": true,
+        "max_pattern_length": 50,
+        "chord_similarity_weight": 0.3,
+        "use_mps": true,
+        "training": {
+          "max_events": 1000,
+          "hierarchical_enabled": false,
+          "rhythmic_analysis_enabled": false,
+          "correlation_analysis_enabled": false
+        }
+      },
+      "memory_buffer": {
+        "max_duration_seconds": 30.0,
+        "feature_dimensions": 4,
+        "update_stats": true,
+        "stats_window": 1000
+      },
+      "rhythm_oracle": {
+        "enabled": true,
+        "tempo_range": [
+          40,
+          240
+        ],
+        "beat_tracking": true,
+        "syncopation_detection": true
+      },
+      "ai_agent": {
+        "default_behavior": "imitate",
+        "autonomous_when_silent": true,
+        "silence_threshold_seconds": 2.0,
+        "behavior_weights": {
+          "imitate": 0.5,
+          "contrast": 0.3,
+          "lead": 0.2
+        },
+        "density": {
+          "min_notes_per_second": 0.1,
+          "max_notes_per_second": 8.0,
+          "default_density": 1.0
+        }
+      },
+      "feature_mapper": {
+        "velocity_range": [
+          40,
+          120
+        ],
+        "pitch_range": [
+          36,
+          96
+        ],
+        "melody_weight": 0.6,
+        "bass_weight": 0.4
+      },
+      "midi": {
+        "port": "IAC Driver Melody Channel",
+        "channel": 1,
+        "velocity_curve": "linear"
+      },
+      "performance_arc": {
+        "enabled": true,
+        "default_duration_minutes": 5,
+        "phases": [
+          {
+            "name": "introduction",
+            "duration_percent": 0.2,
+            "intensity": 0.3
+          },
+          {
+            "name": "development",
+            "duration_percent": 0.5,
+            "intensity": 0.7
+          },
+          {
+            "name": "climax",
+            "duration_percent": 0.2,
+            "intensity": 1.0
+          },
+          {
+            "name": "resolution",
+            "duration_percent": 0.1,
+            "intensity": 0.4
+          }
+        ]
+      },
+      "logging": {
+        "enabled": true,
+        "log_dir": "logs",
+        "log_level": "DEBUG",
+        "performance_logging": {
+          "enabled": true,
+          "log_audio_analysis": false,
+          "log_decisions": false,
+          "log_midi_output": true
+        }
+      },
+      "persistence": {
+        "data_dir": "ai_learning_data",
+        "memory_file": "musical_memory.json",
+        "oracle_file": "polyphonic_audio_oracle_model.json",
+        "auto_save": {
+          "enabled": false,
+          "interval_seconds": 300
+        },
+        "backup": {
+          "enabled": true,
+          "max_backups": 10,
+          "max_age_days": 30
+        }
+      },
+      "data_safety": {
+        "atomic_writes": true,
+        "create_backups": false,
+        "validate_on_save": false,
+        "add_metadata": false,
+        "max_retries": 3,
+        "validation": {
+          "strict_mode": false,
+          "check_data_quality": true
+        }
+      },
+      "feature_extraction": {
+        "wav2vec": {
+          "enabled": true,
+          "model": "m-a-p/MERT-v1-95M",
+          "layer": 7
+        },
+        "frequency_analysis": {
+          "enabled": true,
+          "min_frequency": 20.0,
+          "max_frequency": 5000.0
+        },
+        "harmonic_context": {
+          "enabled": true,
+          "chord_detection": true,
+          "key_detection": true
+        },
+        "rhythmic_context": {
+          "enabled": true,
+          "beat_tracking": true,
+          "tempo_estimation": true
+        }
+      },
+      "style_detection": {
+        "enabled": true,
+        "model": "laion/clap-htsat-unfused",
+        "use_gpu": true,
+        "auto_behavior_mode": true,
+        "confidence_threshold": 0.3,
+        "style_mappings": {
+          "ballad": "shadow",
+          "jazz": "shadow",
+          "blues": "shadow",
+          "rock": "couple",
+          "funk": "couple",
+          "metal": "couple",
+          "punk": "couple",
+          "ambient": "mirror",
+          "classical": "mirror",
+          "electronic": "mirror",
+          "world": "mirror"
+        },
+        "update_interval": 5.0,
+        "buffer_size": 3.0
+      },
+      "hierarchical_analysis": {
+        "enabled": false,
+        "timescales": [
+          0.1,
+          0.5,
+          2.0,
+          8.0
+        ],
+        "perceptual_filtering": true,
+        "significance_threshold": 0.5
+      },
+      "training": {
+        "input_audio_dir": "input_audio",
+        "output_dir": "JSON",
+        "batch_size": 1,
+        "verbose": false,
+        "components": {
+          "dual_perception": true,
+          "hierarchical_analysis": true,
+          "rhythmic_analysis": true,
+          "music_theory_analysis": true,
+          "correlation_analysis": true
+        }
+      },
+      "visualization": {
+        "enabled": false,
+        "update_interval": 0.1,
+        "phrase_memory_viewport": true
+      },
+      "performance": {
+        "max_workers": 4,
+        "cache_size": 1000,
+        "use_gpu": true,
+        "gpu_device": 0
+      },
+      "debug": {
+        "enabled": true,
+        "verbose_logging": false,
+        "profile_performance": false,
+        "save_intermediate_results": false
+      }
+    },
+    "git_commit": "6b3dcf32",
+    "git_branch": "cache-extraction-optimization",
+    "git_dirty": false,
+    "system_info": {
+      "python_version": "3.10.12",
+      "python_implementation": "CPython",
+      "platform": "macOS-15.6.1-arm64-arm-64bit",
+      "processor": "arm",
+      "machine": "arm64",
+      "numpy_version": "2.2.6",
+      "torch_version": "2.8.0",
+      "librosa_version": "0.11.0"
+    }
+  },
+  "data": {
+    "metadata": {
+      "version": "2.0",
+      "created_at": "2025-11-15T17:32:47.193833",
+      "audio_file": "input_audio/Curious_child.wav",
+      "duration_seconds": 0.0,
+      "parameters": {},
+      "git_commit": "6b3dcf3",
+      "python_version": "3.10.12"
+    },
+    "training_successful": true,
+    "events_processed": 0,
+    "audio_oracle_stats": {
+      "total_states": 1001,
+      "total_patterns": 4851,
+      "sequence_length": 1000,
+      "max_pattern_length": 50,
+      "is_trained": true,
+      "distance_threshold": 0.35,
+      "distance_function": "cosine",
+      "feature_dimensions": 15,
+      "adaptive_threshold": false
+    },
+    "harmonic_patterns": 1000,
+    "polyphonic_patterns": 0,
+    "pipeline_metrics": {
+      "AudioExtraction": {
+        "duration_seconds": 0.0,
+        "success": true,
+        "metrics": {
+          "events_extracted": 1000,
+          "from_cache": true
+        }
+      },
+      "FeatureAnalysis": {
+        "duration_seconds": 34.86932992935181,
+        "success": true,
+        "metrics": {
+          "events_analyzed": 1000,
+          "unique_tokens": 0,
+          "chords_detected": 1000
+        }
+      },
+      "OracleTraining": {
+        "duration_seconds": 13882.43161702156,
+        "success": true,
+        "metrics": {
+          "total_states": 1001,
+          "total_patterns": 4851,
+          "sequence_length": 1000
+        }
+      }
+    },
+    "errors": [],
+    "warnings": []
+  }
+}

@@ -1028,6 +1028,76 @@ class PolyphonicAudioOracle(AudioOracle):
             print(f"❌ Error saving polyphonic AudioOracle: {e}")
             return False
     
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert AudioOracle to dictionary (same format as save_to_file but returns dict).
+        Used by training pipeline to serialize oracle into training results.
+        
+        Returns:
+            Dictionary containing full oracle structure ready for JSON serialization
+        """
+        # Prepare audio frames
+        audio_frames_serializable = {
+            str(frame_id): {
+                'timestamp': frame.timestamp,
+                'features': frame.features.tolist(),
+                'audio_data': self._sanitize_audio_data(frame.audio_data),
+                'frame_id': frame.frame_id
+            }
+            for frame_id, frame in self.audio_frames.items()
+        }
+        
+        # Transitions
+        transitions_serializable = {}
+        for (state, symbol), target_state in self.transitions.items():
+            key = f"{state}_{symbol}"
+            transitions_serializable[key] = int(target_state) if isinstance(target_state, (np.integer, np.int64, np.int32)) else target_state
+        
+        # Suffix links
+        suffix_links_serializable = {}
+        for state, link_state in self.suffix_links.items():
+            suffix_links_serializable[str(state)] = int(link_state) if isinstance(link_state, (np.integer, np.int64, np.int32)) else link_state
+        
+        # States
+        states_serializable = {}
+        for state_id, state_data in self.states.items():
+            states_serializable[str(state_id)] = {
+                'len': int(state_data['len']) if isinstance(state_data['len'], (np.integer, np.int64, np.int32)) else state_data['len'],
+                'link': int(state_data['link']) if isinstance(state_data['link'], (np.integer, np.int64, np.int32)) else state_data['link'],
+                'next': {
+                    str(k): int(v) if isinstance(v, (np.integer, np.int64, np.int32)) else v 
+                    for k, v in state_data['next'].items()
+                }
+            }
+        
+        return {
+            'format_version': '2.0',
+            'distance_threshold': self.distance_threshold,
+            'distance_function': self.distance_function,
+            'max_pattern_length': self.max_pattern_length,
+            'feature_dimensions': self.feature_dimensions,
+            'adaptive_threshold': self.adaptive_threshold,
+            'chord_similarity_weight': self.chord_similarity_weight,
+            'size': self.size,
+            'last': self.last,
+            'frame_counter': self.frame_counter,
+            'sequence_length': self.sequence_length,
+            'is_trained': self.is_trained,
+            'last_update': self.last_update,
+            'stats': self.stats,
+            'audio_frames': audio_frames_serializable,
+            'transitions': transitions_serializable,
+            'suffix_links': suffix_links_serializable,
+            'states': states_serializable,
+            'chord_progressions': dict(self.chord_progressions),
+            'harmonic_patterns': dict(self.harmonic_patterns),
+            'distance_history': list(self.distance_history),
+            'threshold_adjustments': getattr(self, 'threshold_adjustments', 0),
+            # Harmonic data for autonomous root progression
+            'fundamentals': self.fundamentals,
+            'consonances': self.consonances
+        }
+    
     def save_to_pickle(self, filepath: str) -> bool:
         """
         Save AudioOracle to compressed pickle format (MUCH faster than JSON)

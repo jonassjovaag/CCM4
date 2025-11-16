@@ -127,7 +127,7 @@ class OracleTrainingStage(PipelineStage):
 
             # Analyze rhythmic features
             analyzer = HeavyRhythmicAnalyzer()
-            rhythmic_analysis = analyzer.analyze_audio_file(audio_file)
+            rhythmic_analysis = analyzer.analyze_rhythmic_structure(audio_file)
 
             # Train rhythm oracle
             rhythm_oracle = RhythmOracle()
@@ -137,4 +137,6 @@ class OracleTrainingStage(PipelineStage):
 
         except Exception as e:
             self.logger.warning(f"Rhythmic training failed: {e}")
+            import traceback
+            self.logger.warning(f"Traceback: {traceback.format_exc()}")
             return None, None

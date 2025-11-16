@@ -216,3 +216,5 @@ References/
 
 # Python Test Files Directory (if contains temporary files)
 Python\ test\ files/
+# Trained models can be large - store locally or use Git LFS
+JSON/*.json
