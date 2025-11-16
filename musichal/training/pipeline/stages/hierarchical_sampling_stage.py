@@ -93,10 +93,21 @@ class HierarchicalSamplingStage(PipelineStage):
         sampled_events = result.sampled_events
         if self.config.get('temporal_smoothing', True):
             from core.temporal_smoothing import TemporalSmoother
+            
+            # Convert Event objects to dicts for temporal smoother
+            events_as_dicts = []
+            for event in sampled_events:
+                if hasattr(event, 'to_dict'):
+                    events_as_dicts.append(event.to_dict())
+                elif isinstance(event, dict):
+                    events_as_dicts.append(event)
+                else:
+                    raise TypeError(f"Unexpected event type: {type(event)}")
+            
             smoother = TemporalSmoother(
                 window_seconds=self.config.get('smoothing_window', 0.5)
             )
-            sampled_events = smoother.smooth(sampled_events)
+            sampled_events = smoother.smooth_events(events_as_dicts)
 
         self.logger.info(f"Sampled {len(sampled_events)} significant events")
 
