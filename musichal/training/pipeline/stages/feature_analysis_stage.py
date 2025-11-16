@@ -80,7 +80,8 @@ class FeatureAnalysisStage(PipelineStage):
             vocabulary_size=self.config.get('symbolic_vocabulary_size', 64),
             wav2vec_model=model_name,  # Pass model name from config
             use_gpu=self.config.get('use_gpu', True),
-            enable_symbolic=True
+            enable_symbolic=True,
+            enable_dual_vocabulary=self.config.get('enable_dual_vocabulary', False)
         )
 
         # Load audio file for feature extraction

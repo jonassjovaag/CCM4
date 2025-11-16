@@ -60,6 +60,11 @@ training:
     music_theory_analysis: true
     correlation_analysis: true
 
+feature_extraction:
+  enable_dual_vocabulary: true  # Enable harmonic/percussive separation
+  symbolic_vocabulary_size: 64
+  use_gpu: true
+
 performance:
   use_gpu: true
   max_workers: 8  # More parallel processing
