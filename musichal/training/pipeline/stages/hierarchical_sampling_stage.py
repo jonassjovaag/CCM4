@@ -105,7 +105,7 @@ class HierarchicalSamplingStage(PipelineStage):
                     raise TypeError(f"Unexpected event type: {type(event)}")
             
             smoother = TemporalSmoother(
-                window_seconds=self.config.get('smoothing_window', 0.5)
+                window_size=self.config.get('smoothing_window', 0.5)
             )
             sampled_events = smoother.smooth_events(events_as_dicts)
 
