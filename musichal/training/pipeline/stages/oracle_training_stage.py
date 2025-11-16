@@ -65,9 +65,13 @@ class OracleTrainingStage(PipelineStage):
         # Apply training_events limit if specified
         training_events_limit = self.config.get('training', {}).get('training_events')
         if training_events_limit and len(sampled_events) > training_events_limit:
-            self.logger.info(f"Limiting training to {training_events_limit} of {len(sampled_events)} events")
-            sampled_events = sampled_events[:training_events_limit]
-
+            # Distribute training events evenly across the full track
+            # Instead of taking first N events (which only covers beginning),
+            # sample every Kth event to get full structural coverage
+            step = len(sampled_events) // training_events_limit
+            sampled_events = sampled_events[::step][:training_events_limit]
+            self.logger.info(f"Limiting training to {training_events_limit} events distributed across {len(context.get('sampled_events', context.get('enriched_events')))} total events (every {step}th event)")
+        
         self.logger.info(f"Training oracles on {len(sampled_events)} events")
 
         # Train AudioOracle
