@@ -189,22 +189,21 @@ class PolyphonicAudioOracle(AudioOracle):
                     elif isinstance(features_raw, list):
                         features = np.array(features_raw, dtype=np.float32)
                     else:
-                        features = features_raw                        # Verify we have real 768D features (not sparse)
-                        if len(features) > 20 and np.count_nonzero(features) > 20:
-                            # Use the pre-computed 768D Wav2Vec features!
-                            if i == 0:
-                                print(f"      ✅ USING pre-computed 768D features!")
-                            self.add_audio_frame(features, item)
-                            continue
-                        else:
-                            if i == 0:
-                                print(f"      ❌ Features too sparse ({np.count_nonzero(features)} non-zero), extracting polyphonic")
+                        features = features_raw
                     
-                    # Fall back to extracting polyphonic features
-                    if i == 0:
-                        print(f"      ❌ No valid features, extracting polyphonic")
-                    features = self.extract_polyphonic_features(item)
-                    self.add_audio_frame(features, item)
+                    # Verify we have real 768D features (not sparse)
+                    if len(features) > 20 and np.count_nonzero(features) > 20:
+                        # Use the pre-computed 768D Wav2Vec features!
+                        if i == 0:
+                            print(f"      ✅ USING pre-computed 768D features!")
+                        self.add_audio_frame(features, item)
+                        continue
+                    else:
+                        # Features exist but are bad - fall back
+                        if i == 0:
+                            print(f"      ❌ Features too sparse ({np.count_nonzero(features)} non-zero), extracting polyphonic")
+                        features = self.extract_polyphonic_features(item)
+                        self.add_audio_frame(features, item)
                 else:
                     # Convert symbol to features (fallback)
                     features = self._symbol_to_features(str(item))
