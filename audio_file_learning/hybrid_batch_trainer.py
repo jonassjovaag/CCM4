@@ -196,33 +196,37 @@ class HybridBatchTrainer:
                         'beat_position': float(getattr(event, 'beat_position', 0.0))
                     }
 
-                    # CRITICAL: Include 768D Wav2Vec/MERT features from FeatureAnalysisStage
-                    if hasattr(event, 'features') and event.features is not None:
-                        import numpy as np
-                        # Convert numpy array to list for JSON serialization
-                        features_array = event.features
-                        if isinstance(features_array, np.ndarray):
-                            event_data['features'] = features_array.tolist()
-                        else:
-                            event_data['features'] = features_array
+                # CRITICAL: Include 768D Wav2Vec/MERT features from FeatureAnalysisStage
+                # Keep as NumPy arrays for performance (pickle handles them efficiently)
+                if hasattr(event, 'features') and event.features is not None:
+                    import numpy as np
+                    features_array = event.features
+                    # Keep NumPy arrays (avoids expensive list→array conversion in oracle)
+                    if isinstance(features_array, np.ndarray):
+                        event_data['features'] = features_array
+                    else:
+                        # Convert non-arrays to NumPy for consistency
+                        event_data['features'] = np.array(features_array, dtype=np.float32)
 
-                    # Include other dual perception fields
-                    if hasattr(event, 'wav2vec_features') and event.wav2vec_features is not None:
-                        import numpy as np
-                        wav2vec_array = event.wav2vec_features
-                        if isinstance(wav2vec_array, np.ndarray):
-                            event_data['wav2vec_features'] = wav2vec_array.tolist()
-                        else:
-                            event_data['wav2vec_features'] = wav2vec_array
+                # Include other dual perception fields
+                if hasattr(event, 'wav2vec_features') and event.wav2vec_features is not None:
+                    import numpy as np
+                    wav2vec_array = event.wav2vec_features
+                    # Keep NumPy arrays (avoids expensive list→array conversion in oracle)
+                    if isinstance(wav2vec_array, np.ndarray):
+                        event_data['wav2vec_features'] = wav2vec_array
+                    else:
+                        # Convert non-arrays to NumPy for consistency
+                        event_data['wav2vec_features'] = np.array(wav2vec_array, dtype=np.float32)
 
-                    if hasattr(event, 'gesture_token'):
-                        event_data['gesture_token'] = event.gesture_token
+                if hasattr(event, 'gesture_token'):
+                    event_data['gesture_token'] = event.gesture_token
 
-                    if hasattr(event, 'chord'):
-                        event_data['chord'] = event.chord
+                if hasattr(event, 'chord'):
+                    event_data['chord'] = event.chord
 
-                    if hasattr(event, 'consonance'):
-                        event_data['consonance'] = float(event.consonance)
+                if hasattr(event, 'consonance'):
+                    event_data['consonance'] = float(event.consonance)
 
                 musical_sequence.append(event_data)
             

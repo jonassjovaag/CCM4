@@ -163,8 +163,12 @@ class PolyphonicAudioOracleMPS(PolyphonicAudioOracle):
             if not stored_features:
                 return []
             
-            # Convert to batch tensor
-            stored_tensor = torch.tensor(np.array(stored_features), dtype=torch.float32).to(self.device)
+            # Convert to batch tensor (optimize if features already NumPy arrays)
+            if all(isinstance(f, np.ndarray) for f in stored_features):
+                stored_array = np.stack(stored_features)
+            else:
+                stored_array = np.array(stored_features)
+            stored_tensor = torch.tensor(stored_array, dtype=torch.float32).to(self.device)
             
             # Calculate distances in batch on GPU
             if self.distance_function == 'euclidean':

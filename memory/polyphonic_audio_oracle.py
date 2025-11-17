@@ -179,12 +179,17 @@ class PolyphonicAudioOracle(AudioOracle):
                             print(f"      Features length: {len(f_arr)}")
                             print(f"      Features non-zero: {np.count_nonzero(f_arr)}")
                     
-                    # CRITICAL: Check if 768D Wav2Vec features already exist
-                    if 'features' in item and item['features'] is not None:
-                        features_raw = item['features']
-                        features = np.array(features_raw, dtype=np.float32) if isinstance(features_raw, list) else features_raw
-                        
-                        # Verify we have real 768D features (not sparse)
+                # CRITICAL: Check if 768D Wav2Vec features already exist
+                if 'features' in item and item['features'] is not None:
+                    features_raw = item['features']
+                    # Fast path: already NumPy array (avoid expensive conversion)
+                    if isinstance(features_raw, np.ndarray):
+                        features = features_raw
+                    # Slow path: convert from list (legacy compatibility)
+                    elif isinstance(features_raw, list):
+                        features = np.array(features_raw, dtype=np.float32)
+                    else:
+                        features = features_raw                        # Verify we have real 768D features (not sparse)
                         if len(features) > 20 and np.count_nonzero(features) > 20:
                             # Use the pre-computed 768D Wav2Vec features!
                             if i == 0:
@@ -497,32 +502,36 @@ class PolyphonicAudioOracle(AudioOracle):
                         else:
                             print(f"      Features is None!")
                 
-                # CRITICAL: Use 768D Wav2Vec features if available (from event_data['features'])
-                # Otherwise fall back to 15D polyphonic features
-                if 'features' in event_data and event_data['features'] is not None:
-                    # Use pre-computed features (768D Wav2Vec from Chandra_trainer.py)
-                    features_raw = event_data['features']
-                    if isinstance(features_raw, list):
-                        features = np.array(features_raw, dtype=np.float32)
-                    else:
-                        features = features_raw
-                    
-                    # Verify we got real features (not just None or empty)
-                    if features is not None and len(features) > 0 and np.count_nonzero(features) > 20:
-                        # Got good 768D features - use them!
-                        if i == 0:
-                            print(f"      ✅ USING 768D Wav2Vec features (non-zero: {np.count_nonzero(features)})")
-                    else:
-                        # Features exist but are bad - fall back
-                        if i == 0:
-                            nonzero_count = np.count_nonzero(features) if features is not None else 0
-                            print(f"      ❌ FALLING BACK to polyphonic (non-zero: {nonzero_count} ≤ 20)")
-                        features = self.extract_polyphonic_features(event_data)
+            # CRITICAL: Use 768D Wav2Vec features if available (from event_data['features'])
+            # Otherwise fall back to 15D polyphonic features
+            if 'features' in event_data and event_data['features'] is not None:
+                # Use pre-computed features (768D Wav2Vec from Chandra_trainer.py)
+                features_raw = event_data['features']
+                # Fast path: already NumPy array (avoid expensive conversion)
+                if isinstance(features_raw, np.ndarray):
+                    features = features_raw
+                # Slow path: convert from list (legacy compatibility)
+                elif isinstance(features_raw, list):
+                    features = np.array(features_raw, dtype=np.float32)
                 else:
-                    # Fall back to extracting 15D polyphonic features
+                    features = features_raw
+                
+                # Verify we got real features (not just None or empty)
+                if features is not None and len(features) > 0 and np.count_nonzero(features) > 20:
+                    # Got good 768D features - use them!
                     if i == 0:
-                        print(f"      ❌ FALLING BACK to polyphonic (no features key)")
+                        print(f"      ✅ USING 768D Wav2Vec features (non-zero: {np.count_nonzero(features)})")
+                else:
+                    # Features exist but are bad - fall back
+                    if i == 0:
+                        nonzero_count = np.count_nonzero(features) if features is not None else 0
+                        print(f"      ❌ FALLING BACK to polyphonic (non-zero: {nonzero_count} ≤ 20)")
                     features = self.extract_polyphonic_features(event_data)
+            else:
+                # Fall back to extracting 15D polyphonic features
+                if i == 0:
+                    print(f"      ❌ FALLING BACK to polyphonic (no features key)")
+                features = self.extract_polyphonic_features(event_data)
                 
                 # Create polyphonic audio frame
                 polyphonic_frame = PolyphonicAudioFrame(
