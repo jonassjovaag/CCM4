@@ -68,7 +68,7 @@ jsonschema==4.23.0
 jsonschema-specifications==2023.12.1
 kiwisolver==1.4.5
 laion-clap==1.1.7
-latex2mathml==3.78.0
+latex2mathml==3.77.0
 lazy_loader==0.4
 librosa==0.10.2
 llvmlite==0.43.0
