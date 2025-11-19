@@ -47,7 +47,7 @@ colorlog==6.8.2
 contourpy==1.1.1
 cycler==0.12.1
 decorator==5.1.1
-dill==0.3.8
+dill==0.3.9
 et_xmlfile==1.1.0
 Faker==26.0.0
 filelock==3.15.4
