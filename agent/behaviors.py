@@ -31,6 +31,690 @@ class MusicalDecision:
     reasoning: str
     voice_type: str = "melodic"  # "melodic" or "bass"
     instrument: str = "unknown"  # Instrument classification
+    
+    # CLAP-driven timing profile parameters
+    timing_precision: float = 0.5  # 0=loose/expressive, 1=tight/quantized
+    rhythmic_density: float = 0.5  # 0=very sparse, 1=frequent notes
+    syncopation_tendency: float = 0.3  # 0=on-beat, 1=off-beat
+    voice_profile: Dict[str, float] = None  # Applied timing profile
+
+
+# Voice timing profiles based on CLAP style detection
+class VoiceTimingProfile:
+    """
+    Timing characteristics for melodic vs bass voices based on CLAP style
+    
+    Profiles define:
+    - timing_precision: 0=loose/expressive, 1=tight/quantized
+    - rhythmic_density: 0=very sparse, 1=frequent notes
+    - syncopation_tendency: 0=on-beat, 1=off-beat
+    - timbre_variance: 0=stable, 1=highly variable (for Meld CC)
+    """
+    
+    STYLE_PROFILES = {
+        'ballad': {
+            'melodic': {
+                'timing_precision': 0.3,  # Loose, expressive
+                'rhythmic_density': 0.4,  # Sparse, phrase-like
+                'syncopation_tendency': 0.2,  # Mostly on-beat
+                'timbre_variance': 0.7,  # Expressive timbre changes
+                # Episode engagement (hierarchical level 3)
+                'episode_active_duration_range': (3.0, 10.0),  # Short expressive statements
+                'episode_listening_duration_range': (15.0, 45.0),  # Contemplative listening
+                'interference_probability': 0.4,  # Sometimes play over human
+                'early_exit_probability': 0.15,  # Responsive to human
+                'context_sensitivity': 0.6,  # Moderately context-aware
+            },
+            'bass': {
+                'timing_precision': 0.9,  # Tight, grounded
+                'rhythmic_density': 0.2,  # Minimal movement
+                'syncopation_tendency': 0.05,  # Steady on-beat
+                'timbre_variance': 0.2,  # Stable, cool
+                # Episode engagement (bass is steady, not hierarchical)
+                'episode_active_duration_range': (10.0, 30.0),  # Long steady presence
+                'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks only
+                'interference_probability': 0.15,  # Rarely interferes
+                'early_exit_probability': 0.05,  # Very stable
+                'context_sensitivity': 0.3,  # Foundation-focused
+            }
+        },
+        'jazz': {
+            'melodic': {
+                'timing_precision': 0.4,  # Swing feel
+                'rhythmic_density': 0.5,  # Conversational
+                'syncopation_tendency': 0.4,  # Jazz phrasing
+                'timbre_variance': 0.6,  # Expressive
+                # Episode engagement
+                'episode_active_duration_range': (4.0, 12.0),  # Conversational phrases
+                'episode_listening_duration_range': (12.0, 35.0),  # Trading solos
+                'interference_probability': 0.5,  # Conversational overlap
+                'early_exit_probability': 0.2,  # Responsive trading
+                'context_sensitivity': 0.7,  # Highly interactive
+            },
+            'bass': {
+                'timing_precision': 0.85,  # Walking bass feel
+                'rhythmic_density': 0.5,  # Active but steady
+                'syncopation_tendency': 0.1,  # Mostly on-beat
+                'timbre_variance': 0.25,  # Consistent tone
+                # Episode engagement (walking bass consistency)
+                'episode_active_duration_range': (15.0, 45.0),  # Long walking patterns
+                'episode_listening_duration_range': (3.0, 8.0),  # Very brief breaks
+                'interference_probability': 0.2,  # Supportive foundation
+                'early_exit_probability': 0.08,  # Steady walk
+                'context_sensitivity': 0.4,  # Consistent support
+            }
+        },
+        'blues': {
+            'melodic': {
+                'timing_precision': 0.25,  # Very loose, emotional
+                'rhythmic_density': 0.3,  # Space for expression
+                'syncopation_tendency': 0.3,  # Blues phrasing
+                'timbre_variance': 0.75,  # Expressive bends
+                # Episode engagement
+                'episode_active_duration_range': (3.0, 8.0),  # Short emotional bursts
+                'episode_listening_duration_range': (40.0, 100.0),  # Long spaces between
+                'interference_probability': 0.35,  # Call and response
+                'early_exit_probability': 0.2,  # Emotional responsiveness
+                'context_sensitivity': 0.65,  # Emotionally reactive
+            },
+            'bass': {
+                'timing_precision': 0.8,  # Steady shuffle
+                'rhythmic_density': 0.3,  # Simple patterns
+                'syncopation_tendency': 0.05,  # Groove-locked
+                'timbre_variance': 0.2,  # Stable foundation
+                # Episode engagement (blues groove consistency)
+                'episode_active_duration_range': (12.0, 35.0),  # Long groove patterns
+                'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks
+                'interference_probability': 0.15,  # Steady support
+                'early_exit_probability': 0.05,  # Locked groove
+                'context_sensitivity': 0.3,  # Foundation-focused
+            }
+        },
+        'ambient': {
+            'melodic': {
+                'timing_precision': 0.1,  # Very loose, floating
+                'rhythmic_density': 0.2,  # Very sparse
+                'syncopation_tendency': 0.1,  # Drifting
+                'timbre_variance': 0.5,  # Moderate evolution
+                # Episode engagement
+                'episode_active_duration_range': (2.0, 6.0),  # Brief textures
+                'episode_listening_duration_range': (60.0, 180.0),  # Long silences
+                'interference_probability': 0.3,  # Layered textures
+                'early_exit_probability': 0.25,  # Floating, unpredictable
+                'context_sensitivity': 0.5,  # Moderate awareness
+            },
+            'bass': {
+                'timing_precision': 0.7,  # Moderately tight
+                'rhythmic_density': 0.1,  # Very minimal
+                'syncopation_tendency': 0.02,  # Almost pedal tones
+                'timbre_variance': 0.1,  # Very stable
+                # Episode engagement (ambient foundation)
+                'episode_active_duration_range': (20.0, 60.0),  # Long sustained presence
+                'episode_listening_duration_range': (5.0, 15.0),  # Occasional breaks
+                'interference_probability': 0.1,  # Minimal interference
+                'early_exit_probability': 0.1,  # Stable foundation
+                'context_sensitivity': 0.25,  # Low reactivity
+            }
+        },
+        'classical': {
+            'melodic': {
+                'timing_precision': 0.6,  # Measured, precise
+                'rhythmic_density': 0.5,  # Phrase-aware
+                'syncopation_tendency': 0.2,  # Mostly metric
+                'timbre_variance': 0.5,  # Controlled expression
+                # Episode engagement
+                'episode_active_duration_range': (5.0, 15.0),  # Formal phrases
+                'episode_listening_duration_range': (30.0, 80.0),  # Structured pauses
+                'interference_probability': 0.3,  # Counterpoint-aware
+                'early_exit_probability': 0.1,  # Formal structure
+                'context_sensitivity': 0.55,  # Moderately responsive
+            },
+            'bass': {
+                'timing_precision': 0.9,  # Very precise
+                'rhythmic_density': 0.3,  # Harmonic support
+                'syncopation_tendency': 0.05,  # Mostly on-beat
+                'timbre_variance': 0.15,  # Consistent
+                # Episode engagement (classical foundation)
+                'episode_active_duration_range': (15.0, 40.0),  # Long harmonic foundation
+                'episode_listening_duration_range': (4.0, 12.0),  # Brief rests
+                'interference_probability': 0.15,  # Supportive role
+                'early_exit_probability': 0.05,  # Formal stability
+                'context_sensitivity': 0.35,  # Structured support
+            }
+        },
+        'electronic': {
+            'melodic': {
+                'timing_precision': 0.7,  # Moderate precision
+                'rhythmic_density': 0.4,  # Textural
+                'syncopation_tendency': 0.3,  # Some syncopation
+                'timbre_variance': 0.6,  # Evolving textures
+                # Episode engagement
+                'episode_active_duration_range': (4.0, 12.0),  # Textural layers
+                'episode_listening_duration_range': (35.0, 95.0),  # Build-release cycles
+                'interference_probability': 0.45,  # Layered production
+                'early_exit_probability': 0.18,  # Dynamic arrangement
+                'context_sensitivity': 0.6,  # Production-aware
+            },
+            'bass': {
+                'timing_precision': 0.95,  # Tight electronic precision
+                'rhythmic_density': 0.5,  # Active patterns
+                'syncopation_tendency': 0.15,  # Some off-beats
+                'timbre_variance': 0.2,  # Stable foundation
+                # Episode engagement (electronic consistency)
+                'episode_active_duration_range': (15.0, 50.0),  # Long patterns
+                'episode_listening_duration_range': (3.0, 10.0),  # Brief drops
+                'interference_probability': 0.2,  # Tight production
+                'early_exit_probability': 0.08,  # Programmed consistency
+                'context_sensitivity': 0.4,  # Electronic stability
+            }
+        },
+        # Energetic styles
+        'funk': {
+            'melodic': {
+                'timing_precision': 0.6,  # Groove feel
+                'rhythmic_density': 0.3,  # Sparse stabs
+                'syncopation_tendency': 0.5,  # Funky syncopation
+                'timbre_variance': 0.8,  # Energetic changes
+                # Episode engagement
+                'episode_active_duration_range': (3.0, 10.0),  # Funky stabs
+                'episode_listening_duration_range': (25.0, 70.0),  # Groove pockets
+                'interference_probability': 0.55,  # Energetic interplay
+                'early_exit_probability': 0.2,  # Dynamic energy
+                'context_sensitivity': 0.7,  # Groove-responsive
+            },
+            'bass': {
+                'timing_precision': 0.95,  # Very tight groove
+                'rhythmic_density': 0.7,  # Active groove
+                'syncopation_tendency': 0.2,  # Groove-locked
+                'timbre_variance': 0.15,  # Very stable groove
+                # Episode engagement (funk groove consistency)
+                'episode_active_duration_range': (20.0, 60.0),  # Long grooves
+                'episode_listening_duration_range': (2.0, 8.0),  # Very brief breaks
+                'interference_probability': 0.2,  # Groove foundation
+                'early_exit_probability': 0.05,  # Locked in the pocket
+                'context_sensitivity': 0.4,  # Groove-focused
+            }
+        },
+        'rock': {
+            'melodic': {
+                'timing_precision': 0.6,  # Moderate precision
+                'rhythmic_density': 0.4,  # Active
+                'syncopation_tendency': 0.3,  # Some off-beats
+                'timbre_variance': 0.75,  # Energetic
+                # Episode engagement
+                'episode_active_duration_range': (4.0, 14.0),  # Rock phrases
+                'episode_listening_duration_range': (28.0, 75.0),  # Verse-chorus cycles
+                'interference_probability': 0.42,  # Energetic layering
+                'early_exit_probability': 0.16,  # Dynamic changes
+                'context_sensitivity': 0.62,  # Energy-responsive
+            },
+            'bass': {
+                'timing_precision': 0.9,  # Tight
+                'rhythmic_density': 0.6,  # Driving
+                'syncopation_tendency': 0.1,  # Mostly on-beat
+                'timbre_variance': 0.2,  # Stable power
+                # Episode engagement (rock drive)
+                'episode_active_duration_range': (15.0, 45.0),  # Long driving patterns
+                'episode_listening_duration_range': (3.0, 10.0),  # Brief power breaks
+                'interference_probability': 0.2,  # Driving foundation
+                'early_exit_probability': 0.08,  # Committed drive
+                'context_sensitivity': 0.4,  # Energy foundation
+            }
+        },
+        'metal': {
+            'melodic': {
+                'timing_precision': 0.7,  # Precise attack
+                'rhythmic_density': 0.5,  # Dense
+                'syncopation_tendency': 0.4,  # Complex rhythms
+                'timbre_variance': 0.8,  # Aggressive changes
+                # Episode engagement
+                'episode_active_duration_range': (5.0, 16.0),  # Aggressive riffs
+                'episode_listening_duration_range': (25.0, 65.0),  # Breakdown sections
+                'interference_probability': 0.48,  # Aggressive layering
+                'early_exit_probability': 0.18,  # Dynamic intensity
+                'context_sensitivity': 0.65,  # Intensity-responsive
+            },
+            'bass': {
+                'timing_precision': 0.95,  # Very tight
+                'rhythmic_density': 0.7,  # Dense patterns
+                'syncopation_tendency': 0.15,  # Locked in
+                'timbre_variance': 0.15,  # Stable aggression
+                # Episode engagement (metal tightness)
+                'episode_active_duration_range': (15.0, 50.0),  # Heavy sustained riffs
+                'episode_listening_duration_range': (3.0, 10.0),  # Brief breakdowns
+                'interference_probability': 0.25,  # Tight foundation
+                'early_exit_probability': 0.08,  # Locked intensity
+                'context_sensitivity': 0.45,  # Metal foundation
+            }
+        },
+        'punk': {
+            'melodic': {
+                'timing_precision': 0.5,  # Raw energy
+                'rhythmic_density': 0.6,  # Fast
+                'syncopation_tendency': 0.3,  # Energetic
+                'timbre_variance': 0.85,  # Raw changes
+                # Episode engagement
+                'episode_active_duration_range': (3.0, 8.0),  # Fast bursts
+                'episode_listening_duration_range': (20.0, 55.0),  # Brief rests
+                'interference_probability': 0.52,  # Raw energy overlaps
+                'early_exit_probability': 0.22,  # Unpredictable energy
+                'context_sensitivity': 0.68,  # Reactive chaos
+            },
+            'bass': {
+                'timing_precision': 0.85,  # Driving
+                'rhythmic_density': 0.7,  # Fast patterns
+                'syncopation_tendency': 0.1,  # Driving beat
+                'timbre_variance': 0.2,  # Consistent power
+                # Episode engagement (punk energy)
+                'episode_active_duration_range': (12.0, 35.0),  # Fast sustained drive
+                'episode_listening_duration_range': (2.0, 8.0),  # Very quick breaks
+                'interference_probability': 0.25,  # Energy foundation
+                'early_exit_probability': 0.1,  # Energetic but consistent
+                'context_sensitivity': 0.45,  # Energy-focused
+            }
+        },
+        'world': {
+            'melodic': {
+                'timing_precision': 0.4,  # Cultural flexibility
+                'rhythmic_density': 0.45,  # Varied
+                'syncopation_tendency': 0.35,  # Cultural rhythms
+                'timbre_variance': 0.65,  # Diverse expression
+                # Episode engagement
+                'episode_active_duration_range': (4.0, 13.0),  # Cultural phrases
+                'episode_listening_duration_range': (32.0, 85.0),  # Cultural pacing
+                'interference_probability': 0.4,  # Cultural dialogue
+                'early_exit_probability': 0.17,  # Flexible responsiveness
+                'context_sensitivity': 0.63,  # Culturally aware
+            },
+            'bass': {
+                'timing_precision': 0.8,  # Cultural foundation
+                'rhythmic_density': 0.4,  # Supportive
+                'syncopation_tendency': 0.1,  # Grounded
+                'timbre_variance': 0.25,  # Stable
+                # Episode engagement (cultural foundation)
+                'episode_active_duration_range': (12.0, 40.0),  # Cultural foundation
+                'episode_listening_duration_range': (3.0, 12.0),  # Brief breathing
+                'interference_probability': 0.18,  # Supportive foundation
+                'early_exit_probability': 0.08,  # Cultural stability
+                'context_sensitivity': 0.4,  # Foundation-focused
+            }
+        },
+    }
+    
+    # Default fallback profile
+    DEFAULT_PROFILE = {
+        'melodic': {
+            'timing_precision': 0.5,
+            'rhythmic_density': 0.4,
+            'syncopation_tendency': 0.3,
+            'timbre_variance': 0.6,
+            # Episode engagement
+            'episode_active_duration_range': (3.0, 10.0),
+            'episode_listening_duration_range': (30.0, 90.0),
+            'interference_probability': 0.4,
+            'early_exit_probability': 0.15,
+            'context_sensitivity': 0.6,
+        },
+        'bass': {
+            'timing_precision': 0.85,
+            'rhythmic_density': 0.3,
+            'syncopation_tendency': 0.1,
+            'timbre_variance': 0.2,
+            # Episode engagement (default bass consistency)
+            'episode_active_duration_range': (12.0, 35.0),  # Long steady presence
+            'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks
+            'interference_probability': 0.15,
+            'early_exit_probability': 0.05,
+            'context_sensitivity': 0.3,
+        }
+    }
+    
+    @classmethod
+    def get_profile(cls, style: str, voice_type: str) -> Dict[str, float]:
+        """
+        Get timing profile for style and voice type
+        
+        Args:
+            style: CLAP-detected style (e.g., 'ballad', 'funk')
+            voice_type: 'melodic' or 'bass'
+            
+        Returns:
+            Profile dict with timing parameters
+        """
+        if style in cls.STYLE_PROFILES:
+            return cls.STYLE_PROFILES[style].get(voice_type, cls.DEFAULT_PROFILE[voice_type])
+        return cls.DEFAULT_PROFILE.get(voice_type, cls.DEFAULT_PROFILE['melodic'])
+
+
+class ProfileInterpolator:
+    """
+    Handles gradual profile transitions at phrase boundaries
+    
+    Features:
+    - Pending profile changes wait for phrase boundary
+    - Linear interpolation over configurable duration
+    - Timeout fallback (15s) to prevent stuck states
+    """
+    
+    def __init__(self, duration_seconds: float = 7.0, timeout_seconds: float = 15.0):
+        self.current_profile = None
+        self.target_profile = None
+        self.pending_change = False
+        self.pending_since = None
+        self.interpolation_start_time = None
+        self.duration = duration_seconds
+        self.timeout = timeout_seconds
+    
+    def request_profile_change(self, new_profile: Dict[str, float]):
+        """Mark profile change as pending until phrase boundary"""
+        if self.current_profile is None:
+            # First profile, apply immediately
+            self.current_profile = new_profile.copy()
+            return
+        
+        self.target_profile = new_profile.copy()
+        self.pending_change = True
+        self.pending_since = time.time()
+    
+    def begin_interpolation_at_phrase_boundary(self):
+        """Start interpolation when phrase_detector signals end or timeout"""
+        if self.pending_change:
+            self.interpolation_start_time = time.time()
+            self.pending_change = False
+            self.pending_since = None
+    
+    def check_timeout(self, current_time: float) -> bool:
+        """
+        Check if pending change has exceeded timeout
+        
+        Returns:
+            True if should force interpolation start
+        """
+        if self.pending_change and self.pending_since:
+            elapsed = current_time - self.pending_since
+            return elapsed > self.timeout
+        return False
+    
+    def get_interpolated_profile(self, current_time: float) -> Optional[Dict[str, float]]:
+        """
+        Get current interpolated profile values
+        
+        Returns:
+            Interpolated profile or current profile if not interpolating
+        """
+        if self.current_profile is None:
+            return None
+        
+        # Not interpolating, return current
+        if self.interpolation_start_time is None:
+            return self.current_profile
+        
+        # Calculate interpolation progress
+        elapsed = current_time - self.interpolation_start_time
+        alpha = min(1.0, elapsed / self.duration)
+        
+        # Linear interpolation
+        interpolated = {}
+        for key in self.current_profile.keys():
+            current_val = self.current_profile[key]
+            target_val = self.target_profile[key]
+            interpolated[key] = current_val * (1 - alpha) + target_val * alpha
+        
+        # Complete interpolation
+        if alpha >= 1.0:
+            self.current_profile = self.target_profile.copy()
+            self.target_profile = None
+            self.interpolation_start_time = None
+        
+        return interpolated
+    
+    def is_interpolating(self) -> bool:
+        """Check if currently interpolating"""
+        return self.interpolation_start_time is not None
+    
+    def has_pending_change(self) -> bool:
+        """Check if change is pending phrase boundary"""
+        return self.pending_change
+
+
+class EpisodeState(Enum):
+    """Episode states for hierarchical engagement"""
+    ACTIVE = "active"      # AI generating phrases
+    LISTENING = "listening"  # AI silent, listening to human
+
+
+class EngagementEpisodeManager:
+    """
+    Manages hierarchical engagement episodes with intelligent interference
+    
+    Three temporal levels:
+    1. Within-phrase timing (timing_precision, syncopation)
+    2. Phrase-to-phrase gaps (existing pause logic)
+    3. Episode groups (ACTIVE/LISTENING states with 30-120s durations)
+    
+    Features:
+    - Context-aware transitions: monitors human RMS activity
+    - Probabilistic interference: AI sometimes plays OVER human (not polite turn-taking)
+    - Voice-specific durations: melodic 30-120s listening, bass 10-30s
+    - Early exits: can exit ACTIVE early if human starts playing (context sensitivity)
+    """
+    
+    def __init__(self, voice_type: str = "melodic", enable_episodes: bool = True):
+        """
+        Initialize episode manager
+        
+        Args:
+            voice_type: 'melodic' or 'bass' (affects episode durations)
+            enable_episodes: If False, bypass episode logic (timing-based only)
+        """
+        self.voice_type = voice_type
+        self.enable_episodes = enable_episodes
+        self.current_state = EpisodeState.ACTIVE  # Start actively
+        self.episode_start_time = None  # Will be set on first should_generate_phrase() call
+        
+        # Human activity tracking
+        self.human_rms_history = []  # Recent RMS values
+        self.human_activity_window = 5.0  # seconds
+        self.human_active_threshold = 0.01  # RMS threshold
+        
+        # Episode parameters (set by voice profile)
+        self.active_duration_range = (3.0, 10.0)  # seconds
+        self.listening_duration_range = (30.0, 120.0)  # seconds
+        self.interference_probability = 0.4  # chance to play during human activity
+        self.early_exit_probability = 0.15  # chance to exit ACTIVE early
+        self.context_sensitivity = 0.6  # 0=ignore human, 1=highly responsive
+        
+        # Set initial duration from default ranges (AFTER ranges are defined)
+        import random
+        self.episode_duration = random.uniform(*self.active_duration_range)  # Start with ACTIVE duration
+        
+        # Log initialization
+        print(f"🎭 Episode manager initialized: {voice_type} voice, state={self.current_state.value}, duration={self.episode_duration:.1f}s")
+        
+        # Logging
+        self.last_transition_time = None  # Will be set on first call
+        self.phrases_this_episode = 0
+    
+    def update_profile_parameters(self, profile: Dict[str, float]):
+        """
+        Update episode parameters from voice timing profile
+        
+        Args:
+            profile: VoiceTimingProfile dict with episode parameters
+        """
+        if 'episode_active_duration_range' in profile:
+            self.active_duration_range = profile['episode_active_duration_range']
+        if 'episode_listening_duration_range' in profile:
+            self.listening_duration_range = profile['episode_listening_duration_range']
+        if 'interference_probability' in profile:
+            self.interference_probability = profile['interference_probability']
+        if 'early_exit_probability' in profile:
+            self.early_exit_probability = profile['early_exit_probability']
+        if 'context_sensitivity' in profile:
+            self.context_sensitivity = profile['context_sensitivity']
+    
+    def update_human_activity(self, rms: float):
+        """
+        Track human RMS activity for context-aware decisions
+        
+        Args:
+            rms: Current human RMS level
+        """
+        current_time = time.time()
+        self.human_rms_history.append((current_time, rms))
+        
+        # Prune old history
+        cutoff = current_time - self.human_activity_window
+        self.human_rms_history = [(t, r) for t, r in self.human_rms_history if t > cutoff]
+    
+    def is_human_active(self) -> bool:
+        """
+        Check if human is currently playing
+        
+        Returns:
+            True if recent RMS above threshold
+        """
+        if not self.human_rms_history:
+            return False
+        
+        recent_rms = [rms for _, rms in self.human_rms_history[-10:]]  # Last 10 samples
+        avg_rms = sum(recent_rms) / len(recent_rms)
+        return avg_rms > self.human_active_threshold
+    
+    def should_generate_phrase(self) -> Tuple[bool, str]:
+        """
+        Decide whether to generate phrase based on episode state
+        
+        Returns:
+            (should_generate, reasoning)
+        """
+        # If episodes disabled, always allow generation (timing-based only)
+        if not self.enable_episodes:
+            return (True, f"{self.voice_type} episodes disabled - timing-based only")
+        
+        current_time = time.time()
+        
+        # Initialize timer on first call
+        if self.episode_start_time is None:
+            self.episode_start_time = current_time
+            self.last_transition_time = current_time
+            print(f"⏱️  {self.voice_type.upper()} episode timer started")
+        
+        elapsed = current_time - self.episode_start_time
+        human_active = self.is_human_active()
+        
+        if self.current_state == EpisodeState.LISTENING:
+            # LISTENING: only generate if episode duration expired
+            if elapsed >= self.episode_duration:
+                # Transition to ACTIVE
+                self._transition_to_active()
+                return (True, f"Episode LISTENING→ACTIVE after {elapsed:.1f}s")
+            else:
+                return (False, f"LISTENING episode ({elapsed:.1f}/{self.episode_duration:.1f}s)")
+        
+        elif self.current_state == EpisodeState.ACTIVE:
+            # ACTIVE: check for early exit or duration expiry
+            
+            # Early exit if human starts playing (context-aware)
+            if human_active and random.random() < (self.early_exit_probability * self.context_sensitivity):
+                self._transition_to_listening()
+                return (False, f"Early exit ACTIVE→LISTENING (human started playing)")
+            
+            # Episode duration expired → transition to LISTENING
+            if elapsed >= self.episode_duration:
+                self._transition_to_listening()
+                return (False, f"Episode ACTIVE→LISTENING after {elapsed:.1f}s")
+            
+            # ACTIVE episode behavior depends on voice type
+            if self.voice_type == "bass":
+                # BASS: Simple, steady foundation - rarely yields to human
+                # Only check interference probability as a small courtesy to give human space
+                if human_active and random.random() > self.interference_probability * 3:
+                    # Very low chance to yield (bass interference is 15-25%, so 45-75% chance to yield)
+                    return (False, f"ACTIVE but briefly yielding to human")
+                # Bass mostly just plays steadily
+                return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s)")
+            
+            else:  # melodic
+                # MELODY: More thoughtful engagement with interference logic
+                if human_active:
+                    # Roll for yielding (opposite of interference)
+                    if random.random() > self.interference_probability:
+                        # Yield to human this time (don't interfere)
+                        return (False, f"ACTIVE but yielding to human (interference roll failed)")
+                    # Otherwise, allow interference (play over human)
+                
+                # Default ACTIVE: generate phrase
+                interference_note = " + INTERFERENCE" if human_active else ""
+                return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s){interference_note}")
+        
+        # Fallback
+        return (False, "Unknown episode state")
+    
+    def _transition_to_active(self):
+        """Transition from LISTENING to ACTIVE"""
+        self.current_state = EpisodeState.ACTIVE
+        self.episode_start_time = time.time()
+        self.episode_duration = random.uniform(*self.active_duration_range)
+        self.phrases_this_episode = 0
+        self.last_transition_time = time.time()
+        print(f"🎬 {self.voice_type.upper()} LISTENING→ACTIVE (duration={self.episode_duration:.1f}s)")
+    
+    def _transition_to_listening(self):
+        """Transition from ACTIVE to LISTENING"""
+        self.current_state = EpisodeState.LISTENING
+        self.episode_start_time = time.time()
+        self.episode_duration = random.uniform(*self.listening_duration_range)
+        self.last_transition_time = time.time()
+        print(f"🔇 {self.voice_type.upper()} ACTIVE→LISTENING (duration={self.episode_duration:.1f}s, phrases={self.phrases_this_episode})")
+    
+    def track_phrase_generation(self):
+        """Track that a phrase was generated (for logging)"""
+        self.phrases_this_episode += 1
+    
+    def get_episode_aware_gap(self, base_min: float, base_max: float) -> float:
+        """
+        Get gap duration aware of episode state
+        
+        During LISTENING episodes, return longer gaps
+        During ACTIVE episodes, return base gaps
+        
+        Args:
+            base_min: Base minimum gap (seconds)
+            base_max: Base maximum gap (seconds)
+            
+        Returns:
+            Gap duration (seconds)
+        """
+        if self.current_state == EpisodeState.LISTENING:
+            # Already in LISTENING, return remaining duration
+            elapsed = time.time() - self.episode_start_time
+            remaining = max(0, self.episode_duration - elapsed)
+            return remaining if remaining > 0 else random.uniform(base_min, base_max)
+        else:
+            # ACTIVE: use base gaps
+            return random.uniform(base_min, base_max)
+    
+    def get_status(self) -> Dict:
+        """Get current episode status for logging"""
+        # Handle case when episodes disabled or not yet initialized
+        if self.episode_start_time is None:
+            return {
+                'state': 'disabled' if not self.enable_episodes else 'not_started',
+                'elapsed': 0,
+                'duration': 0,
+                'phrases_this_episode': self.phrases_this_episode,
+                'human_active': self.is_human_active(),
+            }
+        
+        elapsed = time.time() - self.episode_start_time
+        return {
+            'state': self.current_state.value,
+            'elapsed': elapsed,
+            'duration': self.episode_duration,
+            'phrases_this_episode': self.phrases_this_episode,
+            'human_active': self.is_human_active(),
+        }
 
 
 # IRCAM Phase 3: Behavior Controller
@@ -60,6 +744,15 @@ class BehaviorController:
         self.style_detector = None
         self.last_style_detection = None
         self.last_detection_time = 0
+
+        # Voice timing profile interpolators (one per voice type)
+        interpolation_config = clap_config.get('interpolation', {}) if clap_config else {}
+        duration = interpolation_config.get('duration_seconds', 7.0)
+        timeout = interpolation_config.get('max_pending_seconds', 15.0)
+        
+        self.melodic_interpolator = ProfileInterpolator(duration, timeout)
+        self.bass_interpolator = ProfileInterpolator(duration, timeout)
+        self.wait_for_phrase_boundary = interpolation_config.get('wait_for_phrase_boundary', True)
 
         if enable_clap and clap_config:
             try:
@@ -262,6 +955,70 @@ class BehaviorController:
         """Get volume scaling for current mode"""
         return self.mode_params[self.mode]['volume_factor']
     
+    def get_voice_timing_profile(
+        self,
+        voice_type: str,
+        phrase_detector=None,
+        current_time: float = None
+    ) -> Dict[str, float]:
+        """
+        Get timing profile for voice type with smooth interpolation
+        
+        Args:
+            voice_type: 'melodic' or 'bass'
+            phrase_detector: Optional phrase detector for boundary awareness
+            current_time: Current time for interpolation
+            
+        Returns:
+            Timing profile dict (timing_precision, rhythmic_density, etc.)
+        """
+        if current_time is None:
+            current_time = time.time()
+        
+        # Select interpolator for this voice
+        interpolator = (
+            self.melodic_interpolator if voice_type == 'melodic' 
+            else self.bass_interpolator
+        )
+        
+        # Get current style from CLAP detection
+        style = None
+        if self.last_style_detection:
+            style = self.last_style_detection.get('style')
+        
+        if style:
+            # Get target profile from CLAP style
+            target_profile = VoiceTimingProfile.get_profile(style, voice_type)
+            
+            # Check if profile needs updating
+            current = interpolator.get_interpolated_profile(current_time)
+            if current is None or current != target_profile:
+                # Request profile change
+                interpolator.request_profile_change(target_profile)
+                
+                # Check if we should start interpolating
+                should_interpolate = False
+                
+                # Check timeout first (always honor timeout)
+                if interpolator.check_timeout(current_time):
+                    should_interpolate = True
+                # Check phrase boundary if enabled
+                elif self.wait_for_phrase_boundary and phrase_detector:
+                    if phrase_detector.is_phrase_ending():
+                        should_interpolate = True
+                # If phrase boundary waiting disabled, start immediately
+                elif not self.wait_for_phrase_boundary:
+                    should_interpolate = True
+                
+                if should_interpolate:
+                    interpolator.begin_interpolation_at_phrase_boundary()
+            
+            # Return interpolated profile
+            return interpolator.get_interpolated_profile(current_time)
+        else:
+            # No style detected, use default
+            return VoiceTimingProfile.get_profile('ballad', voice_type)
+    
     def filter_pattern_matches(self, matches: List, similarity_scores: List[float]) -> List:
         """
         Filter AudioOracle matches based on mode similarity threshold
@@ -423,9 +1180,22 @@ class BehaviorEngine:
         self.adaptation_rate = 0.1
         
         # Voice timing separation
-        self.last_melody_time = time.time()  # Initialize to current time
-        self.last_bass_time = time.time()    # Initialize to current time
+        # Initialize to past time so first phrase can generate immediately
+        self.last_melody_time = time.time() - 20.0  # 20 seconds ago (exceeds max pause)
+        self.last_bass_time = time.time() - 15.0    # 15 seconds ago (exceeds max pause)
         self.min_voice_separation = 0.2  # Minimum 200ms between melody and bass
+        
+        # Hierarchical engagement episode managers (LEVEL 3)
+        # Melody: enable episodes for contemplative behavior
+        self.melody_episode_manager = EngagementEpisodeManager(
+            voice_type="melodic",
+            enable_episodes=True  # Melody uses episodes
+        )
+        # Bass: disable episodes for steady foundation
+        self.bass_episode_manager = EngagementEpisodeManager(
+            voice_type="bass",
+            enable_episodes=False  # Bass bypasses episodes - timing-based only
+        )
         
         # Variable pause durations (balanced for responsiveness without click noise)
         self.melody_pause_min = 6.0   # seconds (increased from 10.0 for more responsiveness)
@@ -563,6 +1333,9 @@ class BehaviorEngine:
                     voice_type=voice_type,
                     instrument=voice_type
                 )
+                
+                # Apply CLAP-driven timing profile
+                decision = self._apply_timing_profile(decision)
                 decisions.append(decision)
                 
                 # Phrase continuation (silent)
@@ -816,7 +1589,12 @@ class BehaviorEngine:
             # Extract harmonic context
             harmonic_context = current_event.get('harmonic_context', {})
             
-            # Decide which voice to play based on timing and context
+            # Update episode managers with current human activity (RMS from event)
+            human_rms = current_event.get('rms', 0.0)
+            self.melody_episode_manager.update_human_activity(human_rms)
+            self.bass_episode_manager.update_human_activity(human_rms)
+            
+            # Decide which voice to play based on timing, context, AND episode states
             time_since_melody = current_time - self.last_melody_time
             time_since_bass = current_time - self.last_bass_time
             
@@ -826,36 +1604,73 @@ class BehaviorEngine:
             required_melody_gap = random.uniform(self.melody_pause_min, self.melody_pause_max)
             required_bass_gap = random.uniform(self.bass_pause_min, self.bass_pause_max)
             
-            if time_since_melody > required_melody_gap and time_since_bass > required_bass_gap * 0.75:
-                # Both voices can play - alternate (give human lots of space)
+            # Check episode states (hierarchical level 3)
+            melody_should_play, melody_reasoning = self.melody_episode_manager.should_generate_phrase()
+            bass_should_play, bass_reasoning = self.bass_episode_manager.should_generate_phrase()
+            
+            # Check if each voice is ready based on its OWN timing (level 2)
+            melody_timing_ready = time_since_melody > required_melody_gap
+            bass_timing_ready = time_since_bass > required_bass_gap
+            
+            # INDEPENDENT voice selection - bass doesn't wait for melody
+            melody_can_play = melody_timing_ready and melody_should_play
+            bass_can_play = bass_timing_ready and bass_should_play
+            
+            if melody_can_play and bass_can_play:
+                # Both voices ready - alternate to give space
                 if not hasattr(self, '_voice_alternation_counter'):
                     self._voice_alternation_counter = 0
                 
                 voice_type = "melodic" if self._voice_alternation_counter % 2 == 0 else "bass"
-                print(f"🎵 Voice alternation: chose {voice_type} (counter={self._voice_alternation_counter}, melody={time_since_melody:.1f}s, bass={time_since_bass:.1f}s, required: {required_melody_gap:.1f}s/{required_bass_gap:.1f}s)")
+                print(f"🎵 Both ready: chose {voice_type} (counter={self._voice_alternation_counter})")
+                print(f"   Melody: {time_since_melody:.1f}s/{required_melody_gap:.1f}s, {melody_reasoning}")
+                print(f"   Bass: {time_since_bass:.1f}s/{required_bass_gap:.1f}s, {bass_reasoning}")
                 self._voice_alternation_counter += 1
                 
-            elif time_since_melody > required_melody_gap:
-                # Variable space between melody phrases - let human lead!
+            elif melody_can_play:
                 voice_type = "melodic"
-                print(f"🎵 Voice selection: melody (since_melody={time_since_melody:.1f}s, required={required_melody_gap:.1f}s)")
-            elif time_since_bass > required_bass_gap:
-                # Bass can fill in while waiting for melody
+                print(f"🎵 Voice: melody ({time_since_melody:.1f}s/{required_melody_gap:.1f}s, {melody_reasoning})")
+                
+            elif bass_can_play:
                 voice_type = "bass"
-                print(f"🎵 Voice selection: bass (since_bass={time_since_bass:.1f}s, required={required_bass_gap:.1f}s)")
-            else:
-                # Voice timing blocked - return empty to prevent single-note fallback
-                print(f"🚫 Voice selection: BLOCKED - returning empty (no single-note fallback)")
-                return decisions  # Return empty list instead of falling through to single-note generation
+                print(f"🎵 Voice: bass ({time_since_bass:.1f}s/{required_bass_gap:.1f}s, {bass_reasoning})")
+            
+            # DEBUG: Log when we're blocking generation
+            elif melody_timing_ready or bass_timing_ready:
+                if melody_timing_ready and not melody_should_play:
+                    print(f"⏸️  Melody timing ready but episode blocking: {melody_reasoning}")
+                if bass_timing_ready and not bass_should_play:
+                    print(f"⏸️  Bass timing ready but episode blocking: {bass_reasoning}")
+                
+            if not voice_type:
+                # Neither voice ready - check why
+                if not melody_should_play and not bass_should_play:
+                    print(f"🎧 Both LISTENING - melody: {melody_reasoning}, bass: {bass_reasoning}")
+                elif not melody_timing_ready and not bass_timing_ready:
+                    # Still in phrase-to-phrase gaps
+                    pass  # Silent - normal operation
+                return decisions
             
             # If we selected a voice, generate a phrase for it
             if voice_type:
                 # Generate musical phrase with mode-specific temperature and activity multiplier
                 current_params = self.mode_params[mode]
+                
+                # Get voice timing profile for this style and voice
+                voice_profile = VoiceTimingProfile.get_profile(
+                    self.last_style_detection.get('style', 'ballad') if self.last_style_detection else 'ballad',
+                    voice_type
+                )
+                
+                # Update episode manager with profile parameters
+                episode_manager = self.melody_episode_manager if voice_type == "melodic" else self.bass_episode_manager
+                episode_manager.update_profile_parameters(voice_profile)
+                
                 phrase = self.phrase_generator.generate_phrase(
                     current_event, voice_type, mode.value, harmonic_context,
                     temperature=current_params['temperature'],
-                    activity_multiplier=activity_multiplier
+                    activity_multiplier=activity_multiplier,
+                    voice_profile=voice_profile
                 )
                 
                 if phrase:
@@ -867,6 +1682,9 @@ class BehaviorEngine:
                         return decisions
                     
                     else:
+                        # Track phrase generation in episode manager
+                        episode_manager.track_phrase_generation()
+                        
                         # Store phrase for scheduling instead of creating multiple immediate decisions
                         phrase_id = f"{voice_type}_{phrase.phrase_id}"
                         self.active_phrases[phrase_id] = {
@@ -899,6 +1717,9 @@ class BehaviorEngine:
                             voice_type=voice_type,
                             instrument=voice_type
                         )
+                        
+                        # Apply CLAP-driven timing profile
+                        decision = self._apply_timing_profile(decision)
                         decisions.append(decision)
                         
                         # Update timing for voice immediately to prevent overlap
@@ -907,6 +1728,12 @@ class BehaviorEngine:
                             self.last_melody_time = current_time + phrase_duration
                         else:
                             self.last_bass_time = current_time + phrase_duration
+                        
+                        # Log episode status for transparency
+                        melody_status = self.melody_episode_manager.get_status()
+                        bass_status = self.bass_episode_manager.get_status()
+                        print(f"📊 Episode status - Melody: {melody_status['state']} ({melody_status['elapsed']:.1f}s/{melody_status['duration']:.1f}s, {melody_status['phrases_this_episode']} phrases)")
+                        print(f"📊 Episode status - Bass: {bass_status['state']} ({bass_status['elapsed']:.1f}s/{bass_status['duration']:.1f}s, {bass_status['phrases_this_episode']} phrases)")
                         
                         # Generated phrase (silent)
         
@@ -1153,7 +1980,7 @@ class BehaviorEngine:
                 )
                 self._last_viz_emit = current_time
         
-        return MusicalDecision(
+        decision = MusicalDecision(
             mode=BehaviorMode.IMITATE,
             confidence=confidence,
             target_features=current_features_norm,
@@ -1163,6 +1990,9 @@ class BehaviorEngine:
             voice_type=voice_type,
             instrument=current_event.get('instrument', 'unknown')
         )
+        
+        # Apply CLAP-driven timing profile
+        return self._apply_timing_profile(decision)
     
     def _contrast_decision(self, current_event: Dict, 
                           memory_buffer, clustering, voice_type: str = "melodic") -> MusicalDecision:
@@ -1222,7 +2052,7 @@ class BehaviorEngine:
                 )
                 self._last_viz_emit = current_time
         
-        return MusicalDecision(
+        decision = MusicalDecision(
             mode=BehaviorMode.CONTRAST,
             confidence=confidence,
             target_features=current_features_norm,
@@ -1232,6 +2062,9 @@ class BehaviorEngine:
             voice_type=voice_type,
             instrument=current_event.get('instrument', 'unknown')
         )
+        
+        # Apply CLAP-driven timing profile
+        return self._apply_timing_profile(decision)
     
     def _lead_decision(self, current_event: Dict, 
                       memory_buffer, clustering, voice_type: str = "melodic") -> MusicalDecision:
@@ -1280,7 +2113,7 @@ class BehaviorEngine:
                 )
                 self._last_viz_emit = current_time
         
-        return MusicalDecision(
+        decision = MusicalDecision(
             mode=BehaviorMode.LEAD,
             confidence=confidence,
             target_features=current_features_norm,
@@ -1290,6 +2123,43 @@ class BehaviorEngine:
             voice_type=voice_type,
             instrument=current_event.get('instrument', 'unknown')
         )
+        
+        # Apply CLAP-driven timing profile
+        return self._apply_timing_profile(decision)
+    
+    def _apply_timing_profile(self, decision: MusicalDecision, phrase_detector=None) -> MusicalDecision:
+        """
+        Apply CLAP-driven timing profile to a decision
+        
+        Args:
+            decision: Musical decision to enhance with timing profile
+            phrase_detector: Optional phrase detector for interpolation boundaries
+            
+        Returns:
+            Decision with timing profile applied
+        """
+        current_time = time.time()
+        voice_type = decision.voice_type
+        
+        # Get current style from CLAP
+        style = None
+        if self.last_style_detection:
+            style = self.last_style_detection.get('style')
+        
+        if not style:
+            # No style detected, use default (ballad)
+            style = 'ballad'
+        
+        # Get timing profile for this voice
+        profile = VoiceTimingProfile.get_profile(style, voice_type)
+        
+        # Apply profile parameters to decision
+        decision.timing_precision = profile['timing_precision']
+        decision.rhythmic_density = profile['rhythmic_density']
+        decision.syncopation_tendency = profile['syncopation_tendency']
+        decision.voice_profile = profile.copy()
+        
+        return decision
     
     def _normalize_features(self, features: np.ndarray, memory_buffer) -> np.ndarray:
         """Normalize features using memory buffer statistics"""

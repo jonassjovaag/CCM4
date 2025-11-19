@@ -342,14 +342,23 @@ class RhythmOracle:
         # Update frequency count
         self.pattern_frequency[to_pattern_id] = self.pattern_frequency.get(to_pattern_id, 0) + 1
     
-    def save_patterns(self, filepath: str):
-        """Save patterns to JSON file"""
-        data = {
+    def to_dict(self) -> Dict:
+        """
+        Serialize RhythmOracle to dictionary for JSON serialization.
+        
+        Returns:
+            Dict with patterns, transitions, frequency
+        """
+        return {
             'patterns': [asdict(p) for p in self.rhythmic_patterns],
             'transitions': self.pattern_transitions,
             'frequency': self.pattern_frequency,
             'timestamp': time.time()
         }
+    
+    def save_patterns(self, filepath: str):
+        """Save patterns to JSON file"""
+        data = self.to_dict()
         
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)

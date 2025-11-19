@@ -137,7 +137,10 @@ class OracleTrainingStage(PipelineStage):
             rhythm_oracle = RhythmOracle()
             rhythm_oracle.train(rhythmic_analysis)
 
-            return rhythm_oracle, rhythmic_analysis
+            # Serialize for JSON output
+            rhythm_oracle_dict = rhythm_oracle.to_dict()
+
+            return rhythm_oracle_dict, rhythmic_analysis
 
         except Exception as e:
             self.logger.warning(f"Rhythmic training failed: {e}")

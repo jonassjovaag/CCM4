@@ -463,6 +463,7 @@ class PhraseGenerator:
                 offset = random.uniform(-0.05, 0.05) * beat_duration
             
             timing = max(0.1, base_ioi + offset)  # Ensure minimum 0.1s
+            timing = self._apply_timing_profile(timing, timing_variation=0.1, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
         
         print(f"🥁 Applied rhythmic phrasing: tempo={tempo:.0f}, density={density:.2f}, "
@@ -837,12 +838,14 @@ class PhraseGenerator:
     
     def generate_phrase(self, current_event: Dict, voice_type: str, 
                        mode: str, harmonic_context: Dict, temperature: float = 0.8, 
-                       activity_multiplier: float = 1.0) -> Optional[MusicalPhrase]:
+                       activity_multiplier: float = 1.0,
+                       voice_profile: Optional[Dict[str, float]] = None) -> Optional[MusicalPhrase]:
         """Generate a musical phrase based on context and rhythm patterns
         
         Args:
             temperature: Controls randomness in Oracle generation (from mode_params)
             activity_multiplier: Multiplier from performance arc (0.0-1.0)
+            voice_profile: Optional timing profile with timing_precision, syncopation_tendency, etc.
                 - During buildup: 0.3 → 1.0 (sparse → full)
                 - During main: 1.0 (full activity)
                 - During ending: 1.0 → 0.0 (gradual fade)
@@ -942,16 +945,16 @@ class PhraseGenerator:
             phrase = self._generate_silence_phrase(current_time)
             self.phrases_since_silence = 0
         elif phrase_arc == PhraseArc.BUILDUP:
-            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
+            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.PEAK:
-            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
+            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.RELEASE:
-            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
+            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
             self.phrases_since_silence += 1
         else:
-            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier)
+            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
             self.phrases_since_silence += 1
         
         if phrase:
@@ -1101,11 +1104,12 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
+    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
         """Generate a phrase that builds energy
         
         Args:
             activity_multiplier: Scale phrase length (0.3-1.0 during buildup phase)
+            voice_profile: Optional timing profile for precision and syncopation
         """
         
         # Melody: 2-4 notes (short musical phrases), scaled by activity
@@ -1220,9 +1224,11 @@ class PhraseGenerator:
                 )
             else:
                 # Fallback to default timing
+                beat_duration = self._get_beat_duration(current_event)
                 timings = []
                 for i in range(len(notes)):
                     timing = base_timing + random.uniform(-timing_variation, timing_variation)
+                    timing = self._apply_timing_profile(timing, timing_variation, voice_profile, beat_duration)
                     timings.append(max(0.3, timing))
             
             # Generate velocities and durations
@@ -1345,7 +1351,9 @@ class PhraseGenerator:
             previous_note = note
             
             # Musical timing - use base_timing already calculated per voice type
+            beat_duration = self._get_beat_duration(current_event)
             timing = base_timing + random.uniform(-timing_variation, timing_variation)
+            timing = self._apply_timing_profile(timing, timing_variation, voice_profile, beat_duration)
             timings.append(max(0.3, timing))
             
             # Musical velocity range (not too extreme)
@@ -1375,10 +1383,15 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
+    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
         """Generate a peak phrase (high energy)"""
         
-        phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
+        # Scale phrase length by rhythmic_density and activity
+        # Dense voices (0.8): 6-16 notes, Sparse voices (0.2): 2-4 notes
+        rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
+        base_length = int(4 + rhythmic_density * 12)  # 4-16 notes based on density
+        phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
+        phrase_length = max(2, min(phrase_length, 20))  # Clamp to 2-20 notes
         
         # Query AudioOracle with request parameters (proper suffix link traversal)
         oracle_notes = None
@@ -1523,7 +1536,9 @@ class PhraseGenerator:
             previous_note = note
             
             # EXTREME variation for peaks too! (TRIPLED: 0.1-0.2 → 0.3-0.6)
+            beat_duration = self._get_beat_duration(current_event)
             timing = random.uniform(0.3, 0.6)  # Tripled timing range
+            timing = self._apply_timing_profile(timing, timing_variation=0.15, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
             # HIGH velocity with max variation
@@ -1547,10 +1562,15 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
+    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
         """Generate a release phrase (settling down)"""
         
-        phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
+        # Scale phrase length by rhythmic_density and activity
+        # Dense voices: 4-12 notes, Sparse voices: 2-3 notes
+        rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
+        base_length = int(3 + rhythmic_density * 9)  # 3-12 notes based on density
+        phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
+        phrase_length = max(2, min(phrase_length, 15))  # Clamp to 2-15 notes
         
         # Query AudioOracle with request parameters (proper suffix link traversal)
         oracle_notes = None
@@ -1625,7 +1645,9 @@ class PhraseGenerator:
             notes.append(note)
             
             # Slower timing (TRIPLED: 0.25-0.5 → 0.75-1.5)
+            beat_duration = self._get_beat_duration(current_event)
             timing = random.uniform(0.75, 1.5)
+            timing = self._apply_timing_profile(timing, timing_variation=0.375, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
             # Decreasing velocity
@@ -1649,10 +1671,15 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0) -> MusicalPhrase:
+    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
         """Generate a contemplation phrase (meditative)"""
         
-        phrase_length = random.randint(4, 30)  # Wide range: 4-30 notes
+        # Scale phrase length by rhythmic_density - contemplation should be sparse
+        # Dense voices: 3-8 notes, Sparse voices: 2-3 notes
+        rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
+        base_length = int(2 + rhythmic_density * 6)  # 2-8 notes based on density
+        phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
+        phrase_length = max(2, min(phrase_length, 10))  # Clamp to 2-10 notes
         
         # Query AudioOracle with request parameters (proper suffix link traversal)
         oracle_notes = None
@@ -1727,7 +1754,9 @@ class PhraseGenerator:
             notes.append(note)
             
             # Slow, meditative timing (TRIPLED: 0.4-0.8 → 1.2-2.4)
+            beat_duration = self._get_beat_duration(current_event)
             timing = random.uniform(1.2, 2.4)
+            timing = self._apply_timing_profile(timing, timing_variation=0.6, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
             # Soft velocity
@@ -1750,3 +1779,90 @@ class PhraseGenerator:
             confidence=0.6,
             timestamp=timestamp
         )
+    
+    def _get_beat_duration(self, current_event: Optional[Dict] = None) -> float:
+        """
+        Extract beat duration from current tempo
+        
+        Args:
+            current_event: Event dict with rhythmic_context containing current_tempo
+            
+        Returns:
+            Beat duration in seconds (default 0.5s = 120 BPM if no tempo available)
+        """
+        if current_event and 'rhythmic_context' in current_event:
+            tempo = current_event['rhythmic_context'].get('current_tempo', 120.0)
+            if tempo > 0:
+                # Convert BPM to beat duration in seconds
+                beat_duration = 60.0 / tempo
+                return beat_duration
+        
+        # Default to 120 BPM (0.5s per beat)
+        return 0.5
+    
+    def _apply_timing_profile(self, base_timing: float, timing_variation: float, 
+                             voice_profile: Optional[Dict[str, float]], 
+                             beat_duration: float = 0.5) -> float:
+        """Apply timing precision and syncopation tendency to a timing value.
+        
+        Args:
+            base_timing: Base timing value (IOI in seconds)
+            timing_variation: Base variation already applied
+            voice_profile: Voice timing profile with timing_precision and syncopation_tendency
+            beat_duration: Duration of one beat in seconds (default 0.5s = 120 BPM)
+            
+        Returns:
+            Modified timing value with precision and syncopation applied
+        """
+        if not voice_profile:
+            return base_timing
+        
+        # Get timing parameters (with defaults)
+        timing_precision = voice_profile.get('timing_precision', 0.5)
+        syncopation = voice_profile.get('syncopation_tendency', 0.3)
+        
+        # Apply IOI variance for tempo consistency
+        # High precision (0.9) = ±3% variance (steady tempo)
+        # Low precision (0.3) = ±21% variance (rubato allowed)
+        ioi_variance_factor = (1.0 - timing_precision) * 0.3  # 0-30% variance range
+        timing_with_variance = base_timing * (1.0 + random.uniform(-ioi_variance_factor, ioi_variance_factor))
+        
+        # Apply syncopation tendency (beat placement bias)
+        # Calculate current beat position within beat (0.0 = on-beat, 0.5 = halfway between beats)
+        beat_position = timing_with_variance % beat_duration  # Position within beat (0 to beat_duration)
+        beat_number = int(timing_with_variance / beat_duration)  # Which beat we're on
+        
+        if syncopation < 0.3:
+            # Low syncopation: Snap toward quarter note positions (on-beat)
+            # Find nearest quarter position in SECONDS (not normalized phase)
+            quarter_positions = [0.0, beat_duration * 0.25, beat_duration * 0.5, beat_duration * 0.75]
+            nearest_quarter = min(quarter_positions, key=lambda x: abs(beat_position - x))
+            
+            # Blend toward nearest quarter (stronger snap for lower syncopation)
+            snap_strength = (0.3 - syncopation) / 0.3  # 0.0-1.0
+            adjusted_position = beat_position * (1.0 - snap_strength) + nearest_quarter * snap_strength
+            
+        elif syncopation > 0.4:
+            # High syncopation: Push away from quarters toward eighths (off-beat)
+            # Find nearest eighth position in SECONDS
+            eighth_positions = [beat_duration * 0.125, beat_duration * 0.375, 
+                              beat_duration * 0.625, beat_duration * 0.875]
+            nearest_eighth = min(eighth_positions, key=lambda x: abs(beat_position - x))
+            
+            # Blend toward nearest eighth (stronger push for higher syncopation)
+            push_strength = (syncopation - 0.4) / 0.6  # 0.0-1.0
+            adjusted_position = beat_position * (1.0 - push_strength) + nearest_eighth * push_strength
+            
+        else:
+            # Medium syncopation: No bias, keep natural placement
+            adjusted_position = beat_position
+        
+        # Reconstruct timing from adjusted position
+        final_timing = beat_number * beat_duration + adjusted_position
+        
+        # Debug logging (commented out by default, uncomment for debugging)
+        # if syncopation != 0.3:  # Only log if syncopation is active
+        #     print(f"🎯 Syncopation: tendency={syncopation:.2f}, beat_pos={beat_position:.3f}s, "
+        #           f"adjusted={adjusted_position:.3f}s, final={final_timing:.3f}s")
+        
+        return max(0.1, final_timing)  # Ensure minimum 0.1s

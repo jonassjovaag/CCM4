@@ -94,6 +94,9 @@ from listener.hybrid_detector import HybridDetector, DetectionResult
 # Harmonic context manager (manual override system)
 from listener.harmonic_context_manager import HarmonicContextManager
 
+# Meld synthesizer integration
+from midi_io.meld_controller import MeldController
+
 # Visualization system
 try:
     from visualization import VisualizationManager
@@ -212,11 +215,12 @@ class EnhancedDriftEngineAI:
     """
     
     def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None, 
-                 enable_rhythmic: bool = True, enable_mpe: bool = True, performance_duration: int = 0,
+                 enable_rhythmic: bool = True, enable_mpe: bool = True, enable_meld: bool = False,
+                 performance_duration: int = 0,
                  performance_arc_path: Optional[str] = None,
                  enable_hybrid_perception: bool = False, enable_wav2vec: bool = False,
                  enable_live_training: bool = False,
-                 wav2vec_model: str = "facebook/wav2vec2-base", use_gpu: bool = False,
+                 wav2vec_model: str = "m-a-p/MERT-v1-95M", use_gpu: bool = False,
                  gesture_window: float = 1.5, gesture_min_tokens: int = 2,
                  debug_decisions: bool = False, enable_visualization: bool = False,
                  enable_gpt_reflection: bool = True, reflection_interval: float = 60.0):
@@ -299,6 +303,13 @@ class EnhancedDriftEngineAI:
             'rhythm': None
         }
         
+        # Meld synthesizer control (optional)
+        self.enable_meld = enable_meld
+        self.meld_controller = None
+        
+        if self.enable_meld:
+            print("🎹 Meld synthesizer integration enabled")
+        
         # NEW: Enable rhythmic components for full dual-modal perception
         self.enable_rhythmic = True  # RE-ENABLED
         
@@ -332,6 +343,7 @@ class EnhancedDriftEngineAI:
         
         # Performance logging
         self.performance_logger = PerformanceLogger(log_dir="logs")
+        self.logger = self.performance_logger  # Alias for MIDI components
         
         # Visualization system (optional)
         self.visualization_manager = None
@@ -442,11 +454,11 @@ class EnhancedDriftEngineAI:
         self.last_ml_chord_time = 0
         self.ml_chord_interval = 2.0  # Reduced response frequency - 2 seconds between ML predictions
         
-        # Configuration - Multiple IAC drivers for voice separation
+        # Configuration - Separate IAC ports for voice separation
         self.midi_ports = {
-            'melodic': midi_port or "IAC Driver Melody Channel",
-            'bass': "IAC Driver Bass",
-            'rhythm': "IAC Driver Rhythm Channel"
+            'melodic': midi_port or "IAC Meld",
+            'bass': "IAC Meld Bass",
+            'rhythm': "IAC Meld"  # Rhythm uses melodic port if needed
         }
         self.input_device = input_device
         
@@ -746,7 +758,7 @@ class EnhancedDriftEngineAI:
                 # Initialize MPE outputs for each voice
                 for voice_type, port_name in self.midi_ports.items():
                     if voice_type in ['melodic', 'bass']:  # Only melodic and bass for now
-                        self.mpe_midi_outputs[voice_type] = MPEMIDIOutput(port_name, enable_mpe=True)
+                        self.mpe_midi_outputs[voice_type] = MPEMIDIOutput(port_name, enable_mpe=True, logger=self.logger)
                         if not self.mpe_midi_outputs[voice_type].start():
                             print(f"❌ Failed to start MPE MIDI output for {voice_type}")
                             return False
@@ -755,11 +767,26 @@ class EnhancedDriftEngineAI:
                 # Initialize standard MIDI outputs for each voice
                 for voice_type, port_name in self.midi_ports.items():
                     if voice_type in ['melodic', 'bass']:  # Only melodic and bass for now
-                        self.midi_outputs[voice_type] = MIDIOutput(port_name)
+                        self.midi_outputs[voice_type] = MIDIOutput(port_name, logger=self.logger)
                         if not self.midi_outputs[voice_type].start():
                             print(f"❌ Failed to start MIDI output for {voice_type}")
                             return False
                         print(f"✅ MIDI output started for {voice_type}: {port_name}")
+            
+            # Initialize Meld synthesizer controller (if enabled)
+            if self.enable_meld:
+                try:
+                    # Use dedicated Meld MIDI port
+                    meld_port = "IAC Meld"
+                    self.meld_controller = MeldController(
+                        midi_port_name=meld_port,
+                        harmonic_context_manager=self.harmonic_context_manager,
+                        logger=self.logger
+                    )
+                    print(f"🎹 Meld Controller initialized on {meld_port}")
+                except Exception as e:
+                    print(f"⚠️  Meld Controller initialization failed: {e}")
+                    self.enable_meld = False
             
             # Start listener
             self.listener = DriftListener(
@@ -1450,6 +1477,16 @@ class EnhancedDriftEngineAI:
                 # Send MIDI note to appropriate voice-specific output
                 voice_type = decision.voice_type
                 
+                # Extract timbre_variance from decision's voice profile
+                timbre_variance = 0.5  # Default
+                if hasattr(decision, 'voice_profile') and decision.voice_profile:
+                    timbre_variance = decision.voice_profile.get('timbre_variance', 0.5)
+                
+                # Update Meld synthesizer parameters (if enabled)
+                if self.enable_meld and self.meld_controller:
+                    self.meld_controller.update_meld_parameters(event_data, voice_type, timbre_variance)
+                    self.meld_controller.update_scale_aware_parameters()
+                
                 if self.enable_mpe and self.mpe_midi_outputs.get(voice_type):
                     # MPE mode: route to specific voice output
                     # Calculate expressive parameters based on musical context
@@ -2052,6 +2089,17 @@ class EnhancedDriftEngineAI:
                         
                         # Send MIDI note
                         voice_type = decision.voice_type
+                        
+                        # Extract timbre_variance from decision's voice profile
+                        timbre_variance = 0.5  # Default
+                        if hasattr(decision, 'voice_profile') and decision.voice_profile:
+                            timbre_variance = decision.voice_profile.get('timbre_variance', 0.5)
+                        
+                        # Update Meld synthesizer parameters (if enabled)
+                        if self.enable_meld and self.meld_controller:
+                            self.meld_controller.update_meld_parameters(event_data, voice_type, timbre_variance)
+                            self.meld_controller.update_scale_aware_parameters()
+                        
                         if self.enable_mpe and self.mpe_midi_outputs.get(voice_type):
                             expression_level = self._calculate_expressive_intensity(decision, event_data)
                             timbre_variation = self._calculate_timbre_variation(decision, event_data)
@@ -2259,6 +2307,9 @@ class EnhancedDriftEngineAI:
     
     def _load_learning_data(self):
         """Load previous learning data from files with dynamic configuration"""
+        import json
+        import tempfile
+        
         print("🧠 Loading previous learning data...")
         print("🔍 Debug: _load_learning_data() called")
         
@@ -2342,7 +2393,35 @@ class EnhancedDriftEngineAI:
                 if use_pickle:
                     polyphonic_oracle_loaded = self.clustering.load_from_pickle(most_recent_file)
                 else:
-                    polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                    # Check if this is new unified format (data.audio_oracle) or legacy format
+                    import json
+                    import tempfile
+                    
+                    with open(most_recent_file, 'r') as f:
+                        file_data = json.load(f)
+                    
+                    if 'data' in file_data and 'audio_oracle' in file_data['data']:
+                        # New unified format - extract audio_oracle and save to temp file
+                        print("📦 Detected new unified training format")
+                        oracle_data = file_data['data']['audio_oracle']
+                        
+                        # Check if performance_arc is also present
+                        if 'performance_arc' in file_data['data']:
+                            print("🎭 Performance Arc data available in model")
+                        
+                        # Save oracle data to temp file for loading
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                            json.dump(oracle_data, tmp)
+                            temp_oracle_file = tmp.name
+                        
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(temp_oracle_file)
+                        
+                        # Clean up temp file
+                        os.unlink(temp_oracle_file)
+                    else:
+                        # Legacy format - load directly
+                        print("📦 Detected legacy training format")
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
                 
                 if polyphonic_oracle_loaded:
                     print("✅ Successfully loaded AudioOracle model!")
@@ -2492,32 +2571,58 @@ class EnhancedDriftEngineAI:
                     # Load RhythmOracle if available and enabled
                     rhythmic_loaded = False  # Track if rhythmic patterns were loaded
                     if self.rhythm_oracle and self.enable_rhythmic:
-                        # Build correct rhythm oracle filename based on model file type
-                        if most_recent_file.endswith('.pkl.gz') or most_recent_file.endswith('.pkl'):
-                            # Pickle model: rhythm oracle should be in same directory with base name
-                            base_name = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '')
-                            rhythm_oracle_file = base_name + '_rhythm_oracle.json'
-                        else:
-                            # JSON model
-                            rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                        # First, try to load from embedded data in the main model file
+                        try:
+                            with open(most_recent_file, 'r') as f:
+                                model_data = json.load(f)
+                                if 'rhythm_oracle' in model_data:
+                                    print(f"🥁 Loading RhythmOracle from embedded data in {os.path.basename(most_recent_file)}")
+                                    # Load directly from embedded dict
+                                    rhythm_data = model_data['rhythm_oracle']
+                                    self.rhythm_oracle.rhythmic_patterns = rhythm_data.get('patterns', [])
+                                    self.rhythm_oracle.pattern_transitions = {
+                                        tuple(json.loads(k)): v for k, v in rhythm_data.get('transitions', {}).items()
+                                    }
+                                    self.rhythm_oracle.pattern_frequency = rhythm_data.get('frequency', {})
+                                    
+                                    rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                    print(f"✅ RhythmOracle loaded from embedded data!")
+                                    print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                          f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                          f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                          f"transitions: {rhythm_stats['total_transitions']}")
+                                    rhythmic_loaded = True
+                                else:
+                                    print(f"⚠️  No embedded rhythm_oracle found in {os.path.basename(most_recent_file)}")
+                        except Exception as e:
+                            print(f"⚠️  Could not load embedded RhythmOracle: {e}")
                         
-                        if os.path.exists(rhythm_oracle_file):
-                            try:
-                                print(f"🥁 Loading RhythmOracle from: {rhythm_oracle_file}")
-                                self.rhythm_oracle.load_patterns(rhythm_oracle_file)
-                                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
-                                print(f"✅ RhythmOracle loaded successfully!")
-                                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
-                                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
-                                      f"avg density {rhythm_stats['avg_density']:.2f}, "
-                                      f"transitions: {rhythm_stats['total_transitions']}")
-                                rhythmic_loaded = True  # Mark as successfully loaded
-                            except Exception as e:
-                                print(f"⚠️  Could not load RhythmOracle: {e}")
-                                print(f"   Will try fallback location...")
-                        else:
-                            print(f"⚠️  No RhythmOracle companion file found: {os.path.basename(rhythm_oracle_file)}")
-                            print(f"   Will try fallback location...")
+                        # If not embedded, try companion file (legacy support)
+                        if not rhythmic_loaded:
+                            # Build correct rhythm oracle filename based on model file type
+                            if most_recent_file.endswith('.pkl.gz') or most_recent_file.endswith('.pkl'):
+                                # Pickle model: rhythm oracle should be in same directory with base name
+                                base_name = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '')
+                                rhythm_oracle_file = base_name + '_rhythm_oracle.json'
+                            else:
+                                # JSON model
+                                rhythm_oracle_file = most_recent_file.replace('_model.json', '_rhythm_oracle.json')
+                            
+                            if os.path.exists(rhythm_oracle_file):
+                                try:
+                                    print(f"🥁 Loading RhythmOracle from companion file: {rhythm_oracle_file}")
+                                    self.rhythm_oracle.load_patterns(rhythm_oracle_file)
+                                    rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                    print(f"✅ RhythmOracle loaded from companion file!")
+                                    print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                          f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                          f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                          f"transitions: {rhythm_stats['total_transitions']}")
+                                    rhythmic_loaded = True
+                                except Exception as e:
+                                    print(f"⚠️  Could not load RhythmOracle from companion: {e}")
+                            else:
+                                print(f"⚠️  No RhythmOracle companion file found: {os.path.basename(rhythm_oracle_file)}")
                     
                     model_loaded = True
                 else:
@@ -2555,7 +2660,52 @@ class EnhancedDriftEngineAI:
                                 chord_similarity_weight=0.3
                             )
                     
-                    polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                    # Check if this is unified format (new Chandra_trainer output)
+                    with open(most_recent_file, 'r') as f:
+                        file_data = json.load(f)
+                    
+                    if 'data' in file_data and 'audio_oracle' in file_data['data']:
+                        # New unified format - extract audio_oracle and save to temp file
+                        print("📦 Detected new unified training format (JSON)")
+                        oracle_data = file_data['data']['audio_oracle']
+                        
+                        # Save oracle data to temp file for loading
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+                            json.dump(oracle_data, tmp)
+                            temp_oracle_file = tmp.name
+                        
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(temp_oracle_file)
+                        
+                        # Clean up temp file
+                        os.unlink(temp_oracle_file)
+                        
+                        # Also extract rhythm_oracle if present
+                        if 'rhythm_oracle' in file_data['data'] and self.rhythm_oracle and self.enable_rhythmic:
+                            try:
+                                print(f"🥁 Loading RhythmOracle from unified format")
+                                rhythm_data = file_data['data']['rhythm_oracle']
+                                self.rhythm_oracle.rhythmic_patterns = rhythm_data.get('patterns', [])
+                                self.rhythm_oracle.pattern_transitions = {
+                                    tuple(json.loads(k)) if isinstance(k, str) else tuple(k): v 
+                                    for k, v in rhythm_data.get('transitions', {}).items()
+                                }
+                                self.rhythm_oracle.pattern_frequency = rhythm_data.get('frequency', {})
+                                
+                                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                print(f"✅ RhythmOracle loaded from unified format!")
+                                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                      f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                      f"transitions: {rhythm_stats['total_transitions']}")
+                                rhythmic_loaded = True
+                            except Exception as e:
+                                print(f"⚠️  Could not load RhythmOracle from unified format: {e}")
+                    else:
+                        # Legacy format - load directly
+                        print("📦 Detected legacy training format (JSON)")
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                    
                     if polyphonic_oracle_loaded:
                         print("✅ Successfully loaded training results!")
                         # Get model statistics
@@ -2643,13 +2793,18 @@ class EnhancedDriftEngineAI:
             try:
                 print(f"🥁 Trying fallback RhythmOracle location: {self.rhythmic_file}")
                 self.rhythm_oracle.load_patterns(self.rhythmic_file)
-                rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
-                print("✅ RhythmOracle loaded from fallback location!")
-                print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
-                      f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
-                      f"avg density {rhythm_stats['avg_density']:.2f}, "
-                      f"transitions: {rhythm_stats['total_transitions']}")
-                rhythmic_loaded = True
+                
+                # Only log stats if patterns were actually loaded
+                if len(self.rhythm_oracle.rhythmic_patterns) > 0:
+                    rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                    print("✅ RhythmOracle loaded from fallback location!")
+                    print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                          f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                          f"avg density {rhythm_stats['avg_density']:.2f}, "
+                          f"transitions: {rhythm_stats['total_transitions']}")
+                    rhythmic_loaded = True
+                else:
+                    print(f"⚠️  Fallback RhythmOracle file empty (0 patterns loaded)")
             except Exception as e:
                 print(f"⚠️ Could not load rhythmic patterns from fallback: {e}")
         
@@ -3119,6 +3274,17 @@ class EnhancedDriftEngineAI:
                     
                     # Send MIDI note
                     voice_type = decision.voice_type
+                    
+                    # Extract timbre_variance from decision's voice profile
+                    timbre_variance = 0.5  # Default
+                    if hasattr(decision, 'voice_profile') and decision.voice_profile:
+                        timbre_variance = decision.voice_profile.get('timbre_variance', 0.5)
+                    
+                    # Update Meld synthesizer parameters (if enabled)
+                    if self.enable_meld and self.meld_controller:
+                        self.meld_controller.update_meld_parameters(synthetic_event, voice_type, timbre_variance)
+                        self.meld_controller.update_scale_aware_parameters()
+                    
                     if self.enable_mpe and self.mpe_midi_outputs.get(voice_type):
                         expression_level = self._calculate_expressive_intensity(decision, synthetic_event)
                         timbre_variation = self._calculate_timbre_variation(decision, synthetic_event)
@@ -3178,12 +3344,13 @@ def main():
     parser.add_argument('--initiative', type=float, default=0.7, help='Initiative budget (0.0-1.0)')
     parser.add_argument('--no-rhythmic', action='store_true', help='Disable rhythmic analysis (harmonic only)')
     parser.add_argument('--no-mpe', action='store_true', help='Disable MPE MIDI mode (use standard MIDI)')
+    parser.add_argument('--enable-meld', action='store_true', help='Enable Ableton Meld synthesizer integration (feature→CC mapping)')
     parser.add_argument('--no-hybrid-perception', action='store_true', 
                        help='Disable hybrid perception (ratio + consonance analysis) - DEFAULT: ENABLED')
     parser.add_argument('--no-wav2vec', action='store_true',
                        help='Disable Wav2Vec 2.0 neural encoding - DEFAULT: ENABLED')
-    parser.add_argument('--wav2vec-model', type=str, default='facebook/wav2vec2-base',
-                       help='Wav2Vec model name (default: facebook/wav2vec2-base)')
+    parser.add_argument('--wav2vec-model', type=str, default='m-a-p/MERT-v1-95M',
+                       help='Wav2Vec model name (default: m-a-p/MERT-v1-95M)')
     parser.add_argument('--no-gpu', action='store_true',
                        help='Disable GPU for Wav2Vec (use CPU) - DEFAULT: GPU ENABLED')
     parser.add_argument('--gesture-window', type=float, default=1.5,
@@ -3216,6 +3383,7 @@ def main():
         input_device=args.input_device,
         enable_rhythmic=not args.no_rhythmic,
         enable_mpe=not args.no_mpe,
+        enable_meld=args.enable_meld,
         performance_duration=args.performance_duration,
         performance_arc_path=args.performance_arc,
         enable_hybrid_perception=not args.no_hybrid_perception,
