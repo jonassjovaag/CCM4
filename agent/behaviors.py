@@ -386,6 +386,249 @@ class VoiceTimingProfile:
         return cls.DEFAULT_PROFILE.get(voice_type, cls.DEFAULT_PROFILE['melodic'])
 
 
+class MelodicVocabulary:
+    """
+    Style-specific melodic vocabulary preferences.
+
+    Expands CLAP influence beyond timing to affect:
+    - Interval preferences (which intervals are favored)
+    - Chromatic tendency (use of non-diatonic notes)
+    - Blue notes (b3, b5, b7 for blues/jazz)
+    - Phrase characteristics
+    - Avoid intervals (e.g., parallel 5ths in classical)
+    """
+
+    # Interval names for reference
+    INTERVALS = {
+        0: 'unison', 1: 'minor_2nd', 2: 'major_2nd', 3: 'minor_3rd',
+        4: 'major_3rd', 5: 'perfect_4th', 6: 'tritone', 7: 'perfect_5th',
+        8: 'minor_6th', 9: 'major_6th', 10: 'minor_7th', 11: 'major_7th', 12: 'octave'
+    }
+
+    # Style-specific melodic vocabularies
+    STYLE_VOCABULARIES = {
+        'jazz': {
+            # Jazz: chromatic, extensions, bebop lines
+            'interval_weights': {
+                1: 0.15, 2: 0.20, 3: 0.18, 4: 0.12, 5: 0.08,
+                6: 0.05, 7: 0.08, 8: 0.04, 9: 0.05, 10: 0.03, 11: 0.02
+            },
+            'chromatic_tendency': 0.4,  # High chromaticism
+            'blue_notes': True,  # Use b3, b5, b7
+            'extensions': True,  # Use 9ths, 11ths, 13ths
+            'phrase_length': 'medium',  # 4-8 notes typical
+            'avoid_intervals': [],  # Nothing off-limits
+            'approach_tones': True,  # Chromatic enclosure
+            'scale_modes': ['dorian', 'mixolydian', 'lydian', 'altered']
+        },
+        'blues': {
+            # Blues: pentatonic with blue notes, bends
+            'interval_weights': {
+                1: 0.05, 2: 0.15, 3: 0.25, 4: 0.10, 5: 0.12,
+                6: 0.08, 7: 0.15, 8: 0.02, 9: 0.03, 10: 0.03, 11: 0.02
+            },
+            'chromatic_tendency': 0.2,  # Mostly pentatonic
+            'blue_notes': True,  # Essential for blues
+            'extensions': False,
+            'phrase_length': 'short',  # 2-5 notes, call-response
+            'avoid_intervals': [11],  # Avoid major 7th
+            'approach_tones': False,
+            'scale_modes': ['blues', 'minor_pentatonic', 'mixolydian']
+        },
+        'classical': {
+            # Classical: diatonic, voice leading, avoid parallels
+            'interval_weights': {
+                1: 0.05, 2: 0.25, 3: 0.20, 4: 0.15, 5: 0.12,
+                6: 0.02, 7: 0.10, 8: 0.05, 9: 0.04, 10: 0.01, 11: 0.01
+            },
+            'chromatic_tendency': 0.1,  # Mostly diatonic
+            'blue_notes': False,
+            'extensions': False,
+            'phrase_length': 'long',  # 6-12 notes, formal phrases
+            'avoid_intervals': [6],  # Avoid tritone leaps
+            'approach_tones': False,
+            'scale_modes': ['major', 'minor', 'harmonic_minor']
+        },
+        'rock': {
+            # Rock: power chords, pentatonic, strong intervals
+            'interval_weights': {
+                1: 0.02, 2: 0.15, 3: 0.18, 4: 0.12, 5: 0.15,
+                6: 0.05, 7: 0.20, 8: 0.03, 9: 0.05, 10: 0.03, 11: 0.02
+            },
+            'chromatic_tendency': 0.15,
+            'blue_notes': True,  # Rock uses blue notes
+            'extensions': False,
+            'phrase_length': 'medium',
+            'avoid_intervals': [],
+            'approach_tones': False,
+            'scale_modes': ['minor_pentatonic', 'natural_minor', 'dorian']
+        },
+        'funk': {
+            # Funk: rhythmic, 9ths, chromatic passing
+            'interval_weights': {
+                1: 0.10, 2: 0.20, 3: 0.15, 4: 0.12, 5: 0.10,
+                6: 0.05, 7: 0.12, 8: 0.04, 9: 0.07, 10: 0.03, 11: 0.02
+            },
+            'chromatic_tendency': 0.3,
+            'blue_notes': True,
+            'extensions': True,  # 9ths especially
+            'phrase_length': 'short',  # Stabs and riffs
+            'avoid_intervals': [],
+            'approach_tones': True,
+            'scale_modes': ['dorian', 'mixolydian', 'minor_pentatonic']
+        },
+        'electronic': {
+            # Electronic: arpeggios, sequences, octaves
+            'interval_weights': {
+                1: 0.02, 2: 0.10, 3: 0.15, 4: 0.18, 5: 0.12,
+                6: 0.03, 7: 0.15, 8: 0.05, 9: 0.08, 10: 0.02, 11: 0.02, 12: 0.08
+            },
+            'chromatic_tendency': 0.15,
+            'blue_notes': False,
+            'extensions': True,  # Arpeggio extensions
+            'phrase_length': 'medium',
+            'avoid_intervals': [],
+            'approach_tones': False,
+            'scale_modes': ['major', 'minor', 'phrygian', 'harmonic_minor']
+        },
+        'ambient': {
+            # Ambient: slow, consonant, drifting
+            'interval_weights': {
+                1: 0.05, 2: 0.15, 3: 0.12, 4: 0.15, 5: 0.18,
+                6: 0.02, 7: 0.20, 8: 0.03, 9: 0.05, 10: 0.02, 11: 0.01, 12: 0.02
+            },
+            'chromatic_tendency': 0.05,  # Very diatonic
+            'blue_notes': False,
+            'extensions': False,
+            'phrase_length': 'long',  # Slow, drifting
+            'avoid_intervals': [1, 6],  # Avoid dissonance
+            'approach_tones': False,
+            'scale_modes': ['major', 'lydian', 'mixolydian']
+        },
+        'ballad': {
+            # Ballad: expressive, vocal-like
+            'interval_weights': {
+                1: 0.08, 2: 0.22, 3: 0.18, 4: 0.15, 5: 0.10,
+                6: 0.02, 7: 0.12, 8: 0.04, 9: 0.05, 10: 0.02, 11: 0.02
+            },
+            'chromatic_tendency': 0.15,
+            'blue_notes': False,
+            'extensions': False,
+            'phrase_length': 'medium',
+            'avoid_intervals': [6],  # Avoid harsh tritone
+            'approach_tones': False,
+            'scale_modes': ['major', 'minor', 'dorian']
+        }
+    }
+
+    # Default vocabulary for unknown styles
+    DEFAULT_VOCABULARY = {
+        'interval_weights': {
+            1: 0.05, 2: 0.20, 3: 0.18, 4: 0.15, 5: 0.12,
+            6: 0.03, 7: 0.15, 8: 0.04, 9: 0.05, 10: 0.02, 11: 0.01
+        },
+        'chromatic_tendency': 0.15,
+        'blue_notes': False,
+        'extensions': False,
+        'phrase_length': 'medium',
+        'avoid_intervals': [],
+        'approach_tones': False,
+        'scale_modes': ['major', 'minor']
+    }
+
+    @classmethod
+    def get_vocabulary(cls, style: str) -> Dict:
+        """
+        Get melodic vocabulary for a style.
+
+        Args:
+            style: Style name (jazz, blues, classical, etc.)
+
+        Returns:
+            Dictionary with melodic vocabulary preferences
+        """
+        style_lower = style.lower()
+        return cls.STYLE_VOCABULARIES.get(style_lower, cls.DEFAULT_VOCABULARY)
+
+    @classmethod
+    def get_interval_probabilities(cls, style: str) -> List[float]:
+        """
+        Get interval probability distribution for a style.
+
+        Args:
+            style: Style name
+
+        Returns:
+            List of 13 probabilities (unison through octave)
+        """
+        vocab = cls.get_vocabulary(style)
+        weights = vocab['interval_weights']
+
+        # Build probability list
+        probs = []
+        total = sum(weights.values())
+        for i in range(13):
+            prob = weights.get(i, 0.0) / total if total > 0 else 1/13
+            probs.append(prob)
+
+        return probs
+
+    @classmethod
+    def should_use_chromatic(cls, style: str) -> bool:
+        """Check if a chromatic passing tone should be used"""
+        vocab = cls.get_vocabulary(style)
+        import random
+        return random.random() < vocab['chromatic_tendency']
+
+    @classmethod
+    def get_blue_note_pcs(cls) -> List[int]:
+        """Get pitch classes for blue notes (relative to root)"""
+        return [3, 6, 10]  # b3, b5, b7
+
+    @classmethod
+    def choose_interval(cls, style: str, previous_intervals: List[int] = None) -> int:
+        """
+        Choose an interval based on style vocabulary.
+
+        Args:
+            style: Style name
+            previous_intervals: Recent intervals (for avoiding repetition)
+
+        Returns:
+            Interval in semitones (can be negative for descending)
+        """
+        import random
+
+        probs = cls.get_interval_probabilities(style)
+        vocab = cls.get_vocabulary(style)
+
+        # Zero out avoided intervals
+        for avoid in vocab.get('avoid_intervals', []):
+            if 0 <= avoid < len(probs):
+                probs[avoid] = 0
+
+        # Renormalize
+        total = sum(probs)
+        if total > 0:
+            probs = [p / total for p in probs]
+        else:
+            probs = [1/13] * 13
+
+        # Choose interval magnitude
+        intervals = list(range(13))
+        magnitude = random.choices(intervals, weights=probs)[0]
+
+        # Choose direction (slight preference for continuing direction)
+        if previous_intervals and len(previous_intervals) > 0:
+            last_direction = 1 if previous_intervals[-1] >= 0 else -1
+            # 60% chance to continue direction
+            direction = last_direction if random.random() < 0.6 else -last_direction
+        else:
+            direction = random.choice([-1, 1])
+
+        return magnitude * direction
+
+
 class ProfileInterpolator:
     """
     Handles gradual profile transitions at phrase boundaries

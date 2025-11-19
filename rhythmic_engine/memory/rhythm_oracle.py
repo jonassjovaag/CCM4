@@ -272,16 +272,31 @@ class RhythmOracle:
             partial_sim = float(np.dot(query_norm, pattern_norm))
             duration_sim = max(0.0, partial_sim * len_ratio)
         
-        # Density similarity - FIXED to handle absolute density values (events/second)
-        # Stored patterns have density in range ~0.5-10.0 (events per second)
-        # Query may have normalized (0-1) or absolute values
+        # Density similarity - FIXED to normalize both to events-per-beat scale
+        # Problem: Query often has normalized 0-1 values, patterns have absolute events/second
+        # Solution: Normalize both to events-per-beat using tempo context
         query_density = query.get('density', 0.5)
         pattern_density = pattern.density
-        
-        # Use ratio-based similarity instead of absolute difference
-        # This works for both normalized and absolute values
-        if pattern_density > 0 and query_density > 0:
-            density_ratio = min(query_density, pattern_density) / max(query_density, pattern_density)
+
+        # Normalize to events-per-beat scale (0.25 to 4.0 typical range)
+        # If query density < 1.5, assume it's normalized 0-1 and scale up
+        # If pattern density > 2.0, assume it's events/second and scale down
+        normalized_query = query_density
+        normalized_pattern = pattern_density
+
+        # Detect and normalize query (0-1 scale -> events-per-beat)
+        if query_density <= 1.0:
+            # Likely normalized 0-1, scale to 0.25-4.0 events-per-beat
+            normalized_query = 0.25 + query_density * 3.75
+
+        # Detect and normalize pattern (events/second -> events-per-beat at ~120 BPM)
+        if pattern_density > 4.0:
+            # Likely events/second, convert to events-per-beat (assume 120 BPM = 2 beats/sec)
+            normalized_pattern = pattern_density / 2.0
+
+        # Use ratio-based similarity on normalized values
+        if normalized_pattern > 0 and normalized_query > 0:
+            density_ratio = min(normalized_query, normalized_pattern) / max(normalized_query, normalized_pattern)
             density_sim = density_ratio  # 1.0 = same density, 0.0 = very different
         else:
             density_sim = 0.0

@@ -299,8 +299,8 @@ class PhraseGenerator:
         try:
             print(f"🥁 DEBUG: Querying RhythmOracle with context: {current_context}")
             similar_patterns = self.rhythm_oracle.find_similar_patterns(
-                current_context, 
-                threshold=0.3  # 30% similarity threshold (lowered due to density scale mismatch - query uses normalized 0-1, patterns use absolute events/sec)
+                current_context,
+                threshold=0.5  # 50% similarity threshold (density scale mismatch fixed in rhythm_oracle.py)
             )
             print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
             
