@@ -12,7 +12,8 @@
 #
 # Generated: November 3, 2025
 # Python version: 3.10.12
-# Platform: macOS (Apple Silicon)
+# Platform: Cross-platform (macOS + Linux)
+# Note: pyobjc packages are macOS-only (commented out for Linux compatibility)
 #
 # Key packages for MusicHal 9000:
 # - torch: Neural networks, MPS (Apple Silicon GPU)
@@ -98,6 +99,14 @@ pydantic-settings==2.11.0
 pydantic_core==2.41.4
 Pygments==2.19.2
 pylatexenc==2.10
+
+# macOS-only packages (uncomment on macOS, keep commented on Linux/Windows)
+# pyobjc-core==11.1
+# pyobjc-framework-Cocoa==11.1
+# pyobjc-framework-CoreML==11.1
+# pyobjc-framework-Quartz==11.1
+# pyobjc-framework-Vision==11.1
+
 pyparsing==3.2.5
 pypdfium2==4.30.0
 PyQt5==5.15.11
