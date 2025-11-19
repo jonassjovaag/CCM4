@@ -24,9 +24,34 @@
       "Bash(git push:*)",
       "Bash(timeout 60 python:*)",
       "Bash(if [ -f \"nul\" ])",
-      "Bash(then rm nul)"
+      "Bash(then rm nul)",
+      "Bash(git rm:*)",
+      "Bash(git fetch:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git checkout:*)",
+      "WebFetch(domain:www.anthropic.com)",
+      "Bash(git merge:*)",
+      "Bash(git pull:*)",
+      "Bash(git log:*)",
+      "WebFetch(domain:claudecodemarketplace.com)",
+      "WebSearch",
+      "WebFetch(domain:alexop.dev)",
+      "WebFetch(domain:code.claude.com)",
+      "WebFetch(domain:mikhail.io)",
+      "WebFetch(domain:skywork.ai)",
+      "WebFetch(domain:support.claude.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:leehanchung.github.io)",
+      "WebFetch(domain:claude-plugins.dev)",
+      "Bash(echo $APPDATA)",
+      "Bash(dir /s /b \"C:\\Users\\jonas\\AppData\")",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "disabledMcpjsonServers": [
+    "context7"
+  ]
 }
