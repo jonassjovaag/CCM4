@@ -1027,6 +1027,11 @@ class EnhancedDriftEngineAI:
                 audio_buffer = event.raw_audio if hasattr(event, 'raw_audio') and event.raw_audio is not None else None
                 
                 if audio_buffer is not None and len(audio_buffer) > 0:
+                    # DEBUG: Check audio buffer stats
+                    rms = np.sqrt(np.mean(audio_buffer**2))
+                    if self.stats['events_processed'] % 20 == 0:
+                        print(f"🔍 DEBUG: Audio buffer size: {len(audio_buffer)}, RMS: {rms:.4f}")
+
                     # Extract hybrid features (pass detected F0 for accurate chord root)
                     hybrid_result = self.hybrid_perception.extract_features(
                         audio_buffer, 
@@ -1034,6 +1039,10 @@ class EnhancedDriftEngineAI:
                         current_time,
                         detected_f0=event.f0  # Pass actual detected frequency
                     )
+                    
+                    # DEBUG: Check hybrid result
+                    if self.stats['events_processed'] % 20 == 0:
+                        print(f"🔍 DEBUG: Hybrid consonance: {hybrid_result.consonance:.2f}, Token: {hybrid_result.gesture_token}")
                     
                     # Store hybrid analysis in event data
                     event_data['hybrid_consonance'] = hybrid_result.consonance
@@ -1145,7 +1154,6 @@ class EnhancedDriftEngineAI:
             
             # Create simple waveform from RMS if no buffer available
             if audio_buffer is None:
-                import numpy as np
                 rms = event_data.get('rms', 0.0)
                 # Create fake waveform for visualization (sine wave with amplitude = RMS)
                 audio_buffer = np.sin(np.linspace(0, 10*np.pi, 1024)) * rms
@@ -2386,7 +2394,14 @@ class EnhancedDriftEngineAI:
             # Look for pickle files first (much faster)
             pickle_files = [f for f in os.listdir(json_dir) if f.endswith('_model.pkl.gz') or f.endswith('_model.pkl')]
             # Allow any .json file, but exclude known non-model files to avoid loading garbage
-            json_files = [f for f in os.listdir(json_dir) if f.endswith('.json') and not f.startswith('.') and 'vocab' not in f]
+            # EXCLUDE: vocab files, rhythm oracle files, transition files, performance arc files
+            json_files = [f for f in os.listdir(json_dir) 
+                         if f.endswith('.json') 
+                         and not f.startswith('.') 
+                         and 'vocab' not in f
+                         and 'rhythm_oracle' not in f
+                         and 'transitions' not in f
+                         and 'performance_arc' not in f]
             
             # Prefer pickle files if available
             if pickle_files:
@@ -2522,6 +2537,36 @@ class EnhancedDriftEngineAI:
                         harmonic_vocab_file = base_filename + '_harmonic_vocab.joblib'
                         percussive_vocab_file = base_filename + '_percussive_vocab.joblib'
                         
+                        # Fallback: Check input_audio/ if not found in JSON/
+                        if not (os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file)):
+                            name_only = os.path.basename(base_filename)
+                            # Try exact name match first
+                            alt_harmonic = os.path.join('input_audio', name_only + '_harmonic_vocab.joblib')
+                            alt_percussive = os.path.join('input_audio', name_only + '_percussive_vocab.joblib')
+                            
+                            if os.path.exists(alt_harmonic) and os.path.exists(alt_percussive):
+                                harmonic_vocab_file = alt_harmonic
+                                percussive_vocab_file = alt_percussive
+                                print(f"🔄 Found vocabularies in input_audio/: {name_only}")
+                            else:
+                                # Try finding ANY matching vocab file in input_audio if exact match fails
+                                # This handles cases where model name might differ slightly from audio filename
+                                try:
+                                    input_files = os.listdir('input_audio')
+                                    h_candidates = [f for f in input_files if f.endswith('_harmonic_vocab.joblib')]
+                                    p_candidates = [f for f in input_files if f.endswith('_percussive_vocab.joblib')]
+                                    
+                                    if h_candidates and p_candidates:
+                                        # Sort by modification time (newest first)
+                                        h_candidates.sort(key=lambda x: os.path.getmtime(os.path.join('input_audio', x)), reverse=True)
+                                        p_candidates.sort(key=lambda x: os.path.getmtime(os.path.join('input_audio', x)), reverse=True)
+                                        
+                                        harmonic_vocab_file = os.path.join('input_audio', h_candidates[0])
+                                        percussive_vocab_file = os.path.join('input_audio', p_candidates[0])
+                                        print(f"🔄 Found most recent vocabularies in input_audio/: {h_candidates[0]}")
+                                except Exception as e:
+                                    print(f"⚠️ Error searching for vocabularies: {e}")
+
                         quantizer_loaded = False  # Track if ANY vocabulary was loaded
                         
                         # Check if this is a dual vocabulary model
@@ -2560,6 +2605,7 @@ class EnhancedDriftEngineAI:
                             gesture_quantizer_file = base_filename + '_gesture_training_quantizer.joblib'
                             symbolic_quantizer_file = base_filename + '_symbolic_training_quantizer.joblib'
                             old_quantizer_file = base_filename + '_quantizer.joblib'
+                            fallback_quantizer_file = "ai_learning_data/mert_quantizer.pkl"
                             
                             quantizer_file = None
                             if os.path.exists(gesture_quantizer_file):
@@ -2571,6 +2617,9 @@ class EnhancedDriftEngineAI:
                             elif os.path.exists(old_quantizer_file):
                                 quantizer_file = old_quantizer_file
                                 quantizer_type = "legacy"
+                            elif os.path.exists(fallback_quantizer_file):
+                                quantizer_file = fallback_quantizer_file
+                                quantizer_type = "fallback (manual)"
                         
                             if quantizer_file:
                                 try:
@@ -2579,7 +2628,6 @@ class EnhancedDriftEngineAI:
                                     
                                     # CRITICAL FIX: Monkey-patch transform to convert ALL intermediate dtypes to float32
                                     # The pickled quantizer uses sklearn normalize() which returns float64
-                                    import numpy as np
                                     from sklearn.preprocessing import normalize as sklearn_normalize
                                     quantizer = self.hybrid_perception.quantizer
                                     if quantizer is not None:
@@ -3326,13 +3374,24 @@ class EnhancedDriftEngineAI:
                     )
                     
                     # Generate explanation and log it
+                    avg_consonance = 0.0  # Initialize outside try block
                     try:
                         # Construct context for explanation
+                        # Fetch recent context from memory buffer
+                        recent_events = self.memory_buffer.get_recent_events(3.0)
+                        if recent_events:
+                            consonances = [e.get('consonance', 0.5) for e in recent_events if e is not None]
+                            if consonances:
+                                avg_consonance = sum(consonances) / len(consonances)
+                        
                         recent_context = {
                             'gesture_tokens': [], # No gesture tokens in autonomous mode
-                            'avg_consonance': 0.0,
+                            'avg_consonance': avg_consonance,
                             'pitch': 0.0
                         }
+                        
+                        # Ensure musical_params is a dict
+                        request_params = decision.musical_params if decision.musical_params is not None else {}
                         
                         # Generate explanation
                         explanation = self.decision_explainer.explain_generation(
@@ -3340,7 +3399,7 @@ class EnhancedDriftEngineAI:
                             voice_type=decision.voice_type,
                             trigger_event=synthetic_event,
                             recent_context=recent_context,
-                            request_params=decision.musical_params,
+                            request_params=request_params,
                             generated_notes=[midi_params.note],
                             generated_durations=[midi_params.duration],
                             pattern_match_score=decision.confidence,
@@ -3394,7 +3453,7 @@ class EnhancedDriftEngineAI:
                                 self.ai_agent.phrase_generator.track_event(ai_event, source='ai')
                             # Log autonomous generation
                             self._log_conversation_response(midi_params, voice_type, decision.mode.value, current_time,
-                                                           expression_level, pressure_sensitivity, timbre_variation)
+                                                           avg_consonance, 0.0, 0.0)
                     
                     elif self.midi_outputs.get(voice_type):
                         if self.midi_outputs[voice_type].send_note(midi_params, voice_type):
@@ -3413,7 +3472,7 @@ class EnhancedDriftEngineAI:
                                 self.ai_agent.phrase_generator.track_event(ai_event, source='ai')
                             # Log autonomous generation
                             self._log_conversation_response(midi_params, voice_type, decision.mode.value, current_time,
-                                                           0.0, 0.0, 0.0)
+                                                           avg_consonance, 0.0, 0.0)
             
             self.last_autonomous_generation = current_time
             

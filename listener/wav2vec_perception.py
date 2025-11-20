@@ -87,12 +87,13 @@ class Wav2VecMusicEncoder:
             return
         
         try:
-            print(f"🔄 Loading Wav2Vec model: {self.model_name}...")
+            print(f"🔄 Loading Neural Audio Model: {self.model_name}...")
             
             # Import transformers (only when needed)
             # Support both Wav2Vec2 and MERT models
             try:
                 from transformers import Wav2Vec2FeatureExtractor, AutoModel
+                import logging
             except ImportError:
                 print("❌ transformers library not installed!")
                 print("   Install: pip install transformers")
@@ -101,6 +102,10 @@ class Wav2VecMusicEncoder:
             # Load processor and model
             # Use AutoModel to support both Wav2Vec2 and MERT
             # trust_remote_code=True required for MERT models
+            
+            # Suppress nnAudio warning from MERT
+            logging.getLogger("transformers").setLevel(logging.ERROR)
+            
             self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
                 self.model_name,
                 trust_remote_code=True
@@ -118,7 +123,7 @@ class Wav2VecMusicEncoder:
             self.feature_dim = self.model.config.hidden_size
             
             self._initialized = True
-            print(f"✅ Wav2Vec model loaded!")
+            print(f"✅ Neural Audio model loaded!")
             print(f"   Feature dimension: {self.feature_dim}D")
             print(f"   Device: {self.device}")
             
