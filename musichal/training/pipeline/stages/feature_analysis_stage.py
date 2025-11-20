@@ -130,11 +130,69 @@ class FeatureAnalysisStage(PipelineStage):
 
             # Collect features
             wav2vec_features.append(result.wav2vec_features)
-            if result.gesture_token is not None:
-                gesture_tokens.append(result.gesture_token)
+            # Note: gesture_token will be None here because quantizer isn't trained yet
             chord_detections.append(result.chord_label)
 
-        self.logger.info(f"Feature analysis complete")
+        self.logger.info("Feature extraction complete. Training gesture quantizer...")
+
+        # Train quantizer(s)
+        if wav2vec_features:
+            # Determine output base path for saving vocabularies
+            output_file = context.get('output_file')
+            if output_file:
+                from pathlib import Path
+                base_path = str(Path(output_file).with_suffix(''))
+            else:
+                from pathlib import Path
+                base_path = str(Path(audio_file).with_suffix(''))
+
+            if analyzer.enable_dual_vocabulary:
+                # Train both vocabularies
+                analyzer.train_gesture_vocabulary(wav2vec_features, vocabulary_type="harmonic")
+                analyzer.train_gesture_vocabulary(wav2vec_features, vocabulary_type="percussive")
+                
+                # Save vocabularies
+                analyzer.save_vocabulary(f"{base_path}_harmonic_vocab.joblib", "harmonic")
+                analyzer.save_vocabulary(f"{base_path}_percussive_vocab.joblib", "percussive")
+                self.logger.info(f"Saved dual vocabularies to {base_path}_*.joblib")
+            else:
+                # Train single vocabulary
+                analyzer.train_gesture_vocabulary(wav2vec_features, vocabulary_type="single")
+                
+                # Save vocabulary (using new naming convention)
+                analyzer.save_vocabulary(f"{base_path}_gesture_training_quantizer.joblib", "single")
+                self.logger.info(f"Saved gesture vocabulary to {base_path}_gesture_training_quantizer.joblib")
+
+            # Re-process events to assign tokens now that quantizer is trained
+            self.logger.info("Assigning gesture tokens to events...")
+            gesture_tokens = []
+            for i, event in enumerate(enriched_events):
+                # Get the features we extracted earlier
+                features = wav2vec_features[i]
+                
+                # Get token from analyzer (which now has trained quantizer)
+                # We need to manually call the internal method or use a helper
+                # Since extract_features does a lot of work, let's just use the quantizer directly
+                
+                token = None
+                if analyzer.enable_dual_vocabulary:
+                    # Use harmonic quantizer for primary token
+                    if analyzer.harmonic_quantizer:
+                        # Ensure float64 and 2D for sklearn
+                        f_64 = features.astype(np.float64).reshape(1, -1)
+                        token = int(analyzer.harmonic_quantizer.transform(f_64)[0])
+                else:
+                    if analyzer.quantizer:
+                        f_64 = features.astype(np.float64).reshape(1, -1)
+                        token = int(analyzer.quantizer.transform(f_64)[0])
+                
+                if token is not None:
+                    event.gesture_token = token
+                    gesture_tokens.append(token)
+                    
+            self.logger.info(f"Assigned {len(gesture_tokens)} tokens")
+
+        self.logger.info("Feature analysis complete")
 
         return StageResult(
             stage_name=self.name,
