@@ -265,7 +265,8 @@ class EnhancedDriftEngineAI:
                 enable_symbolic=True,  # Enable symbolic quantization for gesture tokens
                 gesture_window=gesture_window,  # Temporal smoothing window
                 gesture_min_tokens=gesture_min_tokens,  # Min tokens for consensus
-                enable_dual_vocabulary=True  # Enable dual harmonic/percussive vocabularies
+                enable_dual_vocabulary=True,  # Enable dual harmonic/percussive vocabularies
+                enable_wav2vec=enable_wav2vec  # Pass the flag correctly!
             )
             print(f"🔄 Gesture token smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens")
             if enable_wav2vec:
@@ -2384,7 +2385,8 @@ class EnhancedDriftEngineAI:
         if os.path.exists(json_dir):
             # Look for pickle files first (much faster)
             pickle_files = [f for f in os.listdir(json_dir) if f.endswith('_model.pkl.gz') or f.endswith('_model.pkl')]
-            json_files = [f for f in os.listdir(json_dir) if f.endswith('_model.json')]
+            # Allow any .json file, but exclude known non-model files to avoid loading garbage
+            json_files = [f for f in os.listdir(json_dir) if f.endswith('.json') and not f.startswith('.') and 'vocab' not in f]
             
             # Prefer pickle files if available
             if pickle_files:
