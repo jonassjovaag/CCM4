@@ -118,14 +118,17 @@ def main():
         return 1
 
     # Load configuration
-    print(f"Loading configuration...")
+    print("Loading configuration...")
     config_manager = ConfigManager()
     
     # Load profile if specified
     if args.profile:
-        config = config_manager.load_profile(args.profile)
+        config_manager.load(profile=args.profile)
     else:
-        config = config_manager.get_default_config()
+        config_manager.load()
+
+    # Get the config dictionary
+    config = config_manager._config
 
     # Override config with command line args
     if args.output:
@@ -185,7 +188,7 @@ def main():
     print()
 
     # Create orchestrator
-    orchestrator = TrainingOrchestrator(config.to_dict())
+    orchestrator = TrainingOrchestrator(config)
 
     # Run pipeline
     try:
