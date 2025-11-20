@@ -263,6 +263,33 @@ class TrainingOrchestrator:
         """Save training results to file."""
         output_file = Path(output_file)
 
+        # Save pickle if AudioOracle is present in context
+        if 'audio_oracle' in self.context:
+            try:
+                import pickle
+                import gzip
+                
+                # Determine pickle path (same base name as JSON but .pkl.gz)
+                # Handle .json extension if present
+                if output_file.suffix == '.json':
+                    pickle_file = output_file.with_suffix('.pkl.gz')
+                else:
+                    pickle_file = output_file.parent / (output_file.name + '.pkl.gz')
+                
+                logger.info(f"Saving AudioOracle to pickle: {pickle_file}")
+                
+                # Get the oracle object
+                oracle = self.context['audio_oracle']
+                
+                # Save using pickle
+                with gzip.open(pickle_file, 'wb') as f:
+                    pickle.dump(oracle, f)
+                    
+                logger.info(f"Saved pickle model to: {pickle_file}")
+                
+            except Exception as e:
+                logger.error(f"Failed to save pickle model: {e}")
+
         # Use enhanced save if available
         try:
             from core.data_safety import enhanced_save_json

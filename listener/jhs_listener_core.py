@@ -148,6 +148,11 @@ class DriftListener:
         self.fmin = float(fmin)
         self.fmax = float(fmax)
 
+        # Long buffer for AI perception (MERT/Wav2Vec needs ~1s context)
+        self.long_frame = int(sr * 1.5)  # 1.5 seconds
+        self._long_ring = np.zeros(self.long_frame, dtype=np.float32)
+        self._long_ring_pos = 0
+
         self._q: "queue.Queue[np.ndarray]" = queue.Queue(maxsize=8)
         self._running = False
         self._stream = None
@@ -583,7 +588,8 @@ class DriftListener:
             buf = np.concatenate((buf, chunk))
             while buf.shape[0] >= self.hop:
                 hopseg = buf[:self.hop]; buf = buf[self.hop:]
-                # ringbuffer
+                
+                # 1. Update short ringbuffer (for pitch/onset)
                 pos = self._ring_pos; end = pos + self.hop
                 if end <= self._ring.shape[0]:
                     self._ring[pos:end] = hopseg
@@ -591,6 +597,17 @@ class DriftListener:
                     k = self._ring.shape[0] - pos
                     self._ring[pos:] = hopseg[:k]; self._ring[:self.hop-k] = hopseg[k:]
                 self._ring_pos = (self._ring_pos + self.hop) % self._ring.shape[0]
+                
+                # 2. Update long ringbuffer (for AI perception)
+                lpos = self._long_ring_pos; lend = lpos + self.hop
+                if lend <= self._long_ring.shape[0]:
+                    self._long_ring[lpos:lend] = hopseg
+                else:
+                    lk = self._long_ring.shape[0] - lpos
+                    self._long_ring[lpos:] = hopseg[:lk]; self._long_ring[:self.hop-lk] = hopseg[lk:]
+                self._long_ring_pos = (self._long_ring_pos + self.hop) % self._long_ring.shape[0]
+
+                # Extract frames
                 idx = (np.arange(self.frame) + self._ring_pos) % self.frame
                 frame = self._ring[idx].copy()
                 frame = self._highpass(frame, fc=40.0)
@@ -728,6 +745,10 @@ class DriftListener:
                     if rhythmic_context is None and self.rhythmic_detector:
                         rhythmic_context = self.rhythmic_detector.last_context
                     
+                    # Extract long audio buffer for AI perception
+                    lidx = (np.arange(self.long_frame) + self._long_ring_pos) % self.long_frame
+                    long_audio = self._long_ring[lidx].copy()
+
                     # Create Event object with instrument-aware, harmonic, and rhythmic features
                     event = Event(
                         t=nowc,
@@ -749,7 +770,7 @@ class DriftListener:
                         spectral_flux=self._spectral_flux_smooth,
                         harmonic_context=harmonic_context,  # Add harmonic awareness
                         rhythmic_context=rhythmic_context,  # Add rhythmic awareness
-                        raw_audio=self._ring.copy()         # Add full analysis window for hybrid perception
+                        raw_audio=long_audio                # Pass long audio buffer for hybrid perception
                     )
                     
                     # Harmonic and rhythmic context (silent - shown in status bar)

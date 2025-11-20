@@ -22,6 +22,8 @@ Features:
 import numpy as np
 import torch
 import torchaudio
+import contextlib
+import os
 from typing import Optional, Dict
 from dataclasses import dataclass
 
@@ -94,6 +96,7 @@ class Wav2VecMusicEncoder:
             try:
                 from transformers import Wav2Vec2FeatureExtractor, AutoModel
                 import logging
+                import warnings
             except ImportError:
                 print("❌ transformers library not installed!")
                 print("   Install: pip install transformers")
@@ -104,16 +107,21 @@ class Wav2VecMusicEncoder:
             # trust_remote_code=True required for MERT models
             
             # Suppress nnAudio warning from MERT
+            # The warning "feature_extractor_cqt requires the libray 'nnAudio'" 
+            # comes from remote code and is hard to suppress via logging/warnings.
+            # We redirect stdout/stderr to devnull during loading to silence it.
             logging.getLogger("transformers").setLevel(logging.ERROR)
             
-            self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
+            with open(os.devnull, 'w') as fnull:
+                with contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
+                    self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
+                        self.model_name,
+                        trust_remote_code=True
+                    )
+                    self.model = AutoModel.from_pretrained(
+                        self.model_name,
+                        trust_remote_code=True
+                    )
             
             # Move to device
             self.model = self.model.to(self.device)

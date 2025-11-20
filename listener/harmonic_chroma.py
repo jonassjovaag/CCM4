@@ -98,7 +98,7 @@ class HarmonicAwareChromaExtractor:
             
             # 2. Noise gate: only analyze if signal is strong enough
             rms = np.sqrt(np.mean(audio**2))
-            if rms < 0.01:  # Very quiet - probably noise
+            if rms < 0.001:  # Lowered threshold to -60dB for sensitivity
                 return np.zeros(12)
             
             # 3. Normalize to consistent level
