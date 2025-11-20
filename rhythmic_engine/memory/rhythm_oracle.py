@@ -191,6 +191,7 @@ class RhythmOracle:
         if not self.rhythmic_patterns:
             return {
                 'total_patterns': 0,
+                'avg_tempo': 120.0,  # Default tempo for backward compatibility
                 'avg_density': 0.5,
                 'avg_syncopation': 0.0,
                 'avg_complexity': 0.0,
@@ -201,6 +202,9 @@ class RhythmOracle:
         densities = [p.density for p in self.rhythmic_patterns]
         syncopations = [p.syncopation for p in self.rhythmic_patterns]
         complexities = [p.complexity for p in self.rhythmic_patterns]
+        # Note: tempo is now tempo-independent, but we include avg for backward compatibility
+        tempos = [p.tempo for p in self.rhythmic_patterns if hasattr(p, 'tempo') and p.tempo > 0]
+        avg_tempo = np.mean(tempos) if tempos else 120.0
         
         # Count pattern types
         pattern_types = {}
@@ -216,6 +220,7 @@ class RhythmOracle:
         
         return {
             'total_patterns': len(self.rhythmic_patterns),
+            'avg_tempo': avg_tempo,  # Include for backward compatibility
             'avg_density': np.mean(densities),
             'avg_syncopation': np.mean(syncopations),
             'avg_complexity': np.mean(complexities),

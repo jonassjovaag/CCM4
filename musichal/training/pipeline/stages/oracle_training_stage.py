@@ -91,13 +91,25 @@ class OracleTrainingStage(PipelineStage):
         rhythm_oracle = None
         rhythmic_analysis = None
 
-        if self.config.get('enable_rhythmic', True) and audio_file:
+        enable_rhythmic_flag = self.config.get('enable_rhythmic', True)
+        self.logger.info(f"🔍 DEBUG Oracle Training: enable_rhythmic={enable_rhythmic_flag}, audio_file={audio_file is not None}")
+        
+        if enable_rhythmic_flag and audio_file:
+            self.logger.info("🎵 Starting RhythmOracle training...")
             rhythm_oracle, rhythmic_analysis = self._train_rhythm_oracle(
                 sampled_events,
                 audio_file
             )
+            self.logger.info(f"🎵 RhythmOracle training complete: rhythm_oracle is {'None' if rhythm_oracle is None else 'dict with ' + str(len(rhythm_oracle.get('patterns', []))) + ' patterns'}")
+        else:
+            self.logger.info(f"⚠️  RhythmOracle training SKIPPED: enable_rhythmic={enable_rhythmic_flag}, has_audio_file={audio_file is not None}")
 
         self.logger.info("Oracle training complete")
+
+        # Debug logging for what's being returned
+        self.logger.info(f"🔍 DEBUG Oracle Training Return: rhythm_oracle type={type(rhythm_oracle)}, is_None={rhythm_oracle is None}")
+        if rhythm_oracle and isinstance(rhythm_oracle, dict):
+            self.logger.info(f"   rhythm_oracle has {len(rhythm_oracle.get('patterns', []))} patterns")
 
         return StageResult(
             stage_name=self.name,
@@ -138,14 +150,24 @@ class OracleTrainingStage(PipelineStage):
         try:
             from rhythmic_engine.audio_file_learning.heavy_rhythmic_analyzer import HeavyRhythmicAnalyzer
             from rhythmic_engine.memory.rhythm_oracle import RhythmOracle
+            from dataclasses import asdict
 
             # Analyze rhythmic features
             analyzer = HeavyRhythmicAnalyzer()
             rhythmic_analysis = analyzer.analyze_rhythmic_structure(audio_file)
 
-            # Train rhythm oracle
+            # Train rhythm oracle by adding patterns from analysis
             rhythm_oracle = RhythmOracle()
-            rhythm_oracle.train(rhythmic_analysis)
+            
+            if hasattr(rhythmic_analysis, 'patterns') and rhythmic_analysis.patterns:
+                self.logger.info(f"Adding {len(rhythmic_analysis.patterns)} rhythmic patterns to RhythmOracle...")
+                for pattern in rhythmic_analysis.patterns:
+                    # Convert dataclass to dict
+                    pattern_dict = asdict(pattern) if hasattr(pattern, '__dataclass_fields__') else pattern
+                    rhythm_oracle.add_rhythmic_pattern(pattern_dict)
+                self.logger.info(f"✅ RhythmOracle trained with {len(rhythmic_analysis.patterns)} patterns")
+            else:
+                self.logger.warning("No patterns found in rhythmic analysis")
 
             # Serialize for JSON output
             rhythm_oracle_dict = rhythm_oracle.to_dict()

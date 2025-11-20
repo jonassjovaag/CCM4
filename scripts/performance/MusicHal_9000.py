@@ -3390,8 +3390,11 @@ class EnhancedDriftEngineAI:
                             'pitch': 0.0
                         }
                         
-                        # Ensure musical_params is a dict
-                        request_params = decision.musical_params if decision.musical_params is not None else {}
+                        # Ensure musical_params is a dict - fix NoneType error
+                        if decision.musical_params is not None:
+                            request_params = decision.musical_params if isinstance(decision.musical_params, dict) else {}
+                        else:
+                            request_params = {}
                         
                         # Generate explanation
                         explanation = self.decision_explainer.explain_generation(

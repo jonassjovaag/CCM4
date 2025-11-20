@@ -200,20 +200,24 @@ class ValidationStage(PipelineStage):
             
             # Add RhythmOracle if available
             rhythm_oracle = context.get('rhythm_oracle')
+            self.logger.info(f"🔍 DEBUG: rhythm_oracle in context: {rhythm_oracle is not None}, type: {type(rhythm_oracle) if rhythm_oracle else 'None'}")
             if rhythm_oracle:
                 if hasattr(rhythm_oracle, 'to_dict'):
                     try:
-                        result_dict['rhythm_oracle'] = rhythm_oracle.to_dict()
-                        self.logger.info("RhythmOracle structure included in training results")
+                        rhythm_data = rhythm_oracle.to_dict()
+                        result_dict['rhythm_oracle'] = rhythm_data
+                        self.logger.info(f"✅ RhythmOracle structure included in training results ({len(rhythm_data.get('patterns', []))} patterns)")
                     except Exception as e:
                         self.logger.warning(f"Failed to serialize RhythmOracle: {e}")
                 else:
                     # If it's already a dict (e.g. from cache or previous stage output)
                     if isinstance(rhythm_oracle, dict):
                         result_dict['rhythm_oracle'] = rhythm_oracle
-                        self.logger.info("RhythmOracle dict included in training results")
+                        self.logger.info(f"✅ RhythmOracle dict included in training results ({len(rhythm_oracle.get('patterns', []))} patterns)")
                     else:
                         self.logger.warning("RhythmOracle object missing to_dict() method")
+            else:
+                self.logger.warning("⚠️  No rhythm_oracle found in context")
             
             return result_dict
 
