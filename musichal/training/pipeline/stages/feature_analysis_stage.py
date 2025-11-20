@@ -73,8 +73,8 @@ class FeatureAnalysisStage(PipelineStage):
         model_name = wav2vec_config.get('model', 'facebook/wav2vec2-base')
 
         # DEBUG: Print what we're reading from config
-        self.logger.info(f"wav2vec.model = {model_name}")
-        self.logger.info(f"Full wav2vec config: {wav2vec_config}")
+        self.logger.info(f"Neural Audio Model (Wav2Vec/MERT): {model_name}")
+        self.logger.info(f"Neural Encoder Config: {wav2vec_config}")
 
         # Check if legacy wav2vec is disabled via config
         enable_wav2vec = self.config.get('enable_wav2vec', True)
@@ -84,7 +84,7 @@ class FeatureAnalysisStage(PipelineStage):
                  enable_wav2vec = False
         
         if not enable_wav2vec:
-            self.logger.info("⏭️ Legacy Wav2Vec extraction disabled via config")
+            self.logger.info("⏭️ Neural Audio Encoding (MERT/Wav2Vec) disabled via config")
 
         analyzer = DualPerceptionModule(
             vocabulary_size=self.config.get('symbolic_vocabulary_size', 64),
@@ -92,18 +92,9 @@ class FeatureAnalysisStage(PipelineStage):
             use_gpu=self.config.get('use_gpu', True),
             enable_symbolic=True,
             enable_dual_vocabulary=self.config.get('enable_dual_vocabulary', False),
-            # Pass the flag to the module if it supports it, or we handle it here
-            # Assuming DualPerceptionModule might not have this flag yet, 
-            # we might need to modify it or just accept that it initializes but we don't use it?
-            # Ideally DualPerceptionModule should accept 'enable_wav2vec'
+            enable_wav2vec=enable_wav2vec
         )
         
-        # If DualPerceptionModule doesn't support disabling wav2vec, we are still loading it.
-        # But at least we are respecting the flag in the trainer logic.
-        # To truly save memory, DualPerceptionModule needs to support this flag.
-        if hasattr(analyzer, 'enable_wav2vec'):
-            analyzer.enable_wav2vec = enable_wav2vec
-
         # Load audio file for feature extraction
         audio_signal, sr = librosa.load(audio_file, sr=44100)
 

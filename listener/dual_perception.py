@@ -133,7 +133,8 @@ class DualPerceptionModule:
                  enable_symbolic: bool = True,
                  gesture_window: float = 1.5,      # Reduced from 3.0s - more responsive to rapid changes
                  gesture_min_tokens: int = 2,      # Reduced from 3 - faster consensus
-                 enable_dual_vocabulary: bool = False):  # NEW: Enable dual vocab mode
+                 enable_dual_vocabulary: bool = False,  # NEW: Enable dual vocab mode
+                 enable_wav2vec: bool = True):     # Control neural encoding
         """
         Initialize dual perception module
         
@@ -146,11 +147,18 @@ class DualPerceptionModule:
                           1.5s balances phrase coherence with rhythmic responsiveness
             gesture_min_tokens: Minimum tokens needed for consensus (2 = faster response)
             enable_dual_vocabulary: Enable dual harmonic/percussive vocabularies (for drums)
+            enable_wav2vec: Enable/disable neural audio encoding (MERT/Wav2Vec)
         """
         print("🔬 Initializing Dual Perception Module...")
         
         # Neural gesture pathway
-        self.wav2vec_encoder = Wav2VecMusicEncoder(wav2vec_model, use_gpu)
+        self.enable_wav2vec = enable_wav2vec
+        if self.enable_wav2vec:
+            self.wav2vec_encoder = Wav2VecMusicEncoder(wav2vec_model, use_gpu)
+        else:
+            self.wav2vec_encoder = None
+            print("   Neural encoding (Wav2Vec/MERT) disabled")
+
         self.enable_dual_vocabulary = enable_dual_vocabulary
         
         if enable_dual_vocabulary:
@@ -205,10 +213,13 @@ class DualPerceptionModule:
         """
         
         # === PATHWAY 1: Neural Gesture Encoding (for machine) ===
-        wav2vec_result = self.wav2vec_encoder.encode(audio, sr, timestamp)
+        if self.enable_wav2vec and self.wav2vec_encoder:
+            wav2vec_result = self.wav2vec_encoder.encode(audio, sr, timestamp)
+        else:
+            wav2vec_result = None
         
         if wav2vec_result is None:
-            # Fallback if Wav2Vec fails
+            # Fallback if Wav2Vec fails or is disabled
             wav2vec_features = np.zeros(768)
             raw_gesture_token = None
             smoothed_gesture_token = None
