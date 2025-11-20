@@ -81,6 +81,7 @@ midi:
 
 # Performance Arc Configuration
 performance_arc:
+  # Live performance settings
   enabled: true
   default_duration_minutes: 5
   phases:
@@ -96,6 +97,13 @@ performance_arc:
     - name: "resolution"
       duration_percent: 0.1
       intensity: 0.4
+
+  # Training analysis settings
+  analysis:
+    enabled: true
+    sample_rate: 44100
+    phase_duration_threshold: 30.0  # Minimum phase duration (seconds)
+    save_to_ai_learning_data: true  # Save separate file to ai_learning_data/
 
 # Logging Configuration
 logging:
@@ -198,6 +206,53 @@ style_detection:
   # Detection settings
   update_interval: 5.0  # Re-detect style every N seconds
   buffer_size: 3.0      # Audio buffer size for analysis (seconds)
+
+  # Voice Timing Profiles (CLAP-driven differentiation)
+  # These profiles affect timing precision, density, and timbre for melodic vs bass voices
+  voice_profiles:
+    # Example profiles (minimal set, full profiles defined in behaviors.py VoiceTimingProfile)
+    ballad:
+      melodic:
+        timing_precision: 0.3  # Loose, expressive timing
+        rhythmic_density: 0.4  # Sparse, phrase-like
+        syncopation_tendency: 0.2  # Mostly on-beat
+        timbre_variance: 0.7  # Expressive Meld CC changes
+      bass:
+        timing_precision: 0.9  # Tight, grounded
+        rhythmic_density: 0.2  # Minimal movement
+        syncopation_tendency: 0.05  # Steady on-beat
+        timbre_variance: 0.2  # Stable, cool
+    
+    ambient:
+      melodic:
+        timing_precision: 0.1  # Very loose, floating
+        rhythmic_density: 0.2  # Very sparse
+        syncopation_tendency: 0.1  # Drifting
+        timbre_variance: 0.5  # Moderate evolution
+      bass:
+        timing_precision: 0.7  # Moderately tight
+        rhythmic_density: 0.1  # Very minimal
+        syncopation_tendency: 0.02  # Almost pedal tones
+        timbre_variance: 0.1  # Very stable
+    
+    funk:
+      melodic:
+        timing_precision: 0.6  # Groove feel
+        rhythmic_density: 0.3  # Sparse stabs
+        syncopation_tendency: 0.5  # Funky syncopation
+        timbre_variance: 0.8  # Energetic changes
+      bass:
+        timing_precision: 0.95  # Very tight groove
+        rhythmic_density: 0.7  # Active groove
+        syncopation_tendency: 0.2  # Groove-locked
+        timbre_variance: 0.15  # Very stable groove
+  
+  # Profile Interpolation Settings
+  interpolation:
+    enabled: true  # Enable smooth transitions between profiles
+    duration_seconds: 7.0  # Linear interpolation duration
+    wait_for_phrase_boundary: true  # Wait for phrase end before transitioning
+    max_pending_seconds: 15.0  # Force transition after timeout
 
 # Hierarchical Analysis Configuration
 hierarchical_analysis:

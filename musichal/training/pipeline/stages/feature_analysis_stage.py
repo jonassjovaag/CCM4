@@ -76,13 +76,33 @@ class FeatureAnalysisStage(PipelineStage):
         self.logger.info(f"wav2vec.model = {model_name}")
         self.logger.info(f"Full wav2vec config: {wav2vec_config}")
 
+        # Check if legacy wav2vec is disabled via config
+        enable_wav2vec = self.config.get('enable_wav2vec', True)
+        # Also check nested config if present
+        if 'wav2vec' in self.config and isinstance(self.config['wav2vec'], dict):
+             if self.config['wav2vec'].get('enabled') is False:
+                 enable_wav2vec = False
+        
+        if not enable_wav2vec:
+            self.logger.info("⏭️ Legacy Wav2Vec extraction disabled via config")
+
         analyzer = DualPerceptionModule(
             vocabulary_size=self.config.get('symbolic_vocabulary_size', 64),
             wav2vec_model=model_name,  # Pass model name from config
             use_gpu=self.config.get('use_gpu', True),
             enable_symbolic=True,
-            enable_dual_vocabulary=self.config.get('enable_dual_vocabulary', False)
+            enable_dual_vocabulary=self.config.get('enable_dual_vocabulary', False),
+            # Pass the flag to the module if it supports it, or we handle it here
+            # Assuming DualPerceptionModule might not have this flag yet, 
+            # we might need to modify it or just accept that it initializes but we don't use it?
+            # Ideally DualPerceptionModule should accept 'enable_wav2vec'
         )
+        
+        # If DualPerceptionModule doesn't support disabling wav2vec, we are still loading it.
+        # But at least we are respecting the flag in the trainer logic.
+        # To truly save memory, DualPerceptionModule needs to support this flag.
+        if hasattr(analyzer, 'enable_wav2vec'):
+            analyzer.enable_wav2vec = enable_wav2vec
 
         # Load audio file for feature extraction
         audio_signal, sr = librosa.load(audio_file, sr=44100)

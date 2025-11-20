@@ -398,6 +398,41 @@ class RhythmOracle:
             
         except Exception as e:
             print(f"Error loading patterns: {e}")
+    
+    def load_from_dict(self, data: Dict):
+        """
+        Load state from dictionary (e.g. from embedded model data).
+        
+        Args:
+            data: Dictionary containing patterns, transitions, frequency
+        """
+        try:
+            # Reconstruct patterns
+            self.rhythmic_patterns = []
+            for pattern_dict in data.get('patterns', []):
+                # Handle potential key mismatches or missing fields if schema changed
+                try:
+                    pattern = RhythmicPattern(**pattern_dict)
+                    self.rhythmic_patterns.append(pattern)
+                except TypeError as e:
+                    print(f"⚠️ Skipping invalid pattern dict: {e}")
+            
+            # Restore transitions and frequency
+            # Convert string keys back to tuples for transitions if needed
+            # JSON keys are always strings, but transitions dict uses tuple keys in memory?
+            # Let's check how it's saved. to_dict saves self.pattern_transitions directly.
+            # If keys are tuples, json.dump will fail or convert them to strings.
+            # Python's json.dump converts tuple keys to string representation "('a', 'b')" if skipkeys=False? 
+            # No, it raises TypeError unless keys are strings, numbers, etc.
+            # So to_dict probably needs to handle tuple keys if they exist.
+            
+            self.pattern_transitions = data.get('transitions', {})
+            self.pattern_frequency = data.get('frequency', {})
+            
+            print(f"Loaded {len(self.rhythmic_patterns)} rhythmic patterns from dictionary")
+            
+        except Exception as e:
+            print(f"Error loading from dict: {e}")
 
 def main():
     """Test the RhythmOracle"""

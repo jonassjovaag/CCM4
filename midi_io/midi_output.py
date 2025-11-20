@@ -29,9 +29,10 @@ class MIDIOutput:
     Handles note scheduling, timing, and parameter control
     """
     
-    def __init__(self, output_port_name: Optional[str] = None):
+    def __init__(self, output_port_name: Optional[str] = None, logger=None):
         self.output_port_name = output_port_name
         self.port: Optional[mido.ports.BaseOutput] = None
+        self.logger = logger  # PerformanceLogger instance
         
         # Note management
         self.active_notes: Dict[int, MIDINote] = {}  # note -> MIDINote
@@ -187,7 +188,16 @@ class MIDIOutput:
         if len(self.note_history) > 1000:
             self.note_history.pop(0)
         
-        print(f"🎵 MIDI Note: {note.note} (vel={note.velocity}, ch={note.channel}, dur={note.duration:.2f}s)")
+        # Log to file instead of terminal
+        if self.logger:
+            self.logger.log_midi_message(
+                message_type='note_on',
+                port=self.port.name if self.port else 'unknown',
+                channel=note.channel,
+                note=note.note,
+                velocity=note.velocity,
+                duration=note.duration
+            )
     
     def _send_control_changes(self, note: MIDINote):
         """Send MIDI control changes for note parameters"""
@@ -233,6 +243,16 @@ class MIDIOutput:
                                      velocity=0)
                 self.port.send(note_off)
                 
+                # Log note_off
+                if self.logger:
+                    self.logger.log_midi_message(
+                        message_type='note_off',
+                        port=self.port.name if self.port else 'unknown',
+                        channel=note.channel,
+                        note=note.note,
+                        velocity=0
+                    )
+                
                 notes_to_remove.append(note_num)
         
         # Remove finished notes
@@ -248,6 +268,17 @@ class MIDIOutput:
                                   velocity=0)
             if self.port:
                 self.port.send(note_off)
+                
+                # Log panic note_off
+                if self.logger:
+                    self.logger.log_midi_message(
+                        message_type='note_off',
+                        port=self.port.name if self.port else 'unknown',
+                        channel=note.channel,
+                        note=note.note,
+                        velocity=0,
+                        additional_data="panic"
+                    )
         
         self.active_notes.clear()
     

@@ -196,15 +196,24 @@ class ValidationStage(PipelineStage):
             # Add full oracle if serialized successfully
             if oracle_dict:
                 result_dict['audio_oracle'] = oracle_dict
-            
-            return result_dict
-            
-            return result_dict
-            
-            # Add full oracle serialization if available
-            if oracle_dict:
-                result_dict['audio_oracle'] = oracle_dict
                 self.logger.info("Full AudioOracle structure included in training results")
+            
+            # Add RhythmOracle if available
+            rhythm_oracle = context.get('rhythm_oracle')
+            if rhythm_oracle:
+                if hasattr(rhythm_oracle, 'to_dict'):
+                    try:
+                        result_dict['rhythm_oracle'] = rhythm_oracle.to_dict()
+                        self.logger.info("RhythmOracle structure included in training results")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to serialize RhythmOracle: {e}")
+                else:
+                    # If it's already a dict (e.g. from cache or previous stage output)
+                    if isinstance(rhythm_oracle, dict):
+                        result_dict['rhythm_oracle'] = rhythm_oracle
+                        self.logger.info("RhythmOracle dict included in training results")
+                    else:
+                        self.logger.warning("RhythmOracle object missing to_dict() method")
             
             return result_dict
 

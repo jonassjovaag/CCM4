@@ -58,6 +58,13 @@ class PerformanceLogger:
         self.decision_log.write("# Musical decision transparency log\n")
         self.decision_log.write("timestamp,mode,voice_type,trigger_midi,trigger_note,context_tokens,context_consonance,context_melody_tendency,request_primary,request_secondary,pattern_match_score,generated_notes,reasoning,confidence\n")
         self.decision_log.flush()
+        
+        # Create MIDI output log (all MIDI messages sent)
+        self.midi_log_file = os.path.join(self.log_dir, f"midi_output_{self.timestamp}.csv")
+        self.midi_log = open(self.midi_log_file, 'w')
+        self.midi_log.write("# MIDI output log - all messages sent\n")
+        self.midi_log.write("timestamp,message_type,port,channel,note,velocity,duration,cc_number,cc_value,pitch_bend,pressure,additional_data\n")
+        self.midi_log.flush()
 
     def log_voice_event(self, voice_num, frequency, amplitude, state, gate=1, pan=0):
         """Log a voice event with OSC parameters"""
@@ -278,6 +285,35 @@ class PerformanceLogger:
             phase="unknown", 
             additional_data=str(message_data)
         )
+    
+    def log_midi_message(self, message_type, port="", channel=0, note=0, velocity=0, 
+                        duration=0.0, cc_number=0, cc_value=0, pitch_bend=0, 
+                        pressure=0, additional_data=""):
+        """
+        Log all MIDI messages sent to external devices
+        
+        Args:
+            message_type: Type of MIDI message (note_on, note_off, cc, pitch_bend, etc.)
+            port: MIDI port name
+            channel: MIDI channel (1-16)
+            note: MIDI note number (0-127)
+            velocity: Note velocity (0-127)
+            duration: Note duration in seconds (for note_on)
+            cc_number: Control change number (0-127)
+            cc_value: Control change value (0-127)
+            pitch_bend: Pitch bend value (-8192 to 8191)
+            pressure: Aftertouch pressure (0-127)
+            additional_data: Any extra information (comma-escaped)
+        """
+        timestamp = time.time()
+        additional_data_clean = str(additional_data).replace(',', ';')
+        
+        log_line = (f"{timestamp:.6f},{message_type},{port},{channel},"
+                   f"{note},{velocity},{duration:.4f},{cc_number},{cc_value},"
+                   f"{pitch_bend},{pressure},{additional_data_clean}\n")
+        
+        self.midi_log.write(log_line)
+        self.midi_log.flush()
 
     def close(self):
         """Close all log files"""
@@ -286,3 +322,4 @@ class PerformanceLogger:
         self.audio_log.close()
         self.system_log.close()
         self.decision_log.close()
+        self.midi_log.close()

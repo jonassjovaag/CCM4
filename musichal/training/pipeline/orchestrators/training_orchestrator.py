@@ -15,6 +15,7 @@ from ..stages.audio_extraction_stage import AudioExtractionStage
 from ..stages.feature_analysis_stage import FeatureAnalysisStage
 from ..stages.hierarchical_sampling_stage import HierarchicalSamplingStage
 from ..stages.oracle_training_stage import OracleTrainingStage
+from ..stages.performance_arc_stage import PerformanceArcStage
 from ..stages.validation_stage import ValidationStage
 
 logger = logging.getLogger(__name__)
@@ -65,12 +66,41 @@ class TrainingOrchestrator:
                 HierarchicalSamplingStage(self.config.get('hierarchical_analysis', {}))
             )
 
-        # Stage 4: Oracle Training
+        # Stage 4: Performance Arc Analysis
+        if self.config.get('performance_arc', {}).get('enabled', True):
+            self.stages.append(
+                PerformanceArcStage(self.config.get('performance_arc', {}))
+            )
+
+        # Stage 5: Oracle Training
         self.stages.append(
             OracleTrainingStage(self.config.get('audio_oracle', {}))
         )
 
-        # Stage 5: Validation
+        # Stage 6: Music Theory Analysis (Optional)
+        # Check if enabled in config (default to True if not specified, but respect explicit False)
+        music_theory_config = self.config.get('music_theory', {})
+        if music_theory_config.get('enabled', True):
+             # Import here to avoid circular dependency if not needed
+            from ..stages.music_theory_stage import MusicTheoryStage
+            self.stages.append(
+                MusicTheoryStage(music_theory_config)
+            )
+        else:
+            logger.info("⏭️ Skipping Music Theory Transformer (disabled via config)")
+
+        # Stage 7: GPT Analysis (Optional)
+        gpt_config = self.config.get('gpt_analysis', {})
+        if gpt_config.get('enabled', True):
+             # Import here
+            from ..stages.gpt_analysis_stage import GPTAnalysisStage
+            self.stages.append(
+                GPTAnalysisStage(gpt_config)
+            )
+        else:
+            logger.info("⏭️ Skipping GPT-OSS Analysis (disabled via config)")
+
+        # Stage 8: Validation
         self.stages.append(
             ValidationStage(self.config.get('validation', {}))
         )

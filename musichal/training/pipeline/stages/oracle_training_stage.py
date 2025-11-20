@@ -64,13 +64,23 @@ class OracleTrainingStage(PipelineStage):
 
         # Apply training_events limit if specified
         training_events_limit = self.config.get('training', {}).get('training_events')
+        
+        # Also check if it's directly in the config root (passed from CLI override)
+        if not training_events_limit:
+            training_events_limit = self.config.get('training_events')
+
         if training_events_limit and len(sampled_events) > training_events_limit:
             # Distribute training events evenly across the full track
             # Instead of taking first N events (which only covers beginning),
             # sample every Kth event to get full structural coverage
             step = len(sampled_events) // training_events_limit
+            if step < 1: step = 1
+            
+            original_count = len(sampled_events)
             sampled_events = sampled_events[::step][:training_events_limit]
-            self.logger.info(f"Limiting training to {training_events_limit} events distributed across {len(context.get('sampled_events', context.get('enriched_events')))} total events (every {step}th event)")
+            
+            self.logger.info(f"📉 Downsampling: {original_count} -> {len(sampled_events)} events")
+            self.logger.info(f"   Strategy: Taking every {step}th event to preserve structure")
         
         self.logger.info(f"Training oracles on {len(sampled_events)} events")
 

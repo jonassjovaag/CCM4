@@ -8,6 +8,7 @@ from .audio_extraction_stage import AudioExtractionStage
 from .feature_analysis_stage import FeatureAnalysisStage
 from .hierarchical_sampling_stage import HierarchicalSamplingStage
 from .oracle_training_stage import OracleTrainingStage
+from .performance_arc_stage import PerformanceArcStage
 from .validation_stage import ValidationStage
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     'FeatureAnalysisStage',
     'HierarchicalSamplingStage',
     'OracleTrainingStage',
+    'PerformanceArcStage',
     'ValidationStage'
 ]

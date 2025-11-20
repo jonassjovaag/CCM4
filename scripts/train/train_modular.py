@@ -91,6 +91,25 @@ def main():
         help="Path to cached events pickle file (skips audio extraction)"
     )
 
+    # Add speed-up flags
+    parser.add_argument(
+        '--no-gpt-oss',
+        action='store_true',
+        help="Disable GPT-OSS analysis"
+    )
+
+    parser.add_argument(
+        '--no-transformer',
+        action='store_true',
+        help="Disable Music Theory Transformer"
+    )
+
+    parser.add_argument(
+        '--no-wav2vec',
+        action='store_true',
+        help="Disable legacy Wav2Vec extraction"
+    )
+
     args = parser.parse_args()
 
     # Validate input
@@ -100,30 +119,58 @@ def main():
 
     # Load configuration
     print(f"Loading configuration...")
-
-    config = ConfigManager()
-    config.load(profile=args.profile)
-
+    config_manager = ConfigManager()
+    
+    # Load profile if specified
     if args.profile:
-        print(f"Using profile: {args.profile}")
+        config = config_manager.load_profile(args.profile)
+    else:
+        config = config_manager.get_default_config()
 
-    # Apply overrides
+    # Override config with command line args
+    if args.output:
+        config['output_file'] = str(args.output)
+    
     if args.max_events:
-        config.set('audio_oracle.training.max_events', args.max_events)
-
+        config['feature_extraction']['max_events'] = args.max_events
+        
     if args.training_events:
-        config.set('audio_oracle.training.training_events', args.training_events)
-        # Ensure max_events is at least as large as training_events
-        if args.max_events and args.training_events > args.max_events:
-            print(f"Warning: --training-events ({args.training_events}) > --max-events ({args.max_events})")
-            print(f"         Increasing max-events to {args.training_events}")
-            config.set('audio_oracle.training.max_events', args.training_events)
+        config['audio_oracle']['training']['training_events'] = args.training_events
 
     if args.no_hierarchical:
-        config.set('hierarchical_analysis.enabled', False)
+        config['hierarchical_analysis']['enabled'] = False
 
     if args.no_rhythmic:
-        config.set('audio_oracle.enable_rhythmic', False)
+        config['audio_oracle']['enable_rhythmic'] = False
+
+    # Apply new speed-up flags
+    if args.no_gpt_oss:
+        # Assuming GPT-OSS config is under 'gpt_analysis' or similar
+        # If the section doesn't exist, we can create it or just set enabled=False
+        if 'gpt_analysis' not in config:
+            config['gpt_analysis'] = {}
+        config['gpt_analysis']['enabled'] = False
+        print("🚫 GPT-OSS analysis disabled")
+
+    if args.no_transformer:
+        # Assuming Music Theory Transformer is under 'music_theory' or similar
+        if 'music_theory' not in config:
+            config['music_theory'] = {}
+        config['music_theory']['enabled'] = False
+        print("🚫 Music Theory Transformer disabled")
+
+    if args.no_wav2vec:
+        # Assuming Wav2Vec is part of feature extraction
+        if 'feature_extraction' in config:
+            if 'wav2vec' not in config['feature_extraction']:
+                config['feature_extraction']['wav2vec'] = {}
+            config['feature_extraction']['wav2vec']['enabled'] = False
+            # Also set the flag directly if the stage checks it differently
+            config['feature_extraction']['enable_wav2vec'] = False
+        print("🚫 Legacy Wav2Vec extraction disabled")
+
+    # Initialize orchestrator
+    orchestrator = TrainingOrchestrator(config)
 
     # Determine output path
     if args.output:

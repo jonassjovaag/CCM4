@@ -1,0 +1,206 @@
+# Meld Synthesizer Mapping Configuration
+# Maps MusicHal's 77+ extracted features to Ableton Meld's bi-timbral synthesis parameters
+# 
+# Architecture:
+# - Engine A: Melodic voice (MIDI channel 1)
+# - Engine B: Bass voice (MIDI channel 2)
+# - Scale-aware Plate/Membrane Resonator filters preserve MPE pitch nuance
+# - Probabilistic macro routing for "designed accidents" (Meld philosophy)
+
+# =============================================================================
+# PROBABILISTIC ROUTING
+# =============================================================================
+# Probabilistic routing (exploration vs exploitation)
+probabilistic_routing:
+  enabled: true
+  accident_probability: 0.35  # 35% chance of using alternative mapping (increased for variety)
+  # When enabled, ~1 in 5 notes will use alternative feature mappings
+  # Research parameter: tune from 0.0 (deterministic) to 1.0 (full chaos)
+  # Recommended range: 0.1-0.3 for "surprising but coherent"
+
+# =============================================================================
+# CC THROTTLING (Prevent MIDI Congestion)
+# =============================================================================
+throttling:
+  enabled: true
+  update_interval_ms: 50  # Maximum 20 CC updates per second
+  change_threshold: 0.05  # Only send if parameter changes >5%
+  scale_update_interval_s: 2.0  # Update scale-aware params max every 2 seconds
+
+# =============================================================================
+# ENGINE A - MELODIC VOICE (MIDI Channel 1)
+# =============================================================================
+engine_a:
+  # Primary mapping (80% probability)
+  macro_1:
+    primary_feature: spectral_centroid  # 0.0-1.0 (brightness)
+    alternative_feature: bandwidth      # Alternative for accidents
+    cc_number: 20
+    scaling: linear  # linear | exponential | logarithmic
+    invert: false
+    
+  macro_2:
+    primary_feature: consonance  # 0.0-1.0 (harmonic stability)
+    alternative_feature: mfcc_1  # Alternative for accidents
+    cc_number: 21
+    scaling: linear
+    invert: false
+
+# =============================================================================
+# ENGINE B - BASS VOICE (MIDI Channel 2)
+# =============================================================================
+engine_b:
+  # Primary mapping (80% probability)
+  macro_1:
+    primary_feature: zcr  # 0.0-1.0 (zero-crossing rate, percussive character)
+    alternative_feature: spectral_flatness
+    cc_number: 22
+    scaling: linear
+    invert: false
+    
+  macro_2:
+    primary_feature: spectral_rolloff  # Normalized 0.0-1.0 (bass brightness)
+    alternative_feature: spectral_rolloff
+    cc_number: 23
+    scaling: linear
+    invert: false
+
+# =============================================================================
+# GLOBAL PARAMETERS
+# =============================================================================
+global:
+  # A/B Blend (Engine mix)
+  ab_blend:
+    feature: mfcc_1  # Timbral evolution drives blend
+    cc_number: 24
+    scaling: linear
+    invert: false
+    range: [0.0, 1.0]  # 0.0 = Engine A only, 1.0 = Engine B only
+    
+  # Spread Amount (multi-dimensional parameter variation)
+  spread:
+    feature: modulation_depth  # Activity level drives complexity
+    cc_number: 25
+    scaling: linear
+    invert: false
+    range: [0.0, 1.0]
+
+# =============================================================================
+# SCALE-AWARE FILTER CONTROLS
+# =============================================================================
+# IMPORTANT: These CC numbers must be set via MIDI Learn in Ableton Meld
+# Default values are suggestions - customize after MIDI Learn mapping
+scale_aware:
+  enabled: true
+  
+  # Enable/disable scale-aware mode
+  enable:
+    cc_number: 26
+    value_off: 0
+    value_on: 127
+    
+  # Root note (C=0, C#=1, D=2... B=11)
+  root_note:
+    cc_number: 27
+    # Maps to 0-11 values, scaled to 0-127 MIDI range
+    
+  # Scale type
+  scale_type:
+    cc_number: 28
+    # Mapping (MusicHal scale names → MIDI CC values):
+    # These are sent as CC values 0-127 in discrete steps
+    mappings:
+      major: 0        # Ionian
+      minor: 18       # Natural minor / Aeolian
+      dorian: 36      # Dorian mode
+      mixolydian: 54  # Mixolydian mode
+      pentatonic: 73  # Pentatonic major
+      chromatic: 91   # Chromatic (all notes)
+      harmonic_minor: 109  # Harmonic minor
+
+# =============================================================================
+# FILTER SCULPTING (Plate/Membrane Resonator)
+# =============================================================================
+filter:
+  # Filter Frequency
+  frequency:
+    feature: spectral_rolloff  # Spectral energy distribution
+    cc_number: 29
+    scaling: exponential  # Exponential feels more natural for filter cutoff
+    invert: false
+    range: [0.0, 1.0]
+    
+  # Filter Resonance (Q)
+  resonance:
+    feature: spectral_flatness  # Flat spectrum = low Q, tonal = high Q
+    cc_number: 30
+    scaling: linear
+    invert: true  # INVERTED: noise (high flatness) → low resonance
+    range: [0.0, 1.0]
+
+# =============================================================================
+# VOICE ROUTING
+# =============================================================================
+routing:
+  melodic_voice:
+    engine: A
+    midi_channel: 1
+    
+  bass_voice:
+    engine: B
+    midi_channel: 2
+
+# =============================================================================
+# PRESET RECOMMENDATIONS
+# =============================================================================
+# These Meld factory presets work well with MusicHal's feature ranges:
+#
+# For Melodic (Engine A):
+# - "Analog Pad" - smooth spectral_centroid response
+# - "FM Bells" - bright, dynamic consonance tracking
+# - "Shepard's Pi" - evolving, scale-aware friendly
+#
+# For Bass (Engine B):
+# - "Sub Bass" - strong ZCR → pluck/sustain distinction
+# - "Reese Bass" - good spectral_rolloff tracking
+# - "Bitgrunge" - percussive character for high ZCR
+#
+# Suggested cross-modulation:
+# - Moderate cross-mod (30-50%) for SHADOW/MIRROR behavioral modes
+# - Low cross-mod (10-20%) for COUPLE mode (independent voices)
+
+# =============================================================================
+# FEATURE REFERENCE
+# =============================================================================
+# Available features from MusicHal's extraction pipeline:
+#
+# SPECTRAL:
+# - spectral_centroid (0.0-1.0): Brightness, harmonic center of mass
+# - spectral_rolloff (normalized): Energy distribution cutoff frequency
+# - spectral_bandwidth (normalized): Spread of spectral energy
+# - spectral_flatness (0.0-1.0): Noisiness vs tonality
+# - spectral_contrast (0.0-1.0): Spectral peak/valley difference
+# - zcr (0.0-1.0): Zero-crossing rate, percussive character
+#
+# HARMONIC:
+# - consonance (0.0-1.0): Brandtsegg ratio-based harmonic stability
+# - dissonance (0.0-1.0): Inverse of consonance
+# - ratio_features (3D): Harmonic ratio analysis
+# - frequency_ratios (6D): Detailed interval ratios
+#
+# TIMBRAL:
+# - mfcc_1, mfcc_2, mfcc_3: Mel-frequency cepstral coefficients
+# - brightness: Spectral brightness (derived from centroid)
+#
+# DYNAMICS:
+# - rms_db (-60 to 0 dB): Signal energy level
+# - attack_time, decay_time, release_time: Envelope characteristics
+#
+# RHYTHMIC:
+# - ioi (inter-onset interval): Time between events
+# - rhythm_ratio: Duration ratios (Brandtsegg)
+# - modulation_depth (0.0-1.0): Temporal activity level
+#
+# PERCEPTUAL:
+# - gesture_token (0-63): MERT quantized perceptual category
+# - mert_features (768D): Full neural embedding (not directly mapped)

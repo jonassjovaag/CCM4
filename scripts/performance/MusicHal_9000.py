@@ -1463,6 +1463,35 @@ class EnhancedDriftEngineAI:
                     },
                     decision.voice_type
                 )
+                
+                # Generate explanation and log it
+                try:
+                    # Construct context for explanation
+                    recent_context = {
+                        'gesture_tokens': [event_data.get('gesture_token')] if 'gesture_token' in event_data else [],
+                        'avg_consonance': event_data.get('consonance', 0.0),
+                        'pitch': event_data.get('f0', 0.0)
+                    }
+                    
+                    # Generate explanation
+                    explanation = self.decision_explainer.explain_generation(
+                        mode=decision.mode.value,
+                        voice_type=decision.voice_type,
+                        trigger_event=event_data,
+                        recent_context=recent_context,
+                        request_params=decision.musical_params,
+                        generated_notes=[midi_params.note],
+                        generated_durations=[midi_params.duration],
+                        pattern_match_score=decision.confidence, # Using confidence as proxy for match score
+                        pattern_source=decision.reasoning,
+                        confidence=decision.confidence
+                    )
+                    
+                    # Log to file
+                    self.performance_logger.log_musical_decision(explanation)
+                    
+                except Exception as e:
+                    print(f"⚠️ Decision explanation error: {e}")
             
                 # Log performance event
                 self.performance_logger.log_system_event(
@@ -2087,6 +2116,36 @@ class EnhancedDriftEngineAI:
                             decision.voice_type
                         )
                         
+                        # Generate explanation and log it
+                        try:
+                            # Construct context for explanation
+                            recent_context = {
+                                'gesture_tokens': [], 
+                                'avg_consonance': 0.0,
+                                'pitch': 0.0,
+                                'phrase_continuation': True
+                            }
+                            
+                            # Generate explanation
+                            explanation = self.decision_explainer.explain_generation(
+                                mode=decision.mode.value,
+                                voice_type=decision.voice_type,
+                                trigger_event=event_data,
+                                recent_context=recent_context,
+                                request_params=decision.musical_params,
+                                generated_notes=[midi_params.note],
+                                generated_durations=[midi_params.duration],
+                                pattern_match_score=decision.confidence,
+                                pattern_source=decision.reasoning,
+                                confidence=decision.confidence
+                            )
+                            
+                            # Log to file
+                            self.performance_logger.log_musical_decision(explanation)
+                            
+                        except Exception as e:
+                            print(f"⚠️ Decision explanation error: {e}")
+                        
                         # Send MIDI note
                         voice_type = decision.voice_type
                         
@@ -2579,11 +2638,7 @@ class EnhancedDriftEngineAI:
                                     print(f"🥁 Loading RhythmOracle from embedded data in {os.path.basename(most_recent_file)}")
                                     # Load directly from embedded dict
                                     rhythm_data = model_data['rhythm_oracle']
-                                    self.rhythm_oracle.rhythmic_patterns = rhythm_data.get('patterns', [])
-                                    self.rhythm_oracle.pattern_transitions = {
-                                        tuple(json.loads(k)): v for k, v in rhythm_data.get('transitions', {}).items()
-                                    }
-                                    self.rhythm_oracle.pattern_frequency = rhythm_data.get('frequency', {})
+                                    self.rhythm_oracle.load_from_dict(rhythm_data)
                                     
                                     rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
                                     print(f"✅ RhythmOracle loaded from embedded data!")
@@ -3267,6 +3322,35 @@ class EnhancedDriftEngineAI:
                         },
                         decision.voice_type
                     )
+                    
+                    # Generate explanation and log it
+                    try:
+                        # Construct context for explanation
+                        recent_context = {
+                            'gesture_tokens': [], # No gesture tokens in autonomous mode
+                            'avg_consonance': 0.0,
+                            'pitch': 0.0
+                        }
+                        
+                        # Generate explanation
+                        explanation = self.decision_explainer.explain_generation(
+                            mode=decision.mode.value,
+                            voice_type=decision.voice_type,
+                            trigger_event=synthetic_event,
+                            recent_context=recent_context,
+                            request_params=decision.musical_params,
+                            generated_notes=[midi_params.note],
+                            generated_durations=[midi_params.duration],
+                            pattern_match_score=decision.confidence,
+                            pattern_source=decision.reasoning,
+                            confidence=decision.confidence
+                        )
+                        
+                        # Log to file
+                        self.performance_logger.log_musical_decision(explanation)
+                        
+                    except Exception as e:
+                        print(f"⚠️ Decision explanation error: {e}")
                     
                     # IRCAM Phase 3: Apply behavior mode volume factor
                     volume_factor = self.behavior_controller.get_volume_factor()

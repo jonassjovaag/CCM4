@@ -39,10 +39,12 @@ class MPEMIDIOutput:
     Provides enhanced expressiveness with per-note channel assignment
     """
     
-    def __init__(self, output_port_name: Optional[str] = None, enable_mpe: bool = True):
+    def __init__(self, output_port_name: Optional[str] = None, enable_mpe: bool = True, logger=None):
         self.output_port_name = output_port_name
         self.enable_mpe = enable_mpe
         self.port: Optional[mido.ports.BaseOutput] = None
+        self.logger = logger  # PerformanceLogger instance
+        self.logger = logger  # PerformanceLogger instance
         
         # MPE Configuration
         self.mpe_master_channel = 1  # Channel 1 is master (0-based = 0)
@@ -289,7 +291,20 @@ class MPEMIDIOutput:
                              note=midi_note,
                              velocity=midi_velocity)
         self.port.send(note_on)
-        print(f"🎵 MIDI sent: note_on channel={note.channel} note={midi_note} velocity={midi_velocity}")
+        
+        # Log to file instead of terminal
+        if self.logger:
+            self.logger.log_midi_message(
+                message_type='note_on',
+                port=self.port.name if self.port else 'unknown',
+                channel=note.channel,
+                note=midi_note,
+                velocity=midi_velocity,
+                duration=note.duration,
+                pitch_bend=int(note.pitch_bend * 8192),
+                pressure=note.pressure,
+                additional_data=f"timbre={note.timbre};brightness={note.brightness}"
+            )
         
         # Send MPE control changes with small delay to prevent MIDI congestion
         time.sleep(0.001)  # 1ms delay to prevent MIDI buffer overflow
@@ -340,6 +355,16 @@ class MPEMIDIOutput:
                                      velocity=0)
                 self.port.send(note_off)
                 
+                # Log note_off
+                if self.logger:
+                    self.logger.log_midi_message(
+                        message_type='note_off',
+                        port=self.port.name if self.port else 'unknown',
+                        channel=note.channel,
+                        note=note.note,
+                        velocity=0
+                    )
+                
                 # Reset pitch bend for this channel
                 if self.enable_mpe:
                     self.port.send(mido.Message('pitchwheel',
@@ -365,6 +390,17 @@ class MPEMIDIOutput:
                                   velocity=0)
             if self.port:
                 self.port.send(note_off)
+                
+                # Log panic note_off
+                if self.logger:
+                    self.logger.log_midi_message(
+                        message_type='note_off',
+                        port=self.port.name if self.port else 'unknown',
+                        channel=note.channel,
+                        note=note.note,
+                        velocity=0,
+                        additional_data="panic"
+                    )
                 
                 # Reset pitch bend
                 if self.enable_mpe:
