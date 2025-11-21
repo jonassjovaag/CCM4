@@ -107,7 +107,8 @@ class VisualizationManager:
         """Create single fullscreen window containing all viewports in grid layout"""
         self.main_window = QMainWindow()
         self.main_window.setWindowTitle("MusicHal 9000 - Performance Visualization")
-        self.main_window.setWindowState(Qt.WindowFullScreen)
+        # self.main_window.setWindowState(Qt.WindowFullScreen)  # Disabled - user prefers windowed mode
+        self.main_window.resize(1400, 900)  # Set reasonable default window size
         
         # Create central widget with grid layout
         central_widget = QWidget()

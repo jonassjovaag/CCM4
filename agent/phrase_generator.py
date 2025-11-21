@@ -15,7 +15,7 @@ This module bridges the gap between rhythmic analysis and musical expression:
 import time
 import random
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
