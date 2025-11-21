@@ -1221,23 +1221,29 @@ class EnhancedHybridTrainingPipeline:
             if self.dual_perception.enable_dual_vocabulary and harmonic_segments and percussive_segments:
                 # Extract from harmonic source
                 harmonic_segment = harmonic_segments[i]
-                harmonic_wav2vec_result = self.dual_perception.wav2vec_encoder.encode(
+                harmonic_wav2vec_results = self.dual_perception.wav2vec_encoder.encode(
                     audio=harmonic_segment.audio,
                     sr=harmonic_segment.sample_rate,
-                    timestamp=harmonic_segment.start_time
+                    timestamp=harmonic_segment.start_time,
+                    return_all_frames=True  # ✅ Extract ALL MERT frames (26 per segment)
                 )
-                if harmonic_wav2vec_result:
-                    harmonic_wav2vec_features.append(harmonic_wav2vec_result.features)
+                # Process all frames from this segment
+                if harmonic_wav2vec_results:
+                    for frame_result in harmonic_wav2vec_results:
+                        harmonic_wav2vec_features.append(frame_result.features)
                 
                 # Extract from percussive source
                 percussive_segment = percussive_segments[i]
-                percussive_wav2vec_result = self.dual_perception.wav2vec_encoder.encode(
+                percussive_wav2vec_results = self.dual_perception.wav2vec_encoder.encode(
                     audio=percussive_segment.audio,
                     sr=percussive_segment.sample_rate,
-                    timestamp=percussive_segment.start_time
+                    timestamp=percussive_segment.start_time,
+                    return_all_frames=True  # ✅ Extract ALL MERT frames (26 per segment)
                 )
-                if percussive_wav2vec_result:
-                    percussive_wav2vec_features.append(percussive_wav2vec_result.features)
+                # Process all frames from this segment
+                if percussive_wav2vec_results:
+                    for frame_result in percussive_wav2vec_results:
+                        percussive_wav2vec_features.append(frame_result.features)
             
             if (i + 1) % 50 == 0 or (i + 1) == len(segments):
                 print(f"   Processed {i + 1}/{len(segments)} segments")

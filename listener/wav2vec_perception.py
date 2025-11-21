@@ -24,7 +24,7 @@ import torch
 import torchaudio
 import contextlib
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, List
 from dataclasses import dataclass
 
 
@@ -143,17 +143,25 @@ class Wav2VecMusicEncoder:
     def encode(self, 
                audio: np.ndarray,
                sr: int = 44100,
-               timestamp: float = 0.0) -> Optional[Wav2VecFeatures]:
+               timestamp: float = 0.0,
+               return_all_frames: bool = False) -> Optional[Union[Wav2VecFeatures, List[Wav2VecFeatures]]]:
         """
-        Encode audio using Wav2Vec
+        Encode audio using Wav2Vec/MERT
         
         Args:
             audio: Audio signal (mono)
             sr: Sample rate
             timestamp: Timestamp for this analysis
+            return_all_frames: If True, return list of features (one per MERT time step)
+                             If False, return single averaged feature (legacy behavior)
+                             
+                             IMPORTANT: Training extracts all frames (~74 frames/sec from MERT).
+                             Live performance should also use return_all_frames=True to match
+                             training and avoid token diversity collapse.
             
         Returns:
-            Wav2VecFeatures with 768D encoding
+            If return_all_frames=False: Single Wav2VecFeatures with 768D encoding (averaged)
+            If return_all_frames=True: List of Wav2VecFeatures, one per time step (~26 for 350ms)
         """
         # Initialize model on first call
         if not self._initialized:
@@ -199,16 +207,39 @@ class Wav2VecMusicEncoder:
             # Shape: [batch=1, time_steps, hidden_dim=768]
             hidden_states = outputs.last_hidden_state
             
-            # Condense over time (temporal average)
-            # This gives us a single 768D vector representing the audio segment
-            features = hidden_states.mean(dim=1).squeeze().cpu().numpy()
-            
-            return Wav2VecFeatures(
-                features=features,
-                timestamp=timestamp,
-                duration=len(audio) / sr,
-                sample_rate=sr
-            )
+            if return_all_frames:
+                # Extract ALL frames (matches training behavior)
+                # Remove batch dimension: [time_steps, 768]
+                all_frames = hidden_states[0].cpu().numpy()
+                
+                # Create Wav2VecFeatures for each frame
+                # Time per frame: duration / num_frames
+                duration = len(audio) / sr
+                num_frames = all_frames.shape[0]
+                time_per_frame = duration / num_frames if num_frames > 0 else 0
+                
+                frame_features_list = []
+                for i, frame in enumerate(all_frames):
+                    frame_timestamp = timestamp + (i * time_per_frame)
+                    frame_features_list.append(Wav2VecFeatures(
+                        features=frame,
+                        timestamp=frame_timestamp,
+                        duration=time_per_frame,
+                        sample_rate=sr
+                    ))
+                
+                return frame_features_list
+            else:
+                # Legacy behavior: temporal average
+                # This gives us a single 768D vector representing the audio segment
+                features = hidden_states.mean(dim=1).squeeze().cpu().numpy()
+                
+                return Wav2VecFeatures(
+                    features=features,
+                    timestamp=timestamp,
+                    duration=len(audio) / sr,
+                    sample_rate=sr
+                )
             
         except Exception as e:
             print(f"⚠️ Wav2Vec encoding error: {e}")

@@ -45,7 +45,7 @@ Based on:
 
 import numpy as np
 import librosa  # For HPSS content detection
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Union
 from dataclasses import dataclass
 
 from listener.wav2vec_perception import Wav2VecMusicEncoder, Wav2VecFeatures
@@ -134,7 +134,8 @@ class DualPerceptionModule:
                  gesture_window: float = 1.5,      # Reduced from 3.0s - more responsive to rapid changes
                  gesture_min_tokens: int = 2,      # Reduced from 3 - faster consensus
                  enable_dual_vocabulary: bool = False,  # NEW: Enable dual vocab mode
-                 enable_wav2vec: bool = True):     # Control neural encoding
+                 enable_wav2vec: bool = True,      # Control neural encoding
+                 extract_all_frames: bool = True): # NEW: Extract all MERT frames (matches training)
         """
         Initialize dual perception module
         
@@ -148,13 +149,18 @@ class DualPerceptionModule:
             gesture_min_tokens: Minimum tokens needed for consensus (2 = faster response)
             enable_dual_vocabulary: Enable dual harmonic/percussive vocabularies (for drums)
             enable_wav2vec: Enable/disable neural audio encoding (MERT/Wav2Vec)
+            extract_all_frames: If True, extract all MERT time-step frames (matches training, ~74 frames/sec)
+                              If False, average frames to single vector (legacy, causes diversity collapse)
         """
         print("🔬 Initializing Dual Perception Module...")
         
         # Neural gesture pathway
         self.enable_wav2vec = enable_wav2vec
+        self.extract_all_frames = extract_all_frames
         if self.enable_wav2vec:
             self.wav2vec_encoder = Wav2VecMusicEncoder(wav2vec_model, use_gpu)
+            if extract_all_frames:
+                print("   ⚡ All-frames mode: Extracting all MERT time steps (matches training)")
         else:
             self.wav2vec_encoder = None
             print("   Neural encoding (Wav2Vec/MERT) disabled")
@@ -198,7 +204,7 @@ class DualPerceptionModule:
                         audio: np.ndarray,
                         sr: int = 44100,
                         timestamp: float = 0.0,
-                        detected_f0: Optional[float] = None) -> DualPerceptionResult:
+                        detected_f0: Optional[float] = None) -> Union[DualPerceptionResult, List[DualPerceptionResult]]:
         """
         Extract features from both pathways
         
@@ -209,42 +215,87 @@ class DualPerceptionModule:
             detected_f0: Detected fundamental frequency (for ratio analysis)
             
         Returns:
-            DualPerceptionResult with both representations
+            If extract_all_frames=False: Single DualPerceptionResult
+            If extract_all_frames=True: List of DualPerceptionResult (one per MERT frame)
         """
         
         # === PATHWAY 1: Neural Gesture Encoding (for machine) ===
         if self.enable_wav2vec and self.wav2vec_encoder:
-            wav2vec_result = self.wav2vec_encoder.encode(audio, sr, timestamp)
+            wav2vec_result = self.wav2vec_encoder.encode(
+                audio, sr, timestamp, 
+                return_all_frames=self.extract_all_frames
+            )
         else:
             wav2vec_result = None
         
+        # Handle all-frames mode: process each frame separately
+        if self.extract_all_frames and wav2vec_result is not None and isinstance(wav2vec_result, list):
+            # Process each frame and return list of results
+            frame_results = []
+            for frame_features_obj in wav2vec_result:
+                frame_result = self._process_single_frame(
+                    frame_features_obj.features,
+                    frame_features_obj.timestamp,
+                    audio, sr, detected_f0
+                )
+                frame_results.append(frame_result)
+            return frame_results
+        
+        # Legacy single-frame mode
         if wav2vec_result is None:
-            # Fallback if Wav2Vec fails or is disabled
             wav2vec_features = np.zeros(768)
-            raw_gesture_token = None
-            smoothed_gesture_token = None
         else:
-            wav2vec_features = wav2vec_result.features
+            wav2vec_features = wav2vec_result.features if not isinstance(wav2vec_result, list) else wav2vec_result[0].features
+        
+        return self._process_single_frame(wav2vec_features, timestamp, audio, sr, detected_f0)
+    
+    def _process_single_frame(self,
+                             wav2vec_features: np.ndarray,
+                             timestamp: float,
+                             audio: np.ndarray,
+                             sr: int,
+                             detected_f0: Optional[float]) -> DualPerceptionResult:
+        """
+        Process a single MERT frame into a DualPerceptionResult
+        
+        This is extracted as a helper to support both single-frame and all-frames modes.
+        """
+        
+        # Quantize to gesture token (if enabled and fitted)
+        raw_gesture_token = None
+        smoothed_gesture_token = None
+        
+        # CRITICAL FIX: In dual vocabulary mode, use harmonic_quantizer for gesture tokens
+        # (harmonic/percussive vocabularies are identical 768D Wav2Vec quantizers)
+        active_quantizer = None
+        if self.enable_dual_vocabulary and self.harmonic_quantizer and self.harmonic_quantizer.is_fitted:
+            active_quantizer = self.harmonic_quantizer
+        elif self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
+            active_quantizer = self.quantizer
+        
+        if active_quantizer:
+            # Ensure float64 for sklearn
+            features_64 = wav2vec_features.astype(np.float64)
             
-            # Quantize to gesture token (if enabled and fitted)
-            raw_gesture_token = None
-            smoothed_gesture_token = None
+            # DEBUG: Check feature statistics before quantization
+            if not hasattr(self, '_debug_feature_count'):
+                self._debug_feature_count = 0
+            self._debug_feature_count += 1
             
-            # CRITICAL FIX: In dual vocabulary mode, use harmonic_quantizer for gesture tokens
-            # (harmonic/percussive vocabularies are identical 768D Wav2Vec quantizers)
-            active_quantizer = None
-            if self.enable_dual_vocabulary and self.harmonic_quantizer and self.harmonic_quantizer.is_fitted:
-                active_quantizer = self.harmonic_quantizer
-            elif self.enable_symbolic and self.quantizer and self.quantizer.is_fitted:
-                active_quantizer = self.quantizer
+            if self._debug_feature_count % 20 == 1:
+                print(f"\n🔍 DEBUG Wav2Vec Features (event {self._debug_feature_count}):")
+                print(f"   Mean: {features_64.mean():.4f}, Std: {features_64.std():.4f}")
+                print(f"   Min: {features_64.min():.4f}, Max: {features_64.max():.4f}")
+                print(f"   First 5 values: {features_64[:5]}")
             
-            if active_quantizer:
-                # Ensure float64 for sklearn
-                features_64 = wav2vec_features.astype(np.float64)
-                raw_gesture_token = int(active_quantizer.transform(features_64.reshape(1, -1))[0])
-                
-                # Apply temporal smoothing to get phrase-level token
-                smoothed_gesture_token = self.gesture_smoother.add_token(raw_gesture_token, timestamp)
+            raw_gesture_token = int(active_quantizer.transform(features_64.reshape(1, -1))[0])
+            
+            # DEBUG: Log token with feature stats
+            if self._debug_feature_count % 20 == 1:
+                print(f"   → Quantized to token: {raw_gesture_token}")
+            
+            # Apply temporal smoothing to get phrase-level token
+            smoothed_gesture_token = self.gesture_smoother.add_token(raw_gesture_token, timestamp)
         
         # Use smoothed token as the primary gesture_token for AI
         gesture_token = smoothed_gesture_token if smoothed_gesture_token is not None else raw_gesture_token
@@ -314,7 +365,9 @@ class DualPerceptionModule:
         # === COMBINE: Both representations in one result ===
         return DualPerceptionResult(
             wav2vec_features=wav2vec_features,
-            gesture_token=gesture_token,
+            gesture_token=gesture_token,  # Legacy field
+            harmonic_token=gesture_token,  # Dual vocabulary - use same token for now
+            percussive_token=gesture_token,  # Dual vocabulary - use same token for now
             ratio_analysis=ratio_analysis,
             consonance=consonance,
             detected_frequencies=detected_frequencies,

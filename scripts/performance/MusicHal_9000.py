@@ -266,9 +266,11 @@ class EnhancedDriftEngineAI:
                 gesture_window=gesture_window,  # Temporal smoothing window
                 gesture_min_tokens=gesture_min_tokens,  # Min tokens for consensus
                 enable_dual_vocabulary=True,  # Enable dual harmonic/percussive vocabularies
-                enable_wav2vec=enable_wav2vec  # Pass the flag correctly!
+                enable_wav2vec=enable_wav2vec,  # Pass the flag correctly!
+                extract_all_frames=True  # NEW: Extract all MERT frames (fixes token diversity collapse)
             )
             print(f"🔄 Gesture token smoothing: {gesture_window}s window, {gesture_min_tokens} min tokens")
+            print(f"⚡ All-frames extraction: ENABLED (matches training, improves diversity)")
             if enable_wav2vec:
                 print(f"🎵 Wav2Vec perception enabled: {wav2vec_model}")
                 print(f"   GPU: {'Yes (MPS/CUDA)' if use_gpu else 'CPU'}")
@@ -1033,12 +1035,28 @@ class EnhancedDriftEngineAI:
                         print(f"🔍 DEBUG: Audio buffer size: {len(audio_buffer)}, RMS: {rms:.4f}")
 
                     # Extract hybrid features (pass detected F0 for accurate chord root)
-                    hybrid_result = self.hybrid_perception.extract_features(
+                    hybrid_result_raw = self.hybrid_perception.extract_features(
                         audio_buffer, 
                         self.listener.sr, 
                         current_time,
                         detected_f0=event.f0  # Pass actual detected frequency
                     )
+                    
+                    # Handle all-frames mode: process list of results
+                    if isinstance(hybrid_result_raw, list):
+                        # All-frames mode: got list of DualPerceptionResult objects (one per MERT frame)
+                        # For now, use the LAST frame (most recent) for event data
+                        # TODO: Store all frame tokens in memory for better diversity
+                        hybrid_result = hybrid_result_raw[-1]
+                        
+                        # Extract all tokens for diversity
+                        frame_tokens = [r.harmonic_token for r in hybrid_result_raw if r.harmonic_token is not None]
+                        if frame_tokens:
+                            event_data['all_frame_tokens'] = frame_tokens
+                            event_data['num_unique_frame_tokens'] = len(set(frame_tokens))
+                    else:
+                        # Legacy averaged mode: single result
+                        hybrid_result = hybrid_result_raw
                     
                     # DEBUG: Check hybrid result
                     if self.stats['events_processed'] % 20 == 0:
