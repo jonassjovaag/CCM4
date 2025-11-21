@@ -89,17 +89,17 @@ class HarmonicAwareChromaExtractor:
         
         # Preprocess for live microphone input
         if live_mode:
+            # 1. Noise gate: Check BEFORE preemphasis (preemphasis can reduce RMS)
+            rms = np.sqrt(np.mean(audio**2))
+            if rms < 0.001:  # Lowered threshold to -60dB for sensitivity
+                return np.zeros(12)
+            
             # Suppress librosa warnings about buffer sizes
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                # 1. High-pass filter to remove low-frequency rumble
+                # 2. High-pass filter to remove low-frequency rumble
                 audio = librosa.effects.preemphasis(audio, coef=0.97)
-            
-            # 2. Noise gate: only analyze if signal is strong enough
-            rms = np.sqrt(np.mean(audio**2))
-            if rms < 0.001:  # Lowered threshold to -60dB for sensitivity
-                return np.zeros(12)
             
             # 3. Normalize to consistent level
             audio = audio / (np.max(np.abs(audio)) + 1e-9)
