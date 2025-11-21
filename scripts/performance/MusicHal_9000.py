@@ -85,6 +85,9 @@ from rhythmic_engine.audio_file_learning.lightweight_rhythmic_analyzer import Li
 from rhythmic_engine.memory.rhythm_oracle import RhythmOracle
 from rhythmic_engine.agent.rhythmic_behavior_engine import RhythmicBehaviorEngine
 
+# Somax2/DYCI2-style navigation bridge
+from agent.somax_bridge import SomaxBridge, NavigationMode
+
 # New correlation components
 from correlation_engine.unified_decision_engine import UnifiedDecisionEngine, CrossModalContext, MusicalContext
 
@@ -214,7 +217,7 @@ class EnhancedDriftEngineAI:
     Combines harmonic and rhythmic intelligence
     """
     
-    def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None, 
+    def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None,
                  enable_rhythmic: bool = True, enable_mpe: bool = True, enable_meld: bool = False,
                  performance_duration: int = 0,
                  performance_arc_path: Optional[str] = None,
@@ -223,7 +226,8 @@ class EnhancedDriftEngineAI:
                  wav2vec_model: str = "m-a-p/MERT-v1-95M", use_gpu: bool = False,
                  gesture_window: float = 1.5, gesture_min_tokens: int = 2,
                  debug_decisions: bool = False, enable_visualization: bool = False,
-                 enable_gpt_reflection: bool = True, reflection_interval: float = 60.0):
+                 enable_gpt_reflection: bool = True, reflection_interval: float = 60.0,
+                 enable_somax: bool = False):
         # Core harmonic components (unchanged)
         self.listener: Optional[DriftListener] = None
         self.memory_buffer = MemoryBuffer()
@@ -360,7 +364,15 @@ class EnhancedDriftEngineAI:
         
         if self.rhythm_oracle:
             print("🥁 RhythmOracle initialized - ready to learn rhythmic phrasing")
-        
+
+        # Somax2/DYCI2-style navigation bridge
+        self.enable_somax = enable_somax
+        self.somax_bridge = None
+        if enable_somax:
+            self.somax_bridge = SomaxBridge(embedding_dim=768)
+            print("🎭 SomaxBridge initialized - DYCI2-style navigation enabled")
+            print("   Provides: Better phrasing, give-and-take, 'shut up' behavior")
+
         # Unified decision engine for cross-modal intelligence
         self.unified_decision_engine = UnifiedDecisionEngine()
         print("🔗 Unified decision engine enabled")
@@ -1274,7 +1286,30 @@ class EnhancedDriftEngineAI:
                     print("Traceback:")
                     traceback.print_exc()
                     self._hybrid_error_count += 1
-        
+
+        # Update SomaxBridge with incoming audio (if enabled)
+        if self.enable_somax and self.somax_bridge:
+            try:
+                # Get embedding for influence update
+                embedding = event_data.get('hybrid_wav2vec_features')
+                if embedding is not None:
+                    is_onset = event_data.get('onset', False)
+                    consonance = event_data.get('hybrid_consonance', 0.5)
+                    style = self.current_style if hasattr(self, 'current_style') else 'unknown'
+
+                    self.somax_bridge.on_audio_input(
+                        embedding=np.array(embedding),
+                        is_onset=is_onset,
+                        consonance=consonance,
+                        style=style
+                    )
+            except Exception as e:
+                if not hasattr(self, '_somax_error_count'):
+                    self._somax_error_count = 0
+                if self._somax_error_count < 3:
+                    print(f"⚠️ SomaxBridge update error: {e}")
+                    self._somax_error_count += 1
+
         # Update status bar NOW (after hybrid extraction)
         self._update_status_bar(event, event_data)
         
@@ -1575,7 +1610,53 @@ class EnhancedDriftEngineAI:
         
         # Focus on melody/bass partnership - no rhythmic decisions for now
         final_decisions = decisions
-        
+
+        # SomaxBridge filtering for better phrasing and give-and-take
+        if self.enable_somax and self.somax_bridge and final_decisions:
+            # Use SomaxBridge to decide if we should respond
+            if not self.somax_bridge.should_respond():
+                # Bridge says to stay silent (phrase complete, listening, etc.)
+                # Keep only bass (it's okay to have sparse bass even when melody is silent)
+                final_decisions = [d for d in final_decisions if d.voice_type == 'bass']
+                if final_decisions:
+                    # Even bass gets filtered by bridge continuity
+                    import random
+                    if random.random() > 0.3:  # 30% chance to play bass
+                        final_decisions = []
+
+            # Also use bridge for navigation-based note selection
+            if final_decisions:
+                embedding = event_data.get('hybrid_wav2vec_features')
+                if embedding is not None:
+                    style = self.current_style if hasattr(self, 'current_style') else 'unknown'
+
+                    for decision in final_decisions:
+                        # Get navigation hint from bridge
+                        if decision.voice_type == 'melodic':
+                            nav_result = self.somax_bridge.generate_melody(
+                                np.array(embedding), style=style
+                            )
+                        else:  # bass
+                            nav_result = self.somax_bridge.generate_bass(
+                                np.array(embedding), style=style
+                            )
+
+                        # Use navigation result to influence musical params
+                        if nav_result and nav_result.get('should_play'):
+                            # Adjust musical params based on navigation mode
+                            nav_mode = nav_result.get('navigation_mode', 'continue')
+                            if nav_mode == 'jump':
+                                # More contrast when jumping
+                                decision.musical_params['contrast'] = 0.7
+                            elif nav_mode == 'follow':
+                                # Similar to input when following
+                                decision.musical_params['contrast'] = 0.3
+                            # Store navigation info for logging
+                            decision.reasoning = f"Somax:{nav_mode}"
+                        elif nav_result and not nav_result.get('should_play'):
+                            # Bridge says don't play this voice
+                            final_decisions = [d for d in final_decisions if d != decision]
+
         if final_decisions:
             self.stats['decisions_made'] += len(final_decisions)
             
@@ -3112,9 +3193,13 @@ class EnhancedDriftEngineAI:
         
         # Load GPT-OSS behavioral insights if available
         self._load_gpt_oss_insights(most_recent_file if model_loaded else None)
-        
+
         # Load ML chord detection model if available
         self._load_ml_chord_model()
+
+        # Populate SomaxBridge with training data from PolyphonicAudioOracle
+        if self.enable_somax and self.somax_bridge and polyphonic_oracle_loaded:
+            self._populate_somax_bridge()
         
         if memory_loaded and polyphonic_oracle_loaded:
             print("✅ Successfully loaded previous learning data")
@@ -3367,7 +3452,112 @@ class EnhancedDriftEngineAI:
                 
         except Exception as e:
             print(f"⚠️ Could not load ML chord model: {e}")
-    
+
+    def _populate_somax_bridge(self):
+        """
+        Populate SomaxBridge oracles with training data from PolyphonicAudioOracle.
+
+        Extracts sequences of tokens and embeddings from the oracle and loads
+        them into the DYCI2-style Factor Oracle navigator for better response
+        generation with proper phrasing and give-and-take behavior.
+        """
+        if not self.somax_bridge or not self.clustering:
+            return
+
+        print("🎭 Populating SomaxBridge with training data...")
+
+        try:
+            # Extract sequences from PolyphonicAudioOracle
+            melody_sequences = []
+            bass_sequences = []
+
+            # Get the oracle's stored patterns
+            if hasattr(self.clustering, 'patterns') and self.clustering.patterns:
+                for pattern in self.clustering.patterns:
+                    # Build sequence data
+                    tokens = []
+                    embeddings = []
+                    metadata = []
+
+                    for event in pattern.get('events', []):
+                        token = event.get('gesture_token')
+                        if token is not None:
+                            tokens.append(token)
+
+                            # Get embedding if available, otherwise use zeros
+                            emb = event.get('embedding')
+                            if emb is not None:
+                                embeddings.append(np.array(emb))
+                            elif 'hybrid_wav2vec_features' in event:
+                                embeddings.append(np.array(event['hybrid_wav2vec_features']))
+                            else:
+                                embeddings.append(np.zeros(768))
+
+                            metadata.append({
+                                'midi': event.get('midi', 60),
+                                'velocity': event.get('velocity', 80),
+                                'duration': event.get('duration', 0.5)
+                            })
+
+                    if tokens and embeddings:
+                        seq_data = {
+                            'tokens': tokens,
+                            'embeddings': embeddings,
+                            'metadata': metadata
+                        }
+
+                        # Classify as melody or bass based on average pitch
+                        avg_midi = np.mean([m['midi'] for m in metadata]) if metadata else 60
+                        if avg_midi < 50:  # Bass range
+                            bass_sequences.append(seq_data)
+                        else:
+                            melody_sequences.append(seq_data)
+
+            # Also extract from oracle's internal state sequence if available
+            if hasattr(self.clustering, 'state_sequence') and self.clustering.state_sequence:
+                # Build sequences from state transitions
+                current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
+
+                for state in self.clustering.state_sequence:
+                    if hasattr(state, 'label'):
+                        current_seq['tokens'].append(state.label if state.label else 0)
+                        current_seq['embeddings'].append(
+                            state.embedding if hasattr(state, 'embedding') else np.zeros(768)
+                        )
+                        current_seq['metadata'].append({
+                            'midi': 60, 'velocity': 80, 'duration': 0.5
+                        })
+
+                    # Split into phrases every 8-12 tokens
+                    if len(current_seq['tokens']) >= 8:
+                        melody_sequences.append(current_seq)
+                        current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
+
+                # Add remaining
+                if current_seq['tokens']:
+                    melody_sequences.append(current_seq)
+
+            # Load into SomaxBridge
+            if melody_sequences or bass_sequences:
+                self.somax_bridge.load_training_data(
+                    melody_data=melody_sequences if melody_sequences else bass_sequences,
+                    bass_data=bass_sequences if bass_sequences else None
+                )
+
+                print(f"   ✅ Loaded {len(melody_sequences)} melody sequences")
+                if bass_sequences:
+                    print(f"   ✅ Loaded {len(bass_sequences)} bass sequences")
+
+                stats = self.somax_bridge.get_statistics()
+                print(f"   📊 Oracle states: {stats['melody_oracle']['num_states']}")
+            else:
+                print("   ⚠️  No sequences found in oracle - SomaxBridge will learn online")
+
+        except Exception as e:
+            print(f"   ❌ Error populating SomaxBridge: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _predict_ml_chord(self, event: Event, event_data: Optional[Dict] = None) -> Optional[str]:
         """Predict chord using ML model - using hybrid features (22D)"""
         try:
@@ -3689,6 +3879,8 @@ def main():
                        help='Disable GPT-OSS live reflections (default: enabled)')
     parser.add_argument('--reflection-interval', type=float, default=60.0,
                        help='GPT reflection interval in seconds (default: 60)')
+    parser.add_argument('--enable-somax', action='store_true',
+                       help='Enable SomaxBridge for DYCI2-style phrasing and give-and-take behavior')
     
     args = parser.parse_args()
     
@@ -3711,7 +3903,8 @@ def main():
         debug_decisions=args.debug_decisions,
         enable_visualization=not args.no_visualize,
         enable_gpt_reflection=not args.no_gpt_reflection,
-        reflection_interval=args.reflection_interval
+        reflection_interval=args.reflection_interval,
+        enable_somax=args.enable_somax
     )
     
     # Set parameters
