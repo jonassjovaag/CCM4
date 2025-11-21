@@ -3422,10 +3422,11 @@ class EnhancedDriftEngineAI:
                     avg_consonance = 0.0  # Initialize outside try block
                     try:
                         # Construct context for explanation
-                        # Fetch recent context from memory buffer
-                        recent_events = self.memory_buffer.get_recent_events(3.0)
-                        if recent_events:
-                            consonances = [e.get('consonance', 0.5) for e in recent_events if e is not None]
+                        # Fetch recent context from memory buffer (moments, not events)
+                        recent_moments = self.memory_buffer.get_recent_moments(3.0)
+                        if recent_moments:
+                            # Extract event_data from moments
+                            consonances = [m.event_data.get('consonance', 0.5) for m in recent_moments if m.event_data is not None]
                             if consonances:
                                 avg_consonance = sum(consonances) / len(consonances)
                         
@@ -3560,7 +3561,7 @@ def main():
     parser.add_argument('--no-autonomous', action='store_true', help='Disable autonomous generation (reactive only)')
     parser.add_argument('--autonomous-interval', type=float, default=3.0, help='Base interval for autonomous generation (seconds)')
     parser.add_argument('--bass-accompaniment', type=float, default=0.5, help='Probability (0-1) bass plays during human activity')
-    parser.add_argument('--melody-while-active', action='store_true', help='Allow melody to play (sparse) while human is active')
+    parser.add_argument('--silence-melody-when-active', action='store_true', help='Silence melody while human is active (default: melody plays)')
     parser.add_argument('--debug-decisions', action='store_true', help='Show real-time decision explanations in terminal')
     parser.add_argument('--no-visualize', action='store_true', help='Disable multi-viewport visualization system - DEFAULT: ENABLED')
     parser.add_argument('--enable-live-training', action='store_true', 
@@ -3603,12 +3604,12 @@ def main():
     drift_ai.autonomous_generation_enabled = not args.no_autonomous
     drift_ai.autonomous_interval_base = args.autonomous_interval
     drift_ai.bass_accompaniment_probability = args.bass_accompaniment
-    drift_ai.melody_silence_when_active = not args.melody_while_active
+    drift_ai.melody_silence_when_active = args.silence_melody_when_active  # Now directly uses the flag
     
     if not args.no_autonomous:
         print(f"🤖 Autonomous generation enabled (interval: {args.autonomous_interval:.1f}s)")
         print(f"🎸 Bass accompaniment: {args.bass_accompaniment:.0%} probability")
-        print(f"🎤 Melody while active: {'Yes (sparse)' if args.melody_while_active else 'No (silent)'}")
+        print(f"🎤 Melody while active: {'No (silent)' if args.silence_melody_when_active else 'Yes (sparse)'}")
     
     # Handle target learning/loading
     if args.learn_target:
