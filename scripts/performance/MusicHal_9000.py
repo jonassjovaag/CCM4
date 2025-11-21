@@ -276,6 +276,15 @@ class EnhancedDriftEngineAI:
                 print(f"   GPU: {'Yes (MPS/CUDA)' if use_gpu else 'CPU'}")
                 print(f"   Features: 768D neural encoding")
                 
+                # PRE-WARM: Initialize MERT model during startup (avoid 30s delay on first audio input)
+                if hasattr(self.hybrid_perception, 'wav2vec_encoder') and self.hybrid_perception.wav2vec_encoder:
+                    print(f"🔥 Pre-warming MERT model...")
+                    try:
+                        self.hybrid_perception.wav2vec_encoder._initialize_model()
+                        print(f"   ✅ MERT model ready")
+                    except Exception as e:
+                        print(f"   ⚠️  Pre-warm failed: {e}")
+                
                 # Try to load Wav2Vec chord classifier (for human-readable labels)
                 # DISABLED: Not critical for operation, ratio analyzer provides chord detection
                 self.wav2vec_chord_classifier = None

@@ -72,7 +72,7 @@ class VoiceTimingProfile:
                 'timbre_variance': 0.2,  # Stable, cool
                 # Episode engagement (bass foundation with breathing room)
                 'episode_active_duration_range': (8.0, 20.0),  # Steady foundational presence
-                'episode_listening_duration_range': (3.0, 8.0),  # Brief listening periods
+                'episode_listening_duration_range': (2.0, 6.0),  # Reduced from (3,8) - avoid sync with melodic
                 'interference_probability': 0.5,  # Increased from 0.15 for steadier bass
                 'early_exit_probability': 0.05,  # Very stable
                 'context_sensitivity': 0.3,  # Foundation-focused
