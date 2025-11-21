@@ -1007,9 +1007,9 @@ class EnhancedDriftEngineAI:
         # Track human activity for autonomous generation adjustment
         self._track_human_activity(event_data, current_time)
         
-        # CRITICAL: Block autonomous generation while processing human input
-        # This prevents double generation (both event processing AND autonomous tick)
-        self._autonomous_generation_blocked = True
+        # REMOVED: Blocking autonomous generation - now allows semi-autonomous behavior
+        # System generates both reactively (on human events) AND autonomously (3s timer)
+        # self._autonomous_generation_blocked = True  # ← DISABLED for semi-autonomous mode
         
         # Log human input (every second)
         self._log_conversation_input(event_data, current_time)
@@ -2959,7 +2959,8 @@ class EnhancedDriftEngineAI:
         print(f"🔍 Debug: About to initialize phrase generator...")
         if self.rhythm_oracle:
             self.ai_agent.behavior_engine.phrase_generator = PhraseGenerator(
-                self.rhythm_oracle, 
+                self.rhythm_oracle,
+                audio_oracle=self.clustering,  # ← CRITICAL FIX: Connect trained AudioOracle!
                 visualization_manager=self.visualization_manager,
                 harmonic_progressor=self.harmonic_progressor,
                 harmonic_context_manager=self.harmonic_context_manager
@@ -2969,6 +2970,7 @@ class EnhancedDriftEngineAI:
             # Initialize phrase generator without rhythm oracle
             self.ai_agent.behavior_engine.phrase_generator = PhraseGenerator(
                 None,
+                audio_oracle=self.clustering,  # ← CRITICAL FIX: Connect trained AudioOracle!
                 visualization_manager=self.visualization_manager,
                 harmonic_progressor=self.harmonic_progressor,
                 harmonic_context_manager=self.harmonic_context_manager

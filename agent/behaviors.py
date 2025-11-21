@@ -60,7 +60,7 @@ class VoiceTimingProfile:
                 'timbre_variance': 0.7,  # Expressive timbre changes
                 # Episode engagement (hierarchical level 3)
                 'episode_active_duration_range': (5.0, 15.0),  # Increased from (3,10) for longer melodic phrases
-                'episode_listening_duration_range': (8.0, 20.0),  # Decreased from (15,45) for more presence
+                'episode_listening_duration_range': (2.0, 5.0),  # Reduced from (8,20) for faster response
                 'interference_probability': 0.5,  # Increased from 0.4 for more overlap with human
                 'early_exit_probability': 0.15,  # Responsive to human
                 'context_sensitivity': 0.6,  # Moderately context-aware
@@ -70,9 +70,9 @@ class VoiceTimingProfile:
                 'rhythmic_density': 0.2,  # Minimal movement
                 'syncopation_tendency': 0.05,  # Steady on-beat
                 'timbre_variance': 0.2,  # Stable, cool
-                # Episode engagement (bass is steady, not hierarchical)
-                'episode_active_duration_range': (10.0, 30.0),  # Long steady presence
-                'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks only
+                # Episode engagement (bass foundation with breathing room)
+                'episode_active_duration_range': (8.0, 20.0),  # Steady foundational presence
+                'episode_listening_duration_range': (3.0, 8.0),  # Brief listening periods
                 'interference_probability': 0.5,  # Increased from 0.15 for steadier bass
                 'early_exit_probability': 0.05,  # Very stable
                 'context_sensitivity': 0.3,  # Foundation-focused
@@ -1288,15 +1288,10 @@ class BehaviorEngine:
     """
     
     def __init__(self, rhythm_oracle=None, visualization_manager=None, config: Optional[Dict] = None):
-        # Randomly select initial mode for variety
-        self.current_mode = random.choice([
-            BehaviorMode.IMITATE,
-            BehaviorMode.CONTRAST,
-            BehaviorMode.LEAD,
-            BehaviorMode.SHADOW,
-            BehaviorMode.MIRROR,
-            BehaviorMode.COUPLE
-        ])
+        # Start in SHADOW mode for responsive startup behavior
+        self.current_mode = BehaviorMode.SHADOW  # ← Responsive mode (complements human)
+        # OLD: Random selection could start in MIRROR (needs context) or LEAD (ignores human)
+        # random.choice([IMITATE, CONTRAST, LEAD, SHADOW, MIRROR, COUPLE])
         self.mode_history = []
         self.decision_history = []
         self.visualization_manager = visualization_manager
@@ -1434,10 +1429,10 @@ class BehaviorEngine:
             voice_type="melodic",
             enable_episodes=True  # Melody uses episodes
         )
-        # Bass: disable episodes for steady foundation
+        # Bass: ENABLED episodes for semi-autonomous generation
         self.bass_episode_manager = EngagementEpisodeManager(
             voice_type="bass",
-            enable_episodes=False  # Bass bypasses episodes - timing-based only
+            enable_episodes=True  # ← ENABLED for semi-autonomous bass
         )
         
         # Variable pause durations (balanced for responsiveness without click noise)
