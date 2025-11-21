@@ -1137,8 +1137,13 @@ class EnhancedDriftEngineAI:
                         if hasattr(hybrid_result, 'percussive_token') and hybrid_result.percussive_token is not None:
                             event_data['percussive_token'] = hybrid_result.percussive_token
                         
-                        # DUAL VOCABULARY: Store harmonic and percussive tokens (if available)
-                        # Content type detection is handled by the perception module internally
+                        # Store content type classification and energy ratios
+                        if hasattr(hybrid_result, 'content_type'):
+                            event_data['content_type'] = hybrid_result.content_type
+                        if hasattr(hybrid_result, 'harmonic_ratio'):
+                            event_data['harmonic_ratio'] = hybrid_result.harmonic_ratio
+                        if hasattr(hybrid_result, 'percussive_ratio'):
+                            event_data['percussive_ratio'] = hybrid_result.percussive_ratio
                     
                     # Extract chord label from ratio analysis (for visualization)
                     if hybrid_result.ratio_analysis:

@@ -83,6 +83,11 @@ class DualPerceptionResult:
     # Metadata
     timestamp: float = 0.0
     
+    # Content type classification (for dual vocabulary mode)
+    content_type: str = "hybrid"  # "harmonic", "percussive", or "hybrid"
+    harmonic_ratio: float = 0.5  # Energy ratio of harmonic component (0-1)
+    percussive_ratio: float = 0.5  # Energy ratio of percussive component (0-1)
+    
     def __post_init__(self):
         """Ensure default values for mutable fields"""
         if self.detected_frequencies is None:
@@ -111,7 +116,10 @@ class DualPerceptionResult:
             'active_pitch_classes': self.active_pitch_classes.tolist() if self.active_pitch_classes is not None else [],
             'chord_label': self.chord_label,
             'chord_confidence': self.chord_confidence,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp,
+            'content_type': self.content_type,  # NEW: Content classification
+            'harmonic_ratio': self.harmonic_ratio,  # NEW: Energy ratios
+            'percussive_ratio': self.percussive_ratio  # NEW: Energy ratios
         }
 
 
@@ -219,6 +227,66 @@ class DualPerceptionModule:
             If extract_all_frames=True: List of DualPerceptionResult (one per MERT frame)
         """
         
+        # === DUAL VOCABULARY MODE: Separate harmonic and percussive sources ===
+        if self.enable_dual_vocabulary and self.enable_wav2vec and self.wav2vec_encoder:
+            # Perform HPSS separation
+            audio_harmonic, audio_percussive = librosa.effects.hpss(
+                audio,
+                kernel_size=31,  # Standard separation quality
+                power=2.0,
+                mask=True
+            )
+            
+            # Detect content type based on energy ratios
+            content_type, harmonic_ratio, percussive_ratio = self.detect_content_type(audio, sr)
+            
+            # Extract Wav2Vec features from both sources
+            harmonic_wav2vec_result = self.wav2vec_encoder.encode(
+                audio_harmonic, sr, timestamp,
+                return_all_frames=self.extract_all_frames
+            )
+            
+            percussive_wav2vec_result = self.wav2vec_encoder.encode(
+                audio_percussive, sr, timestamp,
+                return_all_frames=self.extract_all_frames
+            )
+            
+            # Handle all-frames mode with dual sources
+            if self.extract_all_frames and isinstance(harmonic_wav2vec_result, list) and isinstance(percussive_wav2vec_result, list):
+                # Process each frame pair and return list of results
+                frame_results = []
+                for harm_frame, perc_frame in zip(harmonic_wav2vec_result, percussive_wav2vec_result):
+                    frame_result = self._process_dual_frame(
+                        harmonic_features=harm_frame.features,
+                        percussive_features=perc_frame.features,
+                        timestamp=harm_frame.timestamp,
+                        audio=audio,
+                        sr=sr,
+                        detected_f0=detected_f0,
+                        content_type=content_type,
+                        harmonic_ratio=harmonic_ratio,
+                        percussive_ratio=percussive_ratio
+                    )
+                    frame_results.append(frame_result)
+                return frame_results
+            
+            # Single-frame dual vocabulary mode
+            harmonic_features = harmonic_wav2vec_result.features if not isinstance(harmonic_wav2vec_result, list) else harmonic_wav2vec_result[0].features
+            percussive_features = percussive_wav2vec_result.features if not isinstance(percussive_wav2vec_result, list) else percussive_wav2vec_result[0].features
+            
+            return self._process_dual_frame(
+                harmonic_features=harmonic_features,
+                percussive_features=percussive_features,
+                timestamp=timestamp,
+                audio=audio,
+                sr=sr,
+                detected_f0=detected_f0,
+                content_type=content_type,
+                harmonic_ratio=harmonic_ratio,
+                percussive_ratio=percussive_ratio
+            )
+        
+        # === SINGLE VOCABULARY MODE (Legacy) ===
         # === PATHWAY 1: Neural Gesture Encoding (for machine) ===
         if self.enable_wav2vec and self.wav2vec_encoder:
             wav2vec_result = self.wav2vec_encoder.encode(
@@ -248,6 +316,121 @@ class DualPerceptionModule:
             wav2vec_features = wav2vec_result.features if not isinstance(wav2vec_result, list) else wav2vec_result[0].features
         
         return self._process_single_frame(wav2vec_features, timestamp, audio, sr, detected_f0)
+    
+    def _process_dual_frame(self,
+                           harmonic_features: np.ndarray,
+                           percussive_features: np.ndarray,
+                           timestamp: float,
+                           audio: np.ndarray,
+                           sr: int,
+                           detected_f0: Optional[float],
+                           content_type: str,
+                           harmonic_ratio: float,
+                           percussive_ratio: float) -> DualPerceptionResult:
+        """
+        Process dual MERT frames (harmonic + percussive) into a DualPerceptionResult
+        
+        This quantizes harmonic and percussive features separately using their respective vocabularies.
+        """
+        
+        # Quantize harmonic features with harmonic vocabulary
+        harmonic_token = None
+        if self.harmonic_quantizer and self.harmonic_quantizer.is_fitted:
+            harmonic_features_64 = harmonic_features.astype(np.float64)
+            harmonic_token = int(self.harmonic_quantizer.transform(harmonic_features_64.reshape(1, -1))[0])
+        
+        # Quantize percussive features with percussive vocabulary
+        percussive_token = None
+        if self.percussive_quantizer and self.percussive_quantizer.is_fitted:
+            percussive_features_64 = percussive_features.astype(np.float64)
+            percussive_token = int(self.percussive_quantizer.transform(percussive_features_64.reshape(1, -1))[0])
+        
+        # For gesture_token (legacy), use the dominant source token
+        if content_type == "harmonic":
+            gesture_token = harmonic_token
+            primary_features = harmonic_features
+        elif content_type == "percussive":
+            gesture_token = percussive_token
+            primary_features = percussive_features
+        else:  # hybrid
+            # Use harmonic by default for hybrid content
+            gesture_token = harmonic_token
+            primary_features = harmonic_features
+        
+        # Apply temporal smoothing (on the primary gesture_token)
+        smoothed_gesture_token = None
+        if gesture_token is not None:
+            smoothed_gesture_token = self.gesture_smoother.add_token(gesture_token, timestamp)
+        
+        # Use smoothed token for legacy compatibility
+        final_gesture_token = smoothed_gesture_token if smoothed_gesture_token is not None else gesture_token
+        
+        # === PATHWAY 2: Ratio-Based Harmonic Analysis (for context + display) ===
+        # Extract chroma and active pitch classes from original (combined) audio
+        chroma = self.chroma_extractor.extract(audio, sr, use_temporal=True, live_mode=True)
+        chroma_result = self.chroma_extractor.extract_top_k(
+            audio, sr, k=4, min_separation=2, min_threshold=0.15
+        )
+        active_pcs = chroma_result[1]
+        
+        # Analyze frequency ratios
+        ratio_analysis = None
+        consonance = 0.5
+        detected_frequencies = []
+        chord_label = "---"
+        chord_confidence = 0.0
+        
+        if len(active_pcs) >= 2:
+            # Convert pitch classes to frequencies
+            if detected_f0 and detected_f0 > 0:
+                # Use detected F0 to determine octave
+                midi_bass = round(12 * np.log2(detected_f0 / 440.0) + 69)
+                bass_pc = midi_bass % 12
+                base_octave = midi_bass // 12
+                
+                for pc in active_pcs:
+                    if pc == bass_pc:
+                        detected_frequencies.append(detected_f0)
+                    else:
+                        midi_note = base_octave * 12 + pc
+                        if midi_note < midi_bass:
+                            midi_note += 12
+                        freq = 440.0 * (2 ** ((midi_note - 69) / 12.0))
+                        if 30 < freq < 8000:
+                            detected_frequencies.append(freq)
+            else:
+                # Fallback: use middle octave
+                for pc in active_pcs:
+                    midi = 60 + pc
+                    freq = 440.0 * (2 ** ((midi - 69) / 12.0))
+                    detected_frequencies.append(freq)
+            
+            # Analyze ratios
+            ratio_analysis = self.ratio_analyzer.analyze_frequencies(detected_frequencies)
+            
+            if ratio_analysis:
+                consonance = ratio_analysis.consonance_score
+                chord_label = ratio_analysis.chord_match['type']
+                chord_confidence = ratio_analysis.chord_match['confidence']
+        
+        # === COMBINE: Both representations in one result ===
+        return DualPerceptionResult(
+            wav2vec_features=primary_features,  # Use dominant source features
+            gesture_token=final_gesture_token,  # Legacy field (smoothed)
+            harmonic_token=harmonic_token,  # Dual vocabulary - separate token!
+            percussive_token=percussive_token,  # Dual vocabulary - separate token!
+            ratio_analysis=ratio_analysis,
+            consonance=consonance,
+            detected_frequencies=detected_frequencies,
+            chroma=chroma,
+            active_pitch_classes=active_pcs,
+            chord_label=chord_label,
+            chord_confidence=chord_confidence,
+            timestamp=timestamp,
+            content_type=content_type,  # NEW: Content type classification
+            harmonic_ratio=harmonic_ratio,  # NEW: Energy ratios
+            percussive_ratio=percussive_ratio  # NEW: Energy ratios
+        )
     
     def _process_single_frame(self,
                              wav2vec_features: np.ndarray,
