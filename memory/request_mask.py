@@ -51,12 +51,13 @@ class RequestMask:
         """
         request_type = request.get('type', '==')
         value = request.get('value', 0.0)
+        tolerance = request.get('tolerance', 0.01)  # Get tolerance from request
         
         mask = np.zeros(corpus_size)
         
-        # Exact match
+        # Exact match (with tolerance for range-based matching)
         if request_type == '==':
-            mask = self._create_exact_match_mask(parameter_values, value, corpus_size)
+            mask = self._create_exact_match_mask(parameter_values, value, corpus_size, tolerance)
         
         # Threshold: greater than
         elif request_type == '>':
@@ -114,8 +115,8 @@ class RequestMask:
         if isinstance(target_value, int) or (isinstance(target_value, float) and target_value.is_integer()):
             mask = (parameter_values[:corpus_size] == target_value).astype(float)
         else:
-            # For continuous values, use tolerance
-            mask = (np.abs(parameter_values[:corpus_size] - target_value) < tolerance).astype(float)
+            # For continuous values, use tolerance (inclusive)
+            mask = (np.abs(parameter_values[:corpus_size] - target_value) <= tolerance).astype(float)
         
         # If no exact matches, find closest
         if np.sum(mask) == 0:

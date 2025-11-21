@@ -763,8 +763,8 @@ class PolyphonicAudioOracle(AudioOracle):
         Returns:
             List of generated frame IDs
         """
-        if not current_context:
-            return []
+        # Allow generation even with empty context - start from root state
+        # This enables autonomous generation at performance start before human plays
         
         if not self.is_trained or len(self.audio_frames) == 0:
             print("⚠️  AudioOracle not trained yet")
@@ -851,12 +851,10 @@ class PolyphonicAudioOracle(AudioOracle):
                 # Use filtered frames if any found, otherwise fall back to all frames
                 if filtered_frames:
                     next_frames = filtered_frames
-                    # Debug logging (can be removed in production)
-                    if len(filtered_frames) < len(list(self.states[current_state]['next'].keys())):
-                        pass  # Filtering is working
+                    print(f"🔍 Dual vocab filtered: {len(filtered_frames)} frames (from {len(list(self.states[current_state]['next'].keys()))})")
                 else:
                     # No matches found - fall back to unfiltered
-                    pass
+                    print(f"🔍 Dual vocab found 0 matches - will use parameter filtering on {len(next_frames)} frames")
             
             # If no request, choose uniformly
             if request is None or 'response_mode' not in request:
@@ -889,8 +887,20 @@ class PolyphonicAudioOracle(AudioOracle):
                 parameter_values = np.zeros(len(next_frames))
                 for i, frame_id in enumerate(next_frames):
                     if frame_id < len(self.audio_frames):
-                        audio_data = self.audio_frames[frame_id].audio_data
-                        parameter_values[i] = audio_data.get(parameter_name, 0.0)
+                        # Special handling for consonance - check both audio_data and self.consonances
+                        if parameter_name == 'consonance':
+                            # Try audio_data first, then self.consonances dict
+                            audio_data = self.audio_frames[frame_id].audio_data
+                            consonance = audio_data.get('consonance', None)
+                            if consonance is None and frame_id in self.consonances:
+                                consonance = self.consonances[frame_id]
+                            parameter_values[i] = consonance if consonance is not None else 0.5
+                        else:
+                            audio_data = self.audio_frames[frame_id].audio_data
+                            parameter_values[i] = audio_data.get(parameter_name, 0.0)
+                
+                print(f"🔍 Parameter filtering: {parameter_name}, target={request.get('value')}, tolerance={request.get('tolerance')}")
+                print(f"   Values range: {parameter_values.min():.3f}-{parameter_values.max():.3f}, filtering {len(next_frames)} frames")
                 
                 # Create request mask
                 try:
@@ -947,6 +957,10 @@ class PolyphonicAudioOracle(AudioOracle):
             
             # Update state
             current_state = self.states[current_state]['next'][next_frame]
+        
+        # DEBUG: Report final generation results
+        if generated:
+            print(f"🎼 Generated {len(generated)} frames from Oracle")
         
         return generated
     

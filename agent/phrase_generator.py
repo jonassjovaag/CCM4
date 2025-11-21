@@ -676,6 +676,10 @@ class PhraseGenerator:
                     request = {
                         'percussive_token': percussive_token,
                         'response_mode': 'harmonic',
+                        'parameter': 'consonance',  # Enable fallback filtering if dual vocab fails
+                        'type': '==',
+                        'value': 0.65,  # Match training data median (0.54-0.80 range)
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'consonance': avg_consonance,
                         'weight': mode_params.get('request_weight', 0.85)
                     }
@@ -685,6 +689,10 @@ class PhraseGenerator:
                     request = {
                         'harmonic_token': harmonic_token,
                         'response_mode': 'percussive',
+                        'parameter': 'consonance',  # Enable fallback filtering if dual vocab fails
+                        'type': '==',
+                        'value': 0.65,  # Match training data median
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'weight': mode_params.get('request_weight', 0.85)
                     }
                     print(f"🎸→🥁 Dual vocab: Guitar detected → requesting rhythm (harm_tok={harmonic_token})")
@@ -694,6 +702,10 @@ class PhraseGenerator:
                         'harmonic_token': harmonic_token,
                         'percussive_token': percussive_token,
                         'response_mode': 'hybrid',
+                        'parameter': 'consonance',  # Enable fallback filtering if dual vocab fails
+                        'type': '==',
+                        'value': 0.65,  # Match training data median
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'consonance': avg_consonance,
                         'weight': mode_params.get('request_weight', 0.75)
                     }
@@ -710,12 +722,25 @@ class PhraseGenerator:
                 return request
         
         # Fallback: Use standard gesture token matching (single vocabulary mode)
-        request = {
-            'parameter': 'gesture_token',
-            'type': '==',
-            'value': recent_tokens[-1] if recent_tokens else None,
-            'weight': mode_params.get('request_weight', 0.95)
-        }
+        # Add tolerance: allow similar tokens instead of exact match
+        if recent_tokens:
+            request = {
+                'parameter': 'gesture_token',
+                'type': '==',
+                'value': recent_tokens[-1],
+                'tolerance': 5,  # Allow tokens within ±5 (cluster neighbors)
+                'weight': mode_params.get('request_weight', 0.85),  # Slightly lower weight for range match
+                'consonance_range': (max(0.0, avg_consonance - 0.2), min(1.0, avg_consonance + 0.2))  # ±0.2 consonance tolerance
+            }
+        else:
+            # No context - use consonance only
+            request = {
+                'parameter': 'consonance',
+                'type': '==',
+                'value': 0.65,  # Match training data median
+                'tolerance': 0.4,  # Very wide consonance range when no token context
+                'weight': mode_params.get('request_weight', 0.5)
+            }
         
         # Add rhythmic phrasing if RhythmOracle available
         rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
@@ -750,6 +775,10 @@ class PhraseGenerator:
                     request = {
                         'percussive_token': percussive_token,
                         'response_mode': 'harmonic',
+                        'parameter': 'consonance',  # Enable fallback filtering
+                        'type': '==',
+                        'value': 0.65,  # Match training data
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'consonance': avg_consonance,
                         'weight': mode_params.get('request_weight', 0.7)
                     }
@@ -757,6 +786,10 @@ class PhraseGenerator:
                     request = {
                         'harmonic_token': harmonic_token,
                         'response_mode': 'percussive',
+                        'parameter': 'consonance',  # Enable fallback filtering
+                        'type': '==',
+                        'value': 0.65,  # Match training data
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'weight': mode_params.get('request_weight', 0.7)
                     }
                 else:  # hybrid
@@ -764,6 +797,10 @@ class PhraseGenerator:
                         'harmonic_token': harmonic_token,
                         'percussive_token': percussive_token,
                         'response_mode': 'hybrid',
+                        'parameter': 'consonance',  # Enable fallback filtering
+                        'type': '==',
+                        'value': 0.65,  # Match training data
+                        'tolerance': 0.35,  # Wide tolerance for more matches
                         'consonance': avg_consonance,
                         'weight': mode_params.get('request_weight', 0.6)
                     }
@@ -776,10 +813,12 @@ class PhraseGenerator:
                 return request
         
         # Fallback: Focus on consonance matching for mirror mode
+        # Add tolerance for more flexible matching
         request = {
             'parameter': 'consonance',
             'type': '==',
-            'value': avg_consonance,
+            'value': 0.65,  # Match training data
+            'tolerance': 0.4,  # Wide tolerance for more matches
             'weight': mode_params.get('request_weight', 0.7)
         }
         
@@ -814,7 +853,12 @@ class PhraseGenerator:
                     'harmonic_token': harmonic_token,
                     'percussive_token': percussive_token,
                     'response_mode': 'hybrid',
-                    'consonance': 0.7,  # High consonance
+                    'parameter': 'consonance',  # Enable fallback filtering
+                    'type': '==',
+                    'value': 0.7,
+                    'tolerance': 0.3,  # Accept 0.4-1.0 range (±0.3)
+                    'consonance': 0.7,  # High consonance target
+                    'consonance_range': (0.5, 0.9),  # Kept for compatibility
                     'weight': mode_params.get('request_weight', 0.3)  # Loose constraint
                 }
                 
@@ -1186,10 +1230,26 @@ class PhraseGenerator:
                 request = self._build_request_for_mode(mode)
                 print(f"🔍 Oracle query: request={request is not None}, mode={mode}")  # DEBUG
                 if request:
+                    # DIAGNOSTIC: Log request details
+                    print(f"🔍 REQUEST DETAILS: {request}")
+                    
                     # Get recent tokens for context
                     recent_tokens = self._get_recent_human_tokens(n=3)
                     if not recent_tokens:
                         recent_tokens = []  # Empty list if no context
+                    
+                    # DIAGNOSTIC: Log context and Oracle state
+                    print(f"🔍 CONTEXT: tokens={recent_tokens}, Oracle has {len(self.audio_oracle.audio_frames) if hasattr(self.audio_oracle, 'audio_frames') else 'unknown'} frames")
+                    
+                    # DIAGNOSTIC: Sample frame structure check
+                    if hasattr(self.audio_oracle, 'audio_frames') and len(self.audio_oracle.audio_frames) > 0:
+                        sample_frame_id = list(self.audio_oracle.audio_frames.keys())[0]
+                        sample_frame = self.audio_oracle.audio_frames[sample_frame_id]
+                        if hasattr(sample_frame, 'audio_data'):
+                            sample_keys = list(sample_frame.audio_data.keys())[:10]
+                            print(f"🔍 FRAME STRUCTURE: Sample frame {sample_frame_id} audio_data keys: {sample_keys}")
+                        else:
+                            print(f"⚠️  FRAME WARNING: Sample frame has no audio_data attribute")
                     
                     # Generate from AudioOracle using request masking
                     generated_frames = self.audio_oracle.generate_with_request(
@@ -1200,13 +1260,23 @@ class PhraseGenerator:
                     )
                     print(f"🔍 Oracle returned: {len(generated_frames) if generated_frames else 0} frames")  # DEBUG
                     
+                    # DIAGNOSTIC: If empty, explain why
+                    if not generated_frames or len(generated_frames) == 0:
+                        print(f"⚠️  ORACLE RETURNED EMPTY - possible reasons:")
+                        print(f"   - Request constraints too strict (check tolerance)")
+                        print(f"   - Empty context (recent_tokens={recent_tokens})")
+                        print(f"   - Missing audio_data keys in frames")
+                        print(f"   - No matching patterns for mode={mode}")
+                    
                     if generated_frames and len(generated_frames) > 0:
                         # INTERVAL-BASED HARMONIC TRANSLATION
                         # Extract intervals instead of absolute MIDI notes
+                        print(f"🔍 Extracting intervals from {len(generated_frames)} frames: {generated_frames}")  # DEBUG
                         intervals = self.interval_extractor.extract_intervals(
                             frame_ids=generated_frames,
                             audio_frames=self.audio_oracle.audio_frames
                         )
+                        print(f"🔍 Interval extractor returned: {intervals}")  # DEBUG
                         
                         if intervals:
                             # Build harmonic context for translation
@@ -1230,7 +1300,12 @@ class PhraseGenerator:
                         else:
                             oracle_notes = None
                             print(f"⚠️  No intervals extracted from {len(generated_frames)} frames")
-                        print(f"🔍 Extracted {len(oracle_notes)} notes from {len(generated_frames)} frames: {oracle_notes[:5]}...")  # DEBUG
+                        
+                        # DEBUG: Safe logging even if oracle_notes is None
+                        if oracle_notes:
+                            print(f"🔍 Extracted {len(oracle_notes)} notes from {len(generated_frames)} frames: {oracle_notes[:5]}...")
+                        else:
+                            print(f"🔍 Interval extraction returned None - falling back to chord-aware generation")
             except Exception as e:
                 # Silently fall back to random generation
                 print(f"🔍 Oracle exception: {e}")  # DEBUG
@@ -1255,7 +1330,7 @@ class PhraseGenerator:
         durations = []
         
         # Use AudioOracle notes if available, otherwise generate from scratch
-        if oracle_notes and len(oracle_notes) > 0:
+        if oracle_notes and len(oracle_notes) >= 2:  # Use Oracle if we get 2+ notes (it generates 2-8 typically)
             # Use learned patterns!
             print(f"✅ Using {len(oracle_notes)} oracle_notes for {voice_type}")
             phrase_length = min(len(oracle_notes), phrase_length)
@@ -1319,18 +1394,67 @@ class PhraseGenerator:
                 timestamp=timestamp
             )
         
-        # Fallback: Generate notes from scratch if AudioOracle didn't provide any
-        print(f"⚠️  FALLBACK: Generating {phrase_length} random notes for {voice_type} (oracle_notes was None or empty)")
+        # Fallback: Generate CHORD-AWARE notes if AudioOracle didn't provide any
+        print(f"⚠️  FALLBACK: Generating {phrase_length} chord-aware notes for {voice_type} (oracle_notes was None or empty)")
         print(f"   Range: {min_note}-{max_note}")  # DEBUG
-        # Musical note selection with melodic contour
-        previous_note = random.randint(min_note, max_note)
+        
+        # Get current chord for harmonic awareness
+        current_chord_notes = []
+        current_chord_name = None
+        if self.harmonic_context_manager:
+            current_chord_name = self.harmonic_context_manager.get_active_chord()
+            if current_chord_name:
+                # Parse chord name to get notes (simple heuristic)
+                try:
+                    from music21 import chord as m21_chord
+                    parsed_chord = m21_chord.Chord(current_chord_name)
+                    current_chord_notes = [p.midi for p in parsed_chord.pitches]
+                    print(f"   Using chord: {current_chord_name} with notes {current_chord_notes}")
+                except:
+                    # Fallback to current_chord stored in phrase_generator
+                    print(f"   Could not parse chord {current_chord_name}, using fallback")
+        
+        # Chord-aware note selection
+        if current_chord_notes:
+            # Start with a chord tone
+            chord_tones_in_range = [n for n in current_chord_notes if min_note <= n <= max_note]
+            # Expand chord tones across all octaves in range
+            for note in current_chord_notes:
+                octave = min_note // 12
+                while octave * 12 + (note % 12) <= max_note:
+                    candidate = octave * 12 + (note % 12)
+                    if min_note <= candidate <= max_note and candidate not in chord_tones_in_range:
+                        chord_tones_in_range.append(candidate)
+                    octave += 1
+            
+            if chord_tones_in_range:
+                previous_note = random.choice(chord_tones_in_range)
+                print(f"   Starting note: {previous_note} (chord tone)")
+            else:
+                previous_note = random.randint(min_note, max_note)
+                print(f"   Starting note: {previous_note} (random, no chord tones in range)")
+        else:
+            previous_note = random.randint(min_note, max_note)
+            print(f"   Starting note: {previous_note} (random, no chord detected)")
+        
         previous_direction = 0  # Track melodic direction: -1=down, 0=static, 1=up
-        print(f"   Starting note: {previous_note}")  # DEBUG
         
         for i in range(phrase_length):
             if i == 0:
-                # Starting note: totally random in range
-                note = random.randint(min_note, max_note)
+                # Starting note: chord tone if available
+                if current_chord_notes and len(current_chord_notes) > 0:
+                    chord_tones_in_range = [n for n in current_chord_notes if min_note <= n <= max_note]
+                    # Expand across octaves
+                    for note_val in current_chord_notes:
+                        octave = min_note // 12
+                        while octave * 12 + (note_val % 12) <= max_note:
+                            candidate = octave * 12 + (note_val % 12)
+                            if min_note <= candidate <= max_note and candidate not in chord_tones_in_range:
+                                chord_tones_in_range.append(candidate)
+                            octave += 1
+                    note = random.choice(chord_tones_in_range) if chord_tones_in_range else random.randint(min_note, max_note)
+                else:
+                    note = random.randint(min_note, max_note)
             else:
                 # More musical intervals for melody
                 if voice_type == "melodic":

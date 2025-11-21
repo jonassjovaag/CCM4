@@ -385,6 +385,9 @@ class EnhancedDriftEngineAI:
                 print("⚠️  PyQt5 not available, visualization disabled")
         
         # Initialize AI Agent now that visualization_manager is available
+        # TODO: CLAP configuration disabled until audio buffer access added
+        # CLAP needs raw audio from listener, but current architecture doesn't expose it
+        # See ORACLE_ACTIVITY_FIX.md for implementation plan
         self.ai_agent = AIAgent(visualization_manager=self.visualization_manager)
         
         # Initialize GPT-OSS live reflection engine (if enabled)
@@ -726,6 +729,80 @@ class EnhancedDriftEngineAI:
             import traceback
             traceback.print_exc()
     
+    def _handle_touchosc_like(self):
+        """
+        Handle TouchOSC "like" button feedback
+        
+        TODO: Wire to TouchOSC /feedback/like message
+        Stores snapshot of current musical state for positive reinforcement learning
+        """
+        timestamp = time.time()
+        
+        # Store current state snapshot
+        feedback_snapshot = {
+            'timestamp': timestamp,
+            'type': 'like',
+            'style': self.current_style,
+            'role_analysis': self.current_role_analysis.copy() if self.current_role_analysis else None,
+            'episode_states': {
+                'melody': self.ai_agent.behavior_engine.melody_episode_manager.current_state.value,
+                'bass': self.ai_agent.behavior_engine.bass_episode_manager.current_state.value,
+            },
+            'mode_flags': {
+                'melody': self.ai_agent.behavior_engine.melody_episode_manager.mode_flags.copy(),
+                'bass': self.ai_agent.behavior_engine.bass_episode_manager.mode_flags.copy(),
+            }
+        }
+        
+        # TODO: Implement feedback-based tuning
+        # - Boost current role multipliers
+        # - Increase probability of current style/mode combination
+        # - Store in ai_learning_data/ for persistent learning
+        
+        print(f"👍 TouchOSC LIKE received - snapshot stored")
+        print(f"   Style: {feedback_snapshot['style']}")
+        if feedback_snapshot['role_analysis']:
+            print(f"   Roles: bass={feedback_snapshot['role_analysis'].get('bass_present', 0):.2f} " +
+                  f"melody={feedback_snapshot['role_analysis'].get('melody_dense', 0):.2f} " +
+                  f"drums={feedback_snapshot['role_analysis'].get('drums_heavy', 0):.2f}")
+    
+    def _handle_touchosc_dislike(self):
+        """
+        Handle TouchOSC \"dislike\" button feedback
+        
+        TODO: Wire to TouchOSC /feedback/dislike message
+        Stores snapshot of current musical state for negative reinforcement learning
+        """
+        timestamp = time.time()
+        
+        # Store current state snapshot
+        feedback_snapshot = {
+            'timestamp': timestamp,
+            'type': 'dislike',
+            'style': self.current_style,
+            'role_analysis': self.current_role_analysis.copy() if self.current_role_analysis else None,
+            'episode_states': {
+                'melody': self.ai_agent.behavior_engine.melody_episode_manager.current_state.value,
+                'bass': self.ai_agent.behavior_engine.bass_episode_manager.current_state.value,
+            },
+            'mode_flags': {
+                'melody': self.ai_agent.behavior_engine.melody_episode_manager.mode_flags.copy(),
+                'bass': self.ai_agent.behavior_engine.bass_episode_manager.mode_flags.copy(),
+            }
+        }
+        
+        # TODO: Implement feedback-based tuning
+        # - Reduce current role multipliers
+        # - Decrease probability of current style/mode combination
+        # - Store in ai_learning_data/ for persistent learning
+        
+        print(f"👎 TouchOSC DISLIKE received - snapshot stored")
+        print(f"   Style: {feedback_snapshot['style']}")
+        if feedback_snapshot['role_analysis']:
+            print(f"   Roles: bass={feedback_snapshot['role_analysis'].get('bass_present', 0):.2f} " +
+                  f"melody={feedback_snapshot['role_analysis'].get('melody_dense', 0):.2f} " +
+                  f"drums={feedback_snapshot['role_analysis'].get('drums_heavy', 0):.2f}")
+    
     def _start_osc_server(self, port: int = 5007):
         """Start OSC server in background thread for TouchOSC input"""
         if not OSC_AVAILABLE:
@@ -739,6 +816,9 @@ class EnhancedDriftEngineAI:
             disp = dispatcher.Dispatcher()
             disp.map("/chord", self._osc_chord_handler)
             disp.map("/chord/clear", self._osc_chord_handler)
+            # TouchOSC feedback buttons (for future implementation)
+            disp.map("/feedback/like", lambda addr, *args: self._handle_touchosc_like())
+            disp.map("/feedback/dislike", lambda addr, *args: self._handle_touchosc_dislike())
             
             # Create server with SO_REUSEADDR (custom class sets it before binding)
             self.osc_server = ReuseAddrOSCUDPServer(
@@ -2098,41 +2178,10 @@ class EnhancedDriftEngineAI:
             try:
                 current_time = time.time()
                 
-                # CLAP style/role detection (every 5s with 60s smoothing)
-                if (self.ai_agent and 
-                    self.ai_agent.behavior_engine.enable_clap and 
-                    current_time - self.last_clap_check >= self.clap_check_interval):
-                    
-                    # Get 3s audio buffer from memory
-                    audio_buffer = self.memory_buffer.get_recent_audio(duration=3.0)
-                    
-                    if audio_buffer is not None and len(audio_buffer) > 0:
-                        detector = self.ai_agent.behavior_engine.style_detector
-                        
-                        # Detect style
-                        style_result = detector.detect_style(audio_buffer, sr=44100)
-                        
-                        # Detect roles (bass/melody/drums presence)
-                        role_analysis = detector.detect_roles(audio_buffer, sr=44100)
-                        
-                        # Update if detected
-                        if style_result and role_analysis:
-                            # Check for style change
-                            if style_result.style_label != self.current_style:
-                                print(f"🎭 Style change: {self.current_style} → {style_result.style_label}")
-                                self.current_style = style_result.style_label
-                                self.current_role_analysis = role_analysis
-                                
-                                # Update episode profiles with new style and roles
-                                self.ai_agent.behavior_engine.update_episode_profiles(
-                                    style=self.current_style,
-                                    role_analysis=role_analysis
-                                )
-                            else:
-                                # Style same, but roles may have changed (smoothed over 60s)
-                                self.current_role_analysis = role_analysis
-                    
-                    self.last_clap_check = current_time
+                # TODO: CLAP style/role detection requires audio buffer access
+                # Currently disabled - MemoryBuffer doesn't have get_recent_audio() method
+                # Need to add audio buffering to listener or create separate audio ring buffer
+                # See ORACLE_ACTIVITY_FIX.md for full CLAP integration plan
                 
                 # Update statistics
                 self.stats['uptime'] = current_time - self.start_time
@@ -3411,6 +3460,7 @@ class EnhancedDriftEngineAI:
         # CRITICAL: Don't generate autonomously if human input is being processed
         # This prevents MIDI doubling from parallel voice generation
         if self._autonomous_generation_blocked:
+            print(f"🔒 Autonomous generation blocked")  # DEBUG
             return
         
         # IRCAM Phase 3: Check if we should respond based on behavior mode
@@ -3447,6 +3497,9 @@ class EnhancedDriftEngineAI:
             pass  # Will generate below
         # Otherwise check if it's time to generate
         elif current_time - self.last_autonomous_generation < generation_interval:
+            time_remaining = generation_interval - (current_time - self.last_autonomous_generation)
+            if time_remaining > 20.0:  # Only log if waiting a long time
+                print(f"⏳ Waiting {time_remaining:.1f}s before next generation (interval={generation_interval:.1f}s, activity={self.human_activity_level:.2f})")
             return
         
         # Generate a decision using the AI agent
