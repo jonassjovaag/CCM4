@@ -1262,10 +1262,17 @@ class PhraseGenerator:
             notes = oracle_notes[:phrase_length]
             print(f"   Phrase notes: {notes}")
             
-            # Apply density filter to create sparse/dense phrasing
-            rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
-            notes, kept_indices = self._apply_density_filter(notes, rhythmic_density, voice_type)
-            print(f"   After density filter: {notes}")
+            # Apply density filter ONLY if we have enough notes (>3)
+            # For very short phrases, keep all notes for coherence
+            if len(notes) > 3:
+                rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
+                notes, kept_indices = self._apply_density_filter(notes, rhythmic_density, voice_type)
+                print(f"   After density filter: {notes}")
+                
+                # Safety check: if filter removed too many notes, use original
+                if len(notes) < 2:
+                    print(f"   ⚠️ Density filter too aggressive, reverting to original notes")
+                    notes = oracle_notes[:phrase_length]
             
             # RHYTHMIC PHRASING: Check if request has rhythmic_phrasing from RhythmOracle
             rhythmic_phrasing = None
