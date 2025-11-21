@@ -77,6 +77,14 @@ class CLAPStyleDetector:
         'electronic': "electronic music, textural and evolving",
         'world': "world music, diverse and cultural",
     }
+    
+    # Role detection prompts for complementary behavior
+    # AI uses these to detect what the human is playing and respond complementarily
+    ROLE_PROMPTS = {
+        'bass_present': "bass instrument playing, low frequency bass line",
+        'melody_dense': "melodic lead instrument, prominent melody line",
+        'drums_heavy': "heavy drum percussion, rhythmic drums and beats",
+    }
 
     # Style → BehaviorMode mappings
     STYLE_MODE_MAP = {
@@ -132,11 +140,17 @@ class CLAPStyleDetector:
 
         # Cache text embeddings for style prompts (compute once)
         self.style_text_embeddings = None
+        self.role_text_embeddings = None  # For role detection
+        
+        # Role smoothing (60s moving average to prevent jitter)
+        self.role_history = []  # List of role_analysis dicts
+        self.role_history_max_len = 12  # 60s @ 5s intervals
 
         print(f"🎨 CLAP Style Detector initialized:")
         print(f"   Model: {model_name}")
         print(f"   Device: {self.device}")
         print(f"   Styles: {len(self.STYLE_PROMPTS)}")
+        print(f"   Roles: {len(self.ROLE_PROMPTS)} (bass/melody/drums detection)")
 
     def _initialize_model(self):
         """Lazy load CLAP model (first call only)"""
@@ -186,10 +200,22 @@ class CLAPStyleDetector:
                 self.style_text_embeddings = text_embeddings.cpu().numpy()
             else:
                 self.style_text_embeddings = text_embeddings
+            
+            # Pre-compute role text embeddings for complementary behavior
+            print(f"🔄 Pre-computing role text embeddings...")
+            role_texts = list(self.ROLE_PROMPTS.values())
+            
+            with torch.no_grad():
+                role_embeddings = self.model.get_text_embedding(role_texts)
+            
+            if isinstance(role_embeddings, torch.Tensor):
+                self.role_text_embeddings = role_embeddings.cpu().numpy()
+            else:
+                self.role_text_embeddings = role_embeddings
 
             self._initialized = True
             print(f"✅ CLAP model loaded!")
-            print(f"   Text embeddings cached for {len(style_texts)} styles")
+            print(f"   Text embeddings cached for {len(style_texts)} styles + {len(role_texts)} roles")
 
         except Exception as e:
             print(f"❌ Failed to load CLAP model: {e}")
@@ -291,6 +317,87 @@ class CLAPStyleDetector:
 
         except Exception as e:
             print(f"⚠️ CLAP style detection error: {e}")
+            return None
+    
+    def detect_roles(self,
+                     audio: np.ndarray,
+                     sr: int = 44100) -> Optional[Dict[str, float]]:
+        """
+        Detect musical roles (bass/melody/drums presence) for complementary behavior
+        
+        Args:
+            audio: Audio signal (mono, float32)
+            sr: Sample rate
+        
+        Returns:
+            Dict with role scores: {'bass_present': float, 'melody_dense': float, 'drums_heavy': float}
+            Scores are 0.0-1.0, smoothed over 60s window
+        """
+        # Initialize model on first call
+        if not self._initialized:
+            self._initialize_model()
+        
+        if not self._initialized:
+            return None
+        
+        try:
+            # Ensure audio is float32 and 1D
+            if audio.dtype != np.float32:
+                audio = audio.astype(np.float32)
+            if len(audio.shape) > 1:
+                audio = audio.flatten()
+            
+            # CLAP expects 48kHz audio
+            if sr != 48000:
+                import librosa
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=48000)
+                sr = 48000
+            
+            # Normalize audio
+            if np.abs(audio).max() > 0:
+                audio = audio / np.abs(audio).max()
+            
+            # Extract audio embedding
+            with torch.no_grad():
+                audio_embedding = self.model.get_audio_embedding_from_data(
+                    x=audio,
+                    use_tensor=False
+                )
+            
+            if isinstance(audio_embedding, torch.Tensor):
+                audio_embedding = audio_embedding.cpu().numpy()
+            
+            if len(audio_embedding.shape) > 1:
+                audio_embedding = audio_embedding.flatten()
+            
+            # Compute similarities to role prompts
+            similarities = np.dot(self.role_text_embeddings, audio_embedding)
+            
+            # Map to role dict
+            role_labels = list(self.ROLE_PROMPTS.keys())
+            current_roles = {
+                role_labels[i]: float(similarities[i])
+                for i in range(len(role_labels))
+            }
+            
+            # Add to history for smoothing
+            self.role_history.append(current_roles)
+            if len(self.role_history) > self.role_history_max_len:
+                self.role_history.pop(0)
+            
+            # Compute 60s moving average (smoothed roles)
+            if len(self.role_history) > 0:
+                smoothed_roles = {}
+                for role in role_labels:
+                    values = [r[role] for r in self.role_history]
+                    smoothed_roles[role] = sum(values) / len(values)
+            else:
+                smoothed_roles = current_roles
+            
+            return smoothed_roles
+        
+        except Exception as e:
+            print(f"⚠️ CLAP role detection error: {e}")
             return None
 
     def is_available(self) -> bool:

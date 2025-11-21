@@ -285,6 +285,18 @@ class EnhancedDriftEngineAI:
                     except Exception as e:
                         print(f"   ⚠️  Pre-warm failed: {e}")
                 
+                # PRE-WARM: Initialize CLAP model for style/role detection
+                if self.ai_agent and self.ai_agent.behavior_engine.enable_clap:
+                    print(f"🔥 Pre-warming CLAP model...")
+                    try:
+                        detector = self.ai_agent.behavior_engine.style_detector
+                        if detector:
+                            # Initialize model (triggers download on first run)
+                            detector._initialize_model()
+                            print(f"   ✅ CLAP model ready")
+                    except Exception as e:
+                        print(f"   ⚠️  CLAP pre-warm failed: {e}")
+                
                 # Try to load Wav2Vec chord classifier (for human-readable labels)
                 # DISABLED: Not critical for operation, ratio analyzer provides chord detection
                 self.wav2vec_chord_classifier = None
@@ -401,6 +413,13 @@ class EnhancedDriftEngineAI:
         self.timeline_manager: Optional[PerformanceTimelineManager] = None
         self.performance_duration = performance_duration
         self.performance_arc_path = performance_arc_path
+        self.start_time = time.time()
+        
+        # CLAP style/role detection tracking (60s smoothing)
+        self.last_clap_check = 0.0
+        self.clap_check_interval = 5.0  # Detect every 5s
+        self.current_style = 'ballad'  # Default style
+        self.current_role_analysis = None
         
         # OSC server for TouchOSC chord override (runs in background thread)
         self.osc_server = None
@@ -2078,6 +2097,42 @@ class EnhancedDriftEngineAI:
         while self.running:
             try:
                 current_time = time.time()
+                
+                # CLAP style/role detection (every 5s with 60s smoothing)
+                if (self.ai_agent and 
+                    self.ai_agent.behavior_engine.enable_clap and 
+                    current_time - self.last_clap_check >= self.clap_check_interval):
+                    
+                    # Get 3s audio buffer from memory
+                    audio_buffer = self.memory_buffer.get_recent_audio(duration=3.0)
+                    
+                    if audio_buffer is not None and len(audio_buffer) > 0:
+                        detector = self.ai_agent.behavior_engine.style_detector
+                        
+                        # Detect style
+                        style_result = detector.detect_style(audio_buffer, sr=44100)
+                        
+                        # Detect roles (bass/melody/drums presence)
+                        role_analysis = detector.detect_roles(audio_buffer, sr=44100)
+                        
+                        # Update if detected
+                        if style_result and role_analysis:
+                            # Check for style change
+                            if style_result.style_label != self.current_style:
+                                print(f"🎭 Style change: {self.current_style} → {style_result.style_label}")
+                                self.current_style = style_result.style_label
+                                self.current_role_analysis = role_analysis
+                                
+                                # Update episode profiles with new style and roles
+                                self.ai_agent.behavior_engine.update_episode_profiles(
+                                    style=self.current_style,
+                                    role_analysis=role_analysis
+                                )
+                            else:
+                                # Style same, but roles may have changed (smoothed over 60s)
+                                self.current_role_analysis = role_analysis
+                    
+                    self.last_clap_check = current_time
                 
                 # Update statistics
                 self.stats['uptime'] = current_time - self.start_time

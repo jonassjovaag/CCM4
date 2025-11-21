@@ -755,17 +755,31 @@ class EngagementEpisodeManager:
         self.current_state = EpisodeState.ACTIVE  # Start actively
         self.episode_start_time = None  # Will be set on first should_generate_phrase() call
         
+        # Partner episode manager (for coordination - set after initialization)
+        self.partner_manager = None
+        
         # Human activity tracking
         self.human_rms_history = []  # Recent RMS values
         self.human_activity_window = 5.0  # seconds
         self.human_active_threshold = 0.01  # RMS threshold
         
+        # Get initial episode parameters from ballad profile (was hardcoded 30-120s LISTENING!)
+        # This fixes the 55.3s LISTENING bug - use style-appropriate defaults from start
+        initial_profile = VoiceTimingProfile.get_profile('ballad', voice_type)
+        
         # Episode parameters (set by voice profile)
-        self.active_duration_range = (3.0, 10.0)  # seconds
-        self.listening_duration_range = (30.0, 120.0)  # seconds
-        self.interference_probability = 0.4  # chance to play during human activity
-        self.early_exit_probability = 0.15  # chance to exit ACTIVE early
-        self.context_sensitivity = 0.6  # 0=ignore human, 1=highly responsive
+        self.active_duration_range = initial_profile.get('episode_active_duration_range', (3.0, 10.0))
+        self.listening_duration_range = initial_profile.get('episode_listening_duration_range', (2.0, 6.0))
+        self.interference_probability = initial_profile.get('interference_probability', 0.4)
+        self.early_exit_probability = initial_profile.get('early_exit_probability', 0.15)
+        self.context_sensitivity = initial_profile.get('context_sensitivity', 0.6)
+        
+        # Target ranges for blended updates (50% blend per transition)
+        self.target_active_range = self.active_duration_range
+        self.target_listening_range = self.listening_duration_range
+        
+        # Mode flags for phrase generation (reactive = sparse/short, chill = sustained/long)
+        self.mode_flags = {'reactive': False, 'chill': False}
         
         # Set initial duration from default ranges (AFTER ranges are defined)
         import random
@@ -778,17 +792,30 @@ class EngagementEpisodeManager:
         self.last_transition_time = None  # Will be set on first call
         self.phrases_this_episode = 0
     
-    def update_profile_parameters(self, profile: Dict[str, float]):
+    def update_profile_parameters(self, profile: Dict[str, float], blend: bool = True):
         """
         Update episode parameters from voice timing profile
         
         Args:
             profile: VoiceTimingProfile dict with episode parameters
+            blend: If True, store as target and blend 50% per transition. If False, apply immediately.
         """
-        if 'episode_active_duration_range' in profile:
-            self.active_duration_range = profile['episode_active_duration_range']
-        if 'episode_listening_duration_range' in profile:
-            self.listening_duration_range = profile['episode_listening_duration_range']
+        if blend:
+            # Store as targets - will blend 50% per transition toward these values
+            if 'episode_active_duration_range' in profile:
+                self.target_active_range = profile['episode_active_duration_range']
+            if 'episode_listening_duration_range' in profile:
+                self.target_listening_range = profile['episode_listening_duration_range']
+        else:
+            # Apply immediately (used for initial setup)
+            if 'episode_active_duration_range' in profile:
+                self.active_duration_range = profile['episode_active_duration_range']
+                self.target_active_range = profile['episode_active_duration_range']
+            if 'episode_listening_duration_range' in profile:
+                self.listening_duration_range = profile['episode_listening_duration_range']
+                self.target_listening_range = profile['episode_listening_duration_range']
+        
+        # These apply immediately regardless of blend setting
         if 'interference_probability' in profile:
             self.interference_probability = profile['interference_probability']
         if 'early_exit_probability' in profile:
@@ -865,6 +892,20 @@ class EngagementEpisodeManager:
             
             # Episode duration expired → transition to LISTENING
             if elapsed >= self.episode_duration:
+                # BASS-FOUNDATION COORDINATION: If partner is LISTENING, extend ACTIVE to maintain coverage
+                if self.partner_manager and self.partner_manager.current_state == EpisodeState.LISTENING:
+                    # Extend duration by 50% (maintain coverage while partner rests)
+                    self.episode_duration *= 1.5
+                    print(f"⚖️  {self.voice_type.upper()} extended ACTIVE (partner listening) - maintaining coverage")
+                    return (True, f"ACTIVE extended (partner listening)")
+                
+                # CHILL MODE EXCEPTION: If bass in chill mode, allow both LISTENING for groove space
+                if self.voice_type == "bass" and self.mode_flags.get('chill', False):
+                    self._transition_to_listening()
+                    print(f"⚖️  Chill mode - both voices can rest (groove space)")
+                    return (False, f"Chill mode ACTIVE→LISTENING (groove space OK)")
+                
+                # Normal transition
                 self._transition_to_listening()
                 return (False, f"Episode ACTIVE→LISTENING after {elapsed:.1f}s")
             
@@ -895,18 +936,32 @@ class EngagementEpisodeManager:
         return (False, "Unknown episode state")
     
     def _transition_to_active(self):
-        """Transition from LISTENING to ACTIVE"""
+        """Transition from LISTENING to ACTIVE with blended duration updates"""
         self.current_state = EpisodeState.ACTIVE
         self.episode_start_time = time.time()
+        
+        # Blend current range 50% toward target range (musical clarity)
+        self.active_duration_range = (
+            0.5 * self.active_duration_range[0] + 0.5 * self.target_active_range[0],
+            0.5 * self.active_duration_range[1] + 0.5 * self.target_active_range[1]
+        )
+        
         self.episode_duration = random.uniform(*self.active_duration_range)
         self.phrases_this_episode = 0
         self.last_transition_time = time.time()
-        print(f"🎬 {self.voice_type.upper()} LISTENING→ACTIVE (duration={self.episode_duration:.1f}s)")
+        print(f"🎬 {self.voice_type.upper()} LISTENING→ACTIVE (duration={self.episode_duration:.1f}s, blending toward target)")
     
     def _transition_to_listening(self):
-        """Transition from ACTIVE to LISTENING"""
+        """Transition from ACTIVE to LISTENING with blended duration updates"""
         self.current_state = EpisodeState.LISTENING
         self.episode_start_time = time.time()
+        
+        # Blend current range 50% toward target range
+        self.listening_duration_range = (
+            0.5 * self.listening_duration_range[0] + 0.5 * self.target_listening_range[0],
+            0.5 * self.listening_duration_range[1] + 0.5 * self.target_listening_range[1]
+        )
+        
         self.episode_duration = random.uniform(*self.listening_duration_range)
         self.last_transition_time = time.time()
         print(f"🔇 {self.voice_type.upper()} ACTIVE→LISTENING (duration={self.episode_duration:.1f}s, phrases={self.phrases_this_episode})")
@@ -1435,6 +1490,10 @@ class BehaviorEngine:
             enable_episodes=True  # ← ENABLED for semi-autonomous bass
         )
         
+        # Set partner references for coordination (bass foundation, chill mode awareness)
+        self.melody_episode_manager.partner_manager = self.bass_episode_manager
+        self.bass_episode_manager.partner_manager = self.melody_episode_manager
+        
         # Variable pause durations (balanced for responsiveness without click noise)
         self.melody_pause_min = 6.0   # seconds (increased from 10.0 for more responsiveness)
         self.melody_pause_max = 20.0  # seconds (reduced from 40.0 for more activity)
@@ -1452,6 +1511,82 @@ class BehaviorEngine:
                 temperature=0.8
             )
             print(f"🎭 Initial mode: {self.current_mode.value.upper()} (will persist for {self.current_mode_duration:.0f}s)")
+    
+    def update_episode_profiles(self, style: str, role_analysis: Optional[Dict[str, float]] = None):
+        """
+        Update episode managers with style-specific profiles and role-based complementary multipliers
+        
+        AI responds complementarily to human:
+        - No bass detected (bass_present < 0.3) → AI becomes bass foundation (ACTIVE × 2.0)
+        - Heavy drums (drums_heavy > 0.6) → AI bass creates groove space (reactive mode: sparse/short)
+        - Dense melody (melody_dense > 0.7) → AI bass grounds/stabilizes (chill mode: sustained/long)
+        - Dense melody → AI melody steps back (ACTIVE × 0.5)
+        
+        Args:
+            style: Style label (ballad/jazz/rock/etc) from CLAP detection
+            role_analysis: Dict with smoothed role scores {'bass_present': float, 'melody_dense': float, 'drums_heavy': float}
+        """
+        # Get base profile for style
+        melodic_profile = VoiceTimingProfile.get_profile(style, 'melodic')
+        bass_profile = VoiceTimingProfile.get_profile(style, 'bass')
+        
+        # Apply role-based complementary multipliers
+        if role_analysis:
+            bass_present = role_analysis.get('bass_present', 0.5)
+            melody_dense = role_analysis.get('melody_dense', 0.5)
+            drums_heavy = role_analysis.get('drums_heavy', 0.5)
+            
+            # AI Bass complementary logic
+            bass_active_min, bass_active_max = bass_profile['episode_active_duration_range']
+            bass_listening_min, bass_listening_max = bass_profile['episode_listening_duration_range']
+            
+            # No bass → AI becomes bass foundation
+            if bass_present < 0.3:
+                bass_active_min *= 2.0
+                bass_active_max *= 2.0
+                bass_listening_min *= 0.5
+                bass_listening_max *= 0.5
+                print(f"   🎸 No bass detected → AI bass becomes foundation (ACTIVE × 2.0)")
+            
+            # Heavy drums → Reactive mode (sparse, responsive, not longer notes - just sparser patterns)
+            if drums_heavy > 0.6:
+                self.bass_episode_manager.mode_flags['reactive'] = True
+                self.bass_episode_manager.mode_flags['chill'] = False
+                print(f"   🥁 Heavy drums → AI bass reactive mode (sparse/responsive)")
+            # Dense melody → Chill mode (longer sustained notes, stable ground)
+            elif melody_dense > 0.7:
+                self.bass_episode_manager.mode_flags['chill'] = True
+                self.bass_episode_manager.mode_flags['reactive'] = False
+                bass_active_min *= 1.2
+                bass_active_max *= 1.2
+                print(f"   🎼 Dense melody → AI bass chill mode (sustained/grounding)")
+            else:
+                # Reset flags
+                self.bass_episode_manager.mode_flags['reactive'] = False
+                self.bass_episode_manager.mode_flags['chill'] = False
+            
+            # Update bass profile
+            bass_profile['episode_active_duration_range'] = (bass_active_min, bass_active_max)
+            bass_profile['episode_listening_duration_range'] = (bass_listening_min, bass_listening_max)
+            
+            # AI Melody complementary logic
+            melody_active_min, melody_active_max = melodic_profile['episode_active_duration_range']
+            
+            # Dense melody → AI melody steps back (don't overdo it)
+            if melody_dense > 0.7:
+                melody_active_min *= 0.5
+                melody_active_max *= 0.5
+                print(f"   🎵 Dense melody → AI melody steps back (ACTIVE × 0.5)")
+            
+            melodic_profile['episode_active_duration_range'] = (melody_active_min, melody_active_max)
+        
+        # Update episode managers (with blending for musical clarity)
+        self.melody_episode_manager.update_profile_parameters(melodic_profile, blend=True)
+        self.bass_episode_manager.update_profile_parameters(bass_profile, blend=True)
+        
+        print(f"🎭 Episode profiles updated for style: {style}")
+        if role_analysis:
+            print(f"   Roles (60s avg): bass={role_analysis.get('bass_present', 0):.2f} melody={role_analysis.get('melody_dense', 0):.2f} drums={role_analysis.get('drums_heavy', 0):.2f}")
         
     def set_pause_ranges_from_gpt_oss(self, gpt_oss_data: Dict):
         """Set pause ranges from GPT-OSS training analysis"""
