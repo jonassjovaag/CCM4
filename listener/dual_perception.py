@@ -373,6 +373,14 @@ class DualPerceptionModule:
         )
         active_pcs = chroma_result[1]
         
+        # DEBUG: Log chroma extraction results
+        if len(active_pcs) == 0:
+            if not hasattr(self, '_chroma_debug_count'):
+                self._chroma_debug_count = 0
+            self._chroma_debug_count += 1
+            if self._chroma_debug_count % 20 == 1:
+                print(f"🔍 DEBUG: No pitch classes detected (chroma={chroma.max():.2f}, detected_f0={detected_f0})")
+        
         # Analyze frequency ratios
         ratio_analysis = None
         consonance = 0.5
