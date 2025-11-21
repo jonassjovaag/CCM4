@@ -3471,10 +3471,79 @@ class EnhancedDriftEngineAI:
             melody_sequences = []
             bass_sequences = []
 
-            # Get the oracle's stored patterns
-            if hasattr(self.clustering, 'patterns') and self.clustering.patterns:
+            # Primary source: audio_frames (the main oracle data)
+            if hasattr(self.clustering, 'audio_frames') and self.clustering.audio_frames:
+                print(f"   📂 Found {len(self.clustering.audio_frames)} audio frames")
+
+                # Build sequences from audio frames
+                current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
+                phrase_length = 8  # Target phrase length
+
+                for i, frame in enumerate(self.clustering.audio_frames):
+                    # Extract token - try multiple sources
+                    token = None
+                    if hasattr(frame, 'gesture_token'):
+                        token = frame.gesture_token
+                    elif isinstance(frame, dict):
+                        token = frame.get('gesture_token')
+                        if token is None and 'audio_data' in frame:
+                            token = frame['audio_data'].get('gesture_token')
+
+                    # Extract embedding
+                    embedding = np.zeros(768)
+                    if hasattr(frame, 'features') and frame.features is not None:
+                        if len(frame.features) == 768:
+                            embedding = np.array(frame.features)
+                        elif len(frame.features) > 0:
+                            # Pad or use as-is
+                            embedding = np.zeros(768)
+                            embedding[:min(len(frame.features), 768)] = frame.features[:768]
+                    elif isinstance(frame, dict):
+                        features = frame.get('features', frame.get('audio_data', {}).get('features'))
+                        if features is not None:
+                            if len(features) == 768:
+                                embedding = np.array(features)
+
+                    # Extract MIDI info
+                    midi = 60
+                    if hasattr(frame, 'midi'):
+                        midi = frame.midi
+                    elif isinstance(frame, dict):
+                        midi = frame.get('midi', frame.get('audio_data', {}).get('midi', 60))
+
+                    # Add to current sequence
+                    if token is not None:
+                        current_seq['tokens'].append(token)
+                        current_seq['embeddings'].append(embedding)
+                        current_seq['metadata'].append({
+                            'midi': midi,
+                            'velocity': 80,
+                            'duration': 0.5
+                        })
+
+                    # Check if phrase is complete
+                    if len(current_seq['tokens']) >= phrase_length:
+                        # Classify as melody or bass
+                        if current_seq['metadata']:
+                            avg_midi = np.mean([m['midi'] for m in current_seq['metadata']])
+                            if avg_midi < 50:
+                                bass_sequences.append(current_seq)
+                            else:
+                                melody_sequences.append(current_seq)
+                        else:
+                            melody_sequences.append(current_seq)
+
+                        # Start new phrase with varied length
+                        current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
+                        phrase_length = random.randint(4, 12)
+
+                # Add remaining sequence
+                if len(current_seq['tokens']) >= 2:
+                    melody_sequences.append(current_seq)
+
+            # Fallback: try patterns structure
+            elif hasattr(self.clustering, 'patterns') and self.clustering.patterns:
                 for pattern in self.clustering.patterns:
-                    # Build sequence data
                     tokens = []
                     embeddings = []
                     metadata = []
@@ -3483,16 +3552,11 @@ class EnhancedDriftEngineAI:
                         token = event.get('gesture_token')
                         if token is not None:
                             tokens.append(token)
-
-                            # Get embedding if available, otherwise use zeros
-                            emb = event.get('embedding')
+                            emb = event.get('embedding', event.get('hybrid_wav2vec_features'))
                             if emb is not None:
                                 embeddings.append(np.array(emb))
-                            elif 'hybrid_wav2vec_features' in event:
-                                embeddings.append(np.array(event['hybrid_wav2vec_features']))
                             else:
                                 embeddings.append(np.zeros(768))
-
                             metadata.append({
                                 'midi': event.get('midi', 60),
                                 'velocity': event.get('velocity', 80),
@@ -3500,42 +3564,11 @@ class EnhancedDriftEngineAI:
                             })
 
                     if tokens and embeddings:
-                        seq_data = {
+                        melody_sequences.append({
                             'tokens': tokens,
                             'embeddings': embeddings,
                             'metadata': metadata
-                        }
-
-                        # Classify as melody or bass based on average pitch
-                        avg_midi = np.mean([m['midi'] for m in metadata]) if metadata else 60
-                        if avg_midi < 50:  # Bass range
-                            bass_sequences.append(seq_data)
-                        else:
-                            melody_sequences.append(seq_data)
-
-            # Also extract from oracle's internal state sequence if available
-            if hasattr(self.clustering, 'state_sequence') and self.clustering.state_sequence:
-                # Build sequences from state transitions
-                current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
-
-                for state in self.clustering.state_sequence:
-                    if hasattr(state, 'label'):
-                        current_seq['tokens'].append(state.label if state.label else 0)
-                        current_seq['embeddings'].append(
-                            state.embedding if hasattr(state, 'embedding') else np.zeros(768)
-                        )
-                        current_seq['metadata'].append({
-                            'midi': 60, 'velocity': 80, 'duration': 0.5
                         })
-
-                    # Split into phrases every 8-12 tokens
-                    if len(current_seq['tokens']) >= 8:
-                        melody_sequences.append(current_seq)
-                        current_seq = {'tokens': [], 'embeddings': [], 'metadata': []}
-
-                # Add remaining
-                if current_seq['tokens']:
-                    melody_sequences.append(current_seq)
 
             # Load into SomaxBridge
             if melody_sequences or bass_sequences:
