@@ -1790,7 +1790,7 @@ class PhraseGenerator:
         Returns:
             Beat duration in seconds (default 0.5s = 120 BPM if no tempo available)
         """
-        if current_event and 'rhythmic_context' in current_event:
+        if current_event and 'rhythmic_context' in current_event and current_event['rhythmic_context'] is not None:
             tempo = current_event['rhythmic_context'].get('current_tempo', 120.0)
             if tempo > 0:
                 # Convert BPM to beat duration in seconds

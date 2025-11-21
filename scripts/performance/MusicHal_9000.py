@@ -2680,18 +2680,35 @@ class EnhancedDriftEngineAI:
                     # Load RhythmOracle if available and enabled
                     rhythmic_loaded = False  # Track if rhythmic patterns were loaded
                     if self.rhythm_oracle and self.enable_rhythmic:
-                        # First, try to load from embedded data in the main model file
+                        # First, try to load from embedded data in the main model file (unified format)
                         try:
                             with open(most_recent_file, 'r') as f:
                                 model_data = json.load(f)
-                                if 'rhythm_oracle' in model_data:
-                                    print(f"🥁 Loading RhythmOracle from embedded data in {os.path.basename(most_recent_file)}")
-                                    # Load directly from embedded dict
+                                
+                                # Check for new unified format (data.rhythm_oracle)
+                                if 'data' in model_data and 'rhythm_oracle' in model_data['data']:
+                                    print(f"🥁 Loading RhythmOracle from unified format in {os.path.basename(most_recent_file)}")
+                                    rhythm_data = model_data['data']['rhythm_oracle']
+                                    
+                                    # Use load_from_dict method (handles RhythmicPattern reconstruction)
+                                    self.rhythm_oracle.load_from_dict(rhythm_data)
+                                    
+                                    rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
+                                    print(f"✅ RhythmOracle loaded from unified format!")
+                                    print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
+                                          f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
+                                          f"avg density {rhythm_stats['avg_density']:.2f}, "
+                                          f"transitions: {rhythm_stats['total_transitions']}")
+                                    rhythmic_loaded = True
+                                
+                                # Legacy format (direct rhythm_oracle key)
+                                elif 'rhythm_oracle' in model_data:
+                                    print(f"🥁 Loading RhythmOracle from legacy embedded format in {os.path.basename(most_recent_file)}")
                                     rhythm_data = model_data['rhythm_oracle']
                                     self.rhythm_oracle.load_from_dict(rhythm_data)
                                     
                                     rhythm_stats = self.rhythm_oracle.get_rhythmic_statistics()
-                                    print(f"✅ RhythmOracle loaded from embedded data!")
+                                    print(f"✅ RhythmOracle loaded from legacy format!")
                                     print(f"📊 Rhythm stats: {rhythm_stats['total_patterns']} patterns, "
                                           f"avg tempo {rhythm_stats['avg_tempo']:.1f} BPM, "
                                           f"avg density {rhythm_stats['avg_density']:.2f}, "
@@ -2701,6 +2718,8 @@ class EnhancedDriftEngineAI:
                                     print(f"⚠️  No embedded rhythm_oracle found in {os.path.basename(most_recent_file)}")
                         except Exception as e:
                             print(f"⚠️  Could not load embedded RhythmOracle: {e}")
+                            import traceback
+                            traceback.print_exc()
                         
                         # If not embedded, try companion file (legacy support)
                         if not rhythmic_loaded:
@@ -3364,11 +3383,14 @@ class EnhancedDriftEngineAI:
             if decisions:
                 for decision in decisions:
                     # Map to MIDI
+                    # Ensure musical_params is always a dict (never None)
+                    musical_params = decision.musical_params if decision.musical_params is not None else {}
+                    
                     midi_params = self.feature_mapper.map_features_to_midi(
                         synthetic_event, {
                             'mode': decision.mode.value,
                             'confidence': decision.confidence,
-                            'musical_params': decision.musical_params
+                            'musical_params': musical_params
                         },
                         decision.voice_type
                     )
@@ -3481,6 +3503,8 @@ class EnhancedDriftEngineAI:
             
         except Exception as e:
             print(f"⚠️ Autonomous generation error: {e}")
+            import traceback
+            traceback.print_exc()  # Show full stack trace for debugging
 
 def main():
     """Main entry point"""

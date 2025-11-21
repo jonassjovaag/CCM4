@@ -51,18 +51,30 @@ MPS-accelerated version uses Apple Silicon GPU for real-time distance calculatio
    - Enables automatic mode selection based on musical context
    - Optional, falls back to manual mode selection
 
-3. **Wav2Vec 2.0** (`listener/hybrid_detector.py`): 768D general audio embeddings (legacy support)
-   - Kept for backward compatibility with older models
-   - General-purpose audio representation without music bias
+3. **Neural Audio Model** (`listener/wav2vec_perception.py`, `listener/hybrid_detector.py`): Legacy support
+   - Originally Wav2Vec 2.0 (768D general audio embeddings)
+   - Kept for backward compatibility with older models trained before MERT
+   - New models should use MERT (section 1)
 
-4. **Brandtsegg Ratios** (`listener/ratio_analyzer.py`): frequency ratio analysis → consonance scores
+4. **Frequency Ratio Analysis** (`listener/ratio_analyzer.py`): harmonic frequency ratios → consonance scores
+   - **FrequencyRatioAnalyzer** class analyzes pitch relationships (3:2 perfect fifth, 5:4 major third, etc.)
    - Mathematical harmonic relationships independent of cultural chord naming
    - Outputs: `consonance`, `dissonance`, `ratio_features[3]`, `frequency_ratios[6]`
+   - **NOT Brandtsegg** - this is harmonic theory, not rhythmic
 
-5. **Rhythm Analysis** (`rhythmic_engine/`): onset detection + tempo tracking + syncopation
+5. **Brandtsegg Rhythm Ratios** (`rhythmic_engine/`): onset timing relationships → rhythmic patterns
+   - **ONLY for rhythm** - analyzes temporal ratios between onsets, syncopation, tempo-independent patterns
+   - **NOT for harmony** - separate from frequency ratio analysis
+   - Used by RhythmOracle for rhythmic pattern learning
+
+6. **Rhythm Analysis** (`rhythmic_engine/`): onset detection + tempo tracking + syncopation
    - RhythmOracle learns rhythmic patterns parallel to harmonic AudioOracle
    - Correlation engine discovers harmonic-rhythmic relationships
 
+**CRITICAL DISTINCTION - DO NOT CONFUSE**:
+- **Harmonic ratios** = FrequencyRatioAnalyzer = pitch frequency relationships (3:2, 5:4) = MUSIC THEORY
+- **Brandtsegg ratios** = Rhythmic timing relationships = onset intervals = RHYTHM ONLY
+- These are completely separate systems analyzing different musical dimensions
 **Why this matters**: MERT provides music-aware perceptual features that understand musical concepts (chords, keys, genres) without requiring symbolic transcription. CLAP adds semantic layer for style-driven behavioral adaptation. Chord names (Cmaj7, Dm7) are post-hoc symbolic labels—the system learns from perceptual features first, symbolic interpretation second. This aligns with practice-based artistic research goals.
 
 ## Development Workflows
