@@ -816,10 +816,11 @@ class PolyphonicAudioOracle(AudioOracle):
                     if frame_id >= len(self.audio_frames):
                         continue
                     
-                    # Get frame metadata (contains dual tokens)
-                    frame_metadata = self.audio_frames[frame_id].metadata
-                    frame_harmonic = frame_metadata.get('harmonic_token')
-                    frame_percussive = frame_metadata.get('percussive_token')
+                    # Get frame audio_data (contains dual tokens)
+                    frame = self.audio_frames[frame_id]
+                    frame_audio_data = frame.audio_data if hasattr(frame, 'audio_data') else {}
+                    frame_harmonic = frame_audio_data.get('harmonic_token')
+                    frame_percussive = frame_audio_data.get('percussive_token')
                     
                     # Filter based on response_mode
                     if response_mode == 'harmonic':
