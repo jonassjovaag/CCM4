@@ -367,6 +367,11 @@ class DualPerceptionModule:
         
         # === PATHWAY 2: Ratio-Based Harmonic Analysis (for context + display) ===
         # Extract chroma and active pitch classes from original (combined) audio
+        
+        # DEBUG: Check audio buffer
+        audio_rms = np.sqrt(np.mean(audio**2)) if len(audio) > 0 else 0.0
+        audio_length = len(audio)
+        
         chroma = self.chroma_extractor.extract(audio, sr, use_temporal=True, live_mode=True)
         chroma_result = self.chroma_extractor.extract_top_k(
             audio, sr, k=4, min_separation=2, min_threshold=0.15
@@ -379,7 +384,11 @@ class DualPerceptionModule:
                 self._chroma_debug_count = 0
             self._chroma_debug_count += 1
             if self._chroma_debug_count % 20 == 1:
-                print(f"🔍 DEBUG: No pitch classes detected (chroma={chroma.max():.2f}, detected_f0={detected_f0})")
+                print(f"🔍 DEBUG: No pitch classes detected")
+                print(f"  - chroma max: {chroma.max():.4f}, sum: {chroma.sum():.4f}")
+                print(f"  - detected_f0: {detected_f0}")
+                print(f"  - audio_rms: {audio_rms:.6f}, length: {audio_length} samples ({audio_length/sr:.3f}s)")
+                print(f"  - sr: {sr}")
         
         # Analyze frequency ratios
         ratio_analysis = None
