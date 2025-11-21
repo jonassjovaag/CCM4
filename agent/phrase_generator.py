@@ -471,6 +471,59 @@ class PhraseGenerator:
         
         return timings
     
+    def _apply_density_filter(self, notes: List[int], rhythmic_density: float, 
+                              voice_type: str = "melodic") -> Tuple[List[int], List[int]]:
+        """
+        Probabilistically skip notes based on rhythmic_density parameter.
+        
+        This creates natural sparse/dense phrasing by removing notes from the phrase.
+        Lower density = more notes skipped (sparser). Higher density = fewer notes skipped (denser).
+        
+        Args:
+            notes: List of MIDI note numbers
+            rhythmic_density: 0.0-1.0 (0.2=very sparse, 0.6=dense, 1.0=all notes)
+            voice_type: "melodic" or "bass" (bass is more forgiving with low density)
+            
+        Returns:
+            Tuple of (filtered_notes, kept_indices) - indices track which notes survived
+        """
+        if rhythmic_density >= 0.95:
+            # Very high density - keep all notes
+            return notes, list(range(len(notes)))
+        
+        # Bass should always play at least every other note for foundation
+        min_keep_probability = 0.3 if voice_type == "bass" else 0.15
+        
+        # Convert density to keep probability
+        # density=0.2 → 35% keep (sparse)
+        # density=0.4 → 55% keep (medium)  
+        # density=0.6 → 75% keep (dense)
+        keep_probability = min_keep_probability + (rhythmic_density * 0.7)
+        
+        filtered_notes = []
+        kept_indices = []
+        
+        for i, note in enumerate(notes):
+            # Always keep first and last notes for phrase coherence
+            if i == 0 or i == len(notes) - 1:
+                filtered_notes.append(note)
+                kept_indices.append(i)
+            elif random.random() < keep_probability:
+                filtered_notes.append(note)
+                kept_indices.append(i)
+        
+        # Ensure minimum phrase length (at least 2 notes)
+        if len(filtered_notes) < 2 and len(notes) >= 2:
+            # Keep first and one random note
+            filtered_notes = [notes[0], notes[random.randint(1, len(notes)-1)]]
+            kept_indices = [0, random.randint(1, len(notes)-1)]
+        
+        skipped_count = len(notes) - len(filtered_notes)
+        if skipped_count > 0:
+            print(f"🎵 Density filter ({rhythmic_density:.2f}): {len(filtered_notes)}/{len(notes)} notes kept ({skipped_count} skipped)")
+        
+        return filtered_notes, kept_indices
+    
     # ========================================
     # Melodic Constraint Helpers (Phase 2-4)
     # ========================================
@@ -1209,6 +1262,11 @@ class PhraseGenerator:
             notes = oracle_notes[:phrase_length]
             print(f"   Phrase notes: {notes}")
             
+            # Apply density filter to create sparse/dense phrasing
+            rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
+            notes, kept_indices = self._apply_density_filter(notes, rhythmic_density, voice_type)
+            print(f"   After density filter: {notes}")
+            
             # RHYTHMIC PHRASING: Check if request has rhythmic_phrasing from RhythmOracle
             rhythmic_phrasing = None
             if request and 'rhythmic_phrasing' in request:
@@ -1827,42 +1885,17 @@ class PhraseGenerator:
         ioi_variance_factor = (1.0 - timing_precision) * 0.3  # 0-30% variance range
         timing_with_variance = base_timing * (1.0 + random.uniform(-ioi_variance_factor, ioi_variance_factor))
         
-        # Apply syncopation tendency (beat placement bias)
-        # Calculate current beat position within beat (0.0 = on-beat, 0.5 = halfway between beats)
-        beat_position = timing_with_variance % beat_duration  # Position within beat (0 to beat_duration)
-        beat_number = int(timing_with_variance / beat_duration)  # Which beat we're on
+        # Apply humanization jitter based on timing_precision
+        # precision=1.0 (tight) → minimal jitter (~5ms)
+        # precision=0.5 (medium) → moderate jitter (~25ms)
+        # precision=0.0 (loose) → high jitter (~50ms)
+        if timing_precision < 1.0:
+            max_jitter_ms = (1.0 - timing_precision) * 50.0  # Up to 50ms for loose timing
+            jitter_seconds = random.uniform(-max_jitter_ms, max_jitter_ms) / 1000.0
+            timing_with_variance += jitter_seconds
         
-        if syncopation < 0.3:
-            # Low syncopation: Snap toward quarter note positions (on-beat)
-            # Find nearest quarter position in SECONDS (not normalized phase)
-            quarter_positions = [0.0, beat_duration * 0.25, beat_duration * 0.5, beat_duration * 0.75]
-            nearest_quarter = min(quarter_positions, key=lambda x: abs(beat_position - x))
-            
-            # Blend toward nearest quarter (stronger snap for lower syncopation)
-            snap_strength = (0.3 - syncopation) / 0.3  # 0.0-1.0
-            adjusted_position = beat_position * (1.0 - snap_strength) + nearest_quarter * snap_strength
-            
-        elif syncopation > 0.4:
-            # High syncopation: Push away from quarters toward eighths (off-beat)
-            # Find nearest eighth position in SECONDS
-            eighth_positions = [beat_duration * 0.125, beat_duration * 0.375, 
-                              beat_duration * 0.625, beat_duration * 0.875]
-            nearest_eighth = min(eighth_positions, key=lambda x: abs(beat_position - x))
-            
-            # Blend toward nearest eighth (stronger push for higher syncopation)
-            push_strength = (syncopation - 0.4) / 0.6  # 0.0-1.0
-            adjusted_position = beat_position * (1.0 - push_strength) + nearest_eighth * push_strength
-            
-        else:
-            # Medium syncopation: No bias, keep natural placement
-            adjusted_position = beat_position
+        # NO BEAT QUANTIZATION - let RhythmOracle timing pass through naturally
+        # This preserves the learned rhythmic patterns from Brandtsegg ratio analysis
+        # and creates off-grid, humanized timing instead of grid-locked notes
         
-        # Reconstruct timing from adjusted position
-        final_timing = beat_number * beat_duration + adjusted_position
-        
-        # Debug logging (commented out by default, uncomment for debugging)
-        # if syncopation != 0.3:  # Only log if syncopation is active
-        #     print(f"🎯 Syncopation: tendency={syncopation:.2f}, beat_pos={beat_position:.3f}s, "
-        #           f"adjusted={adjusted_position:.3f}s, final={final_timing:.3f}s")
-        
-        return max(0.1, final_timing)  # Ensure minimum 0.1s
+        return max(0.1, timing_with_variance)  # Ensure minimum 0.1s

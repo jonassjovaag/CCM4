@@ -422,8 +422,8 @@ class EnhancedDriftEngineAI:
         self._autonomous_generation_blocked = False  # Prevents simultaneous generation
         
         # Voice-specific autonomous behavior
-        self.bass_accompaniment_probability = 0.2  # Probability bass plays during human activity (reduced for sparsity)
-        self.melody_silence_when_active = True  # Melody stays quiet when human is active
+        self.bass_accompaniment_probability = 0.6  # Probability bass plays during human activity (increased from 0.2)
+        self.melody_silence_when_active = False  # Allow melody alongside human (changed from True)
         
         # Track phrases that started in autonomous mode (let them complete)
         self.autonomous_phrase_ids = set()
@@ -906,7 +906,7 @@ class EnhancedDriftEngineAI:
         
         # Slow during active phrases (give space to human)
         if self.phrase_state == 'in_phrase':
-            return 5.0
+            return 2.5  # Respond more frequently (reduced from 5.0)
         
         # Medium at boundaries (good time to respond)
         if self.phrase_state == 'boundary':

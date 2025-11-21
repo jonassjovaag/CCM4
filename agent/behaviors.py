@@ -59,9 +59,9 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.2,  # Mostly on-beat
                 'timbre_variance': 0.7,  # Expressive timbre changes
                 # Episode engagement (hierarchical level 3)
-                'episode_active_duration_range': (3.0, 10.0),  # Short expressive statements
-                'episode_listening_duration_range': (15.0, 45.0),  # Contemplative listening
-                'interference_probability': 0.4,  # Sometimes play over human
+                'episode_active_duration_range': (5.0, 15.0),  # Increased from (3,10) for longer melodic phrases
+                'episode_listening_duration_range': (8.0, 20.0),  # Decreased from (15,45) for more presence
+                'interference_probability': 0.5,  # Increased from 0.4 for more overlap with human
                 'early_exit_probability': 0.15,  # Responsive to human
                 'context_sensitivity': 0.6,  # Moderately context-aware
             },
@@ -73,7 +73,7 @@ class VoiceTimingProfile:
                 # Episode engagement (bass is steady, not hierarchical)
                 'episode_active_duration_range': (10.0, 30.0),  # Long steady presence
                 'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks only
-                'interference_probability': 0.15,  # Rarely interferes
+                'interference_probability': 0.5,  # Increased from 0.15 for steadier bass
                 'early_exit_probability': 0.05,  # Very stable
                 'context_sensitivity': 0.3,  # Foundation-focused
             }
