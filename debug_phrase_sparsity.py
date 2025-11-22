@@ -164,8 +164,16 @@ def run_diagnostic_test(duration_minutes: int = 3, verbose: bool = False):
     if verbose:
         os.environ['TIMING_LOGGER_VERBOSE'] = '1'
     
+    # Use CCM3 Python interpreter directly
+    ccm3_python = Path("CCM3/bin/python")
+    if ccm3_python.exists():
+        python_exec = str(ccm3_python)
+    else:
+        python_exec = sys.executable
+        print("⚠️  CCM3/bin/python not found, using system Python")
+    
     cmd = [
-        sys.executable,
+        python_exec,
         "MusicHal_9000.py",
         "--enable-meld",
         f"--performance-duration={duration_minutes}",
