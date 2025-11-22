@@ -4,6 +4,15 @@
 
 set -e
 
+# Activate CCM3 virtual environment
+if [ -f "CCM3/bin/activate" ]; then
+    source CCM3/bin/activate
+    echo "✅ CCM3 virtual environment activated"
+else
+    echo "❌ CCM3/bin/activate not found"
+    exit 1
+fi
+
 echo "=============================================================================="
 echo "COMPREHENSIVE PHRASE SPARSITY DIAGNOSTIC"
 echo "=============================================================================="
