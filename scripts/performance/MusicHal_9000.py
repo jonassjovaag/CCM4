@@ -400,7 +400,10 @@ class EnhancedDriftEngineAI:
         # TODO: CLAP configuration disabled until audio buffer access added
         # CLAP needs raw audio from listener, but current architecture doesn't expose it
         # See ORACLE_ACTIVITY_FIX.md for implementation plan
-        self.ai_agent = AIAgent(visualization_manager=self.visualization_manager)
+        self.ai_agent = AIAgent(
+            rhythm_oracle=self.rhythm_oracle,
+            visualization_manager=self.visualization_manager
+        )
         
         # Initialize GPT-OSS live reflection engine (if enabled)
         self.gpt_reflector = None
@@ -3157,6 +3160,15 @@ class EnhancedDriftEngineAI:
             except Exception as e:
                 print(f"⚠️ Could not load rhythmic patterns from fallback: {e}")
         
+        # Initialize timing logger if requested (for debugging)
+        timing_logger = None
+        import os
+        if os.environ.get('ENABLE_TIMING_LOGGER') == '1':
+            from core.autonomous_timing_logger import AutonomousTimingLogger
+            verbose = os.environ.get('TIMING_LOGGER_VERBOSE') == '1'
+            timing_logger = AutonomousTimingLogger(verbose=verbose)
+            print(f"🔍 AutonomousTimingLogger enabled (verbose={verbose})")
+        
         # Update AI agent with rhythm oracle for phrase generation
         print(f"🔍 Debug: About to initialize phrase generator...")
         if self.rhythm_oracle:
@@ -3165,7 +3177,8 @@ class EnhancedDriftEngineAI:
                 audio_oracle=self.clustering,  # ← CRITICAL FIX: Connect trained AudioOracle!
                 visualization_manager=self.visualization_manager,
                 harmonic_progressor=self.harmonic_progressor,
-                harmonic_context_manager=self.harmonic_context_manager
+                harmonic_context_manager=self.harmonic_context_manager,
+                timing_logger=timing_logger
             )
             print("🎼 AI Agent updated with rhythmic phrase generation")
         else:
@@ -3175,7 +3188,8 @@ class EnhancedDriftEngineAI:
                 audio_oracle=self.clustering,  # ← CRITICAL FIX: Connect trained AudioOracle!
                 visualization_manager=self.visualization_manager,
                 harmonic_progressor=self.harmonic_progressor,
-                harmonic_context_manager=self.harmonic_context_manager
+                harmonic_context_manager=self.harmonic_context_manager,
+                timing_logger=timing_logger
             )
             print("🎼 AI Agent initialized with phrase generation (no rhythm oracle)")
         

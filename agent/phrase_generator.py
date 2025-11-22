@@ -58,12 +58,13 @@ class PhraseGenerator:
     
     def __init__(self, rhythm_oracle, audio_oracle=None, enable_silence: bool = True, 
                  visualization_manager=None, harmonic_progressor=None, 
-                 harmonic_context_manager=None):
+                 harmonic_context_manager=None, timing_logger=None):
         self.rhythm_oracle = rhythm_oracle
         self.audio_oracle = audio_oracle  # AudioOracle for learned patterns
         self.visualization_manager = visualization_manager
         self.harmonic_progressor = harmonic_progressor  # Learned harmonic progressions
         self.harmonic_context_manager = harmonic_context_manager  # Manual override system
+        self.timing_logger = timing_logger  # AutonomousTimingLogger for debugging
         
         # INTERVAL-BASED HARMONIC TRANSLATION
         self.interval_extractor = IntervalExtractor()
@@ -1098,6 +1099,8 @@ class PhraseGenerator:
             True if voice can generate, False if in pause period
         """
         if not self.autonomous_mode:
+            if self.timing_logger:
+                self.timing_logger.log_attempt(voice, False, "autonomous_mode_disabled")
             return False
         
         current_time = time.time()
@@ -1111,14 +1114,46 @@ class PhraseGenerator:
                 self.notes_in_phrase[voice] = 0
                 self.phrase_complete_time[voice] = 0.0
                 print(f"🔄 Auto-reset {voice} phrase (2s pause complete)")
+                if self.timing_logger:
+                    self.timing_logger.log_auto_reset(voice)
+                    self.timing_logger.log_attempt(
+                        voice, True, "ready_after_auto_reset",
+                        self.notes_in_phrase[voice],
+                        self.target_phrase_length[voice],
+                        self.phrase_complete[voice]
+                    )
                 return True
             else:
                 # Still in pause period
+                if self.timing_logger:
+                    self.timing_logger.log_attempt(
+                        voice, False, "phrase_complete",
+                        self.notes_in_phrase[voice],
+                        self.target_phrase_length[voice],
+                        self.phrase_complete[voice]
+                    )
                 return False
         
         # Phrase not complete - check if minimum interval passed
         time_since_last = current_time - self.last_generation_time[voice]
-        return time_since_last >= self.autonomous_interval
+        if time_since_last >= self.autonomous_interval:
+            if self.timing_logger:
+                self.timing_logger.log_attempt(
+                    voice, True, "ready",
+                    self.notes_in_phrase[voice],
+                    self.target_phrase_length[voice],
+                    self.phrase_complete[voice]
+                )
+            return True
+        else:
+            if self.timing_logger:
+                self.timing_logger.log_attempt(
+                    voice, False, "interval_too_soon",
+                    self.notes_in_phrase[voice],
+                    self.target_phrase_length[voice],
+                    self.phrase_complete[voice]
+                )
+            return False
     
     def mark_note_generated(self, voice: str):
         """Track note generation and phrase completion
@@ -1134,11 +1169,27 @@ class PhraseGenerator:
         self.notes_in_phrase[voice] += 1
         self.last_generation_time[voice] = current_time
         
+        if self.timing_logger:
+            self.timing_logger.log_success(
+                voice, 
+                0,  # Note not available at this level
+                self.notes_in_phrase[voice],
+                self.target_phrase_length[voice]
+            )
+        
         # Check if phrase target reached
         if self.notes_in_phrase[voice] >= self.target_phrase_length[voice]:
             self.phrase_complete[voice] = True
             self.phrase_complete_time[voice] = current_time
             print(f"✓ {voice.capitalize()} phrase complete ({self.notes_in_phrase[voice]} notes) - pausing 2s")
+            
+            if self.timing_logger:
+                duration = current_time - (current_time - (self.notes_in_phrase[voice] * 0.5))  # Rough estimate
+                self.timing_logger.log_phrase_complete(
+                    voice,
+                    self.notes_in_phrase[voice],
+                    duration
+                )
     
     def set_autonomous_mode(self, enabled: bool):
         """Enable/disable autonomous generation mode
