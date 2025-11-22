@@ -172,6 +172,11 @@ def run_diagnostic_test(duration_minutes: int = 3, verbose: bool = False):
         python_exec = sys.executable
         print("⚠️  CCM3/bin/python not found, using system Python")
     
+    # Ensure we're using the activated venv's python if available
+    if 'VIRTUAL_ENV' in os.environ:
+        python_exec = sys.executable
+        print(f"✅ Using activated venv Python: {python_exec}")
+    
     cmd = [
         python_exec,
         "MusicHal_9000.py",
