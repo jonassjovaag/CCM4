@@ -124,6 +124,15 @@ class PhraseGenerator:
         self.prefer_steps = 0.7        # 70% probability for stepwise motion
         self.penalize_tritone = True   # Avoid augmented 4th/diminished 5th
         self.scale_constraint = True   # Prefer diatonic notes in current key
+        
+        # AUTONOMOUS GENERATION: Per-voice phrase tracking
+        self.autonomous_mode = False
+        self.phrase_complete = {'melodic': False, 'bass': False}
+        self.notes_in_phrase = {'melodic': 0, 'bass': 0}
+        self.target_phrase_length = {'melodic': 6, 'bass': 10}
+        self.phrase_complete_time = {'melodic': 0.0, 'bass': 0.0}
+        self.last_generation_time = {'melodic': 0.0, 'bass': 0.0}
+        self.autonomous_interval = 0.5  # Generation attempt interval
     
     def track_event(self, event_data: Dict, source: str = 'human'):
         """
@@ -1070,6 +1079,75 @@ class PhraseGenerator:
                 )
             
         return phrase
+    
+    # ========================================
+    # AUTONOMOUS GENERATION METHODS
+    # ========================================
+    
+    def should_respond(self, voice: str) -> bool:
+        """Check if voice should generate note in autonomous mode
+        
+        Per-voice phrase completion with auto-reset:
+        - Returns True if phrase not complete OR past auto-reset time
+        - Returns False during pause period (phrase complete, before reset)
+        
+        Args:
+            voice: 'melodic' or 'bass'
+            
+        Returns:
+            True if voice can generate, False if in pause period
+        """
+        if not self.autonomous_mode:
+            return False
+        
+        current_time = time.time()
+        
+        # If phrase complete, check if auto-reset time passed
+        if self.phrase_complete[voice]:
+            time_since_complete = current_time - self.phrase_complete_time[voice]
+            if time_since_complete >= 2.0:  # 2s auto-reset
+                # Reset phrase state
+                self.phrase_complete[voice] = False
+                self.notes_in_phrase[voice] = 0
+                self.phrase_complete_time[voice] = 0.0
+                print(f"🔄 Auto-reset {voice} phrase (2s pause complete)")
+                return True
+            else:
+                # Still in pause period
+                return False
+        
+        # Phrase not complete - check if minimum interval passed
+        time_since_last = current_time - self.last_generation_time[voice]
+        return time_since_last >= self.autonomous_interval
+    
+    def mark_note_generated(self, voice: str):
+        """Track note generation and phrase completion
+        
+        Increments notes_in_phrase counter and marks phrase complete
+        when target length reached. This triggers 2s pause period.
+        
+        Args:
+            voice: 'melodic' or 'bass'
+        """
+        current_time = time.time()
+        
+        self.notes_in_phrase[voice] += 1
+        self.last_generation_time[voice] = current_time
+        
+        # Check if phrase target reached
+        if self.notes_in_phrase[voice] >= self.target_phrase_length[voice]:
+            self.phrase_complete[voice] = True
+            self.phrase_complete_time[voice] = current_time
+            print(f"✓ {voice.capitalize()} phrase complete ({self.notes_in_phrase[voice]} notes) - pausing 2s")
+    
+    def set_autonomous_mode(self, enabled: bool):
+        """Enable/disable autonomous generation mode
+        
+        Args:
+            enabled: True to enable autonomous mode, False to disable
+        """
+        self.autonomous_mode = enabled
+        print(f"🤖 Autonomous mode: {'ENABLED' if enabled else 'DISABLED'}")
     
     def _decide_phrase_arc(self, current_event: Dict) -> PhraseArc:
         """Decide musical phrase arc based on context"""

@@ -1020,6 +1020,14 @@ class EnhancedDriftEngineAI:
         Returns:
             Interval in seconds
         """
+        # AUTONOMOUS MODE: Fast outer loop (0.1s polling)
+        # PhraseGenerator.should_respond() handles per-voice timing (0.5s generation interval)
+        if (hasattr(self, 'ai_agent') and self.ai_agent and 
+            hasattr(self.ai_agent, 'behavior_engine') and 
+            hasattr(self.ai_agent.behavior_engine, 'phrase_generator') and
+            self.ai_agent.behavior_engine.phrase_generator.autonomous_mode):
+            return 0.1  # Fast polling - phrase_generator handles actual generation timing
+        
         # Fast response in pauses (fill silence appropriately)
         if self.in_pause:
             return 1.0
@@ -3951,7 +3959,12 @@ def main():
     drift_ai.bass_accompaniment_probability = args.bass_accompaniment
     drift_ai.melody_silence_when_active = args.silence_melody_when_active  # Now directly uses the flag
     
+    # Enable autonomous mode in PhraseGenerator
     if not args.no_autonomous:
+        if (hasattr(drift_ai, 'ai_agent') and drift_ai.ai_agent and 
+            hasattr(drift_ai.ai_agent, 'behavior_engine') and 
+            hasattr(drift_ai.ai_agent.behavior_engine, 'phrase_generator')):
+            drift_ai.ai_agent.behavior_engine.phrase_generator.set_autonomous_mode(True)
         print(f"🤖 Autonomous generation enabled (interval: {args.autonomous_interval:.1f}s)")
         print(f"🎸 Bass accompaniment: {args.bass_accompaniment:.0%} probability")
         print(f"🎤 Melody while active: {'No (silent)' if args.silence_melody_when_active else 'Yes (sparse)'}")

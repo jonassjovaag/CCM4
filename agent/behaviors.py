@@ -1977,9 +1977,16 @@ class BehaviorEngine:
             required_melody_gap = random.uniform(self.melody_pause_min, self.melody_pause_max)
             required_bass_gap = random.uniform(self.bass_pause_min, self.bass_pause_max)
             
-            # Check episode states (hierarchical level 3)
-            melody_should_play, melody_reasoning = self.melody_episode_manager.should_generate_phrase()
-            bass_should_play, bass_reasoning = self.bass_episode_manager.should_generate_phrase()
+            # AUTONOMOUS MODE: Use PhraseGenerator's should_respond() if enabled
+            if self.phrase_generator.autonomous_mode:
+                melody_should_play = self.phrase_generator.should_respond('melodic')
+                bass_should_play = self.phrase_generator.should_respond('bass')
+                melody_reasoning = "autonomous (phrase tracking)" if melody_should_play else "autonomous (pausing)"
+                bass_reasoning = "autonomous (phrase tracking)" if bass_should_play else "autonomous (pausing)"
+            else:
+                # Check episode states (hierarchical level 3)
+                melody_should_play, melody_reasoning = self.melody_episode_manager.should_generate_phrase()
+                bass_should_play, bass_reasoning = self.bass_episode_manager.should_generate_phrase()
             
             # Check if each voice is ready based on its OWN timing (level 2)
             melody_timing_ready = time_since_melody > required_melody_gap
@@ -2094,6 +2101,10 @@ class BehaviorEngine:
                         # Apply CLAP-driven timing profile
                         decision = self._apply_timing_profile(decision)
                         decisions.append(decision)
+                        
+                        # AUTONOMOUS MODE: Track note generation for phrase completion
+                        if self.phrase_generator.autonomous_mode:
+                            self.phrase_generator.mark_note_generated(voice_type)
                         
                         # Update timing for voice immediately to prevent overlap
                         phrase_duration = (len(phrase.notes) - 1) * 0.25 + phrase.durations[-1]

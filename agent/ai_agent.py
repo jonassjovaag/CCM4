@@ -72,9 +72,13 @@ class AIAgent:
         # Update scheduler
         self.scheduler.update_initiative()
         
-        # Check if we should make a decision
-        if not self.scheduler.should_make_decision():
-            return []
+        # AUTONOMOUS MODE: Skip scheduler check if autonomous generation enabled
+        # In autonomous mode, PhraseGenerator handles its own timing via should_respond()
+        if not (hasattr(self.behavior_engine, 'phrase_generator') and 
+                self.behavior_engine.phrase_generator.autonomous_mode):
+            # Check if we should make a decision (human-reactive mode)
+            if not self.scheduler.should_make_decision():
+                return []
         
         # Make decisions (melodic and bass) with activity multiplier and arc context
         decisions = self.behavior_engine.decide_behavior(
