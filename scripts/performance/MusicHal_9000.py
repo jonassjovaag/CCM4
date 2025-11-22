@@ -3162,7 +3162,6 @@ class EnhancedDriftEngineAI:
         
         # Initialize timing logger if requested (for debugging)
         timing_logger = None
-        import os
         if os.environ.get('ENABLE_TIMING_LOGGER') == '1':
             from core.autonomous_timing_logger import AutonomousTimingLogger
             verbose = os.environ.get('TIMING_LOGGER_VERBOSE') == '1'
