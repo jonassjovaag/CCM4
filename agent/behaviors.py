@@ -1977,8 +1977,16 @@ class BehaviorEngine:
             required_melody_gap = random.uniform(self.melody_pause_min, self.melody_pause_max)
             required_bass_gap = random.uniform(self.bass_pause_min, self.bass_pause_max)
             
+            # DEBUG: Log autonomous mode state once
+            if not hasattr(self, '_logged_autonomous_state'):
+                pg_exists = self.phrase_generator is not None
+                has_mode = hasattr(self.phrase_generator, 'autonomous_mode') if pg_exists else False
+                mode_enabled = self.phrase_generator.autonomous_mode if (pg_exists and has_mode) else False
+                print(f"🔍 AUTONOMOUS DEBUG: phrase_generator={pg_exists}, has_mode={has_mode}, enabled={mode_enabled}")
+                self._logged_autonomous_state = True
+            
             # AUTONOMOUS MODE: Use PhraseGenerator's should_respond() if enabled
-            if self.phrase_generator.autonomous_mode:
+            if self.phrase_generator and hasattr(self.phrase_generator, 'autonomous_mode') and self.phrase_generator.autonomous_mode:
                 melody_should_play = self.phrase_generator.should_respond('melodic')
                 bass_should_play = self.phrase_generator.should_respond('bass')
                 melody_reasoning = "autonomous (phrase tracking)" if melody_should_play else "autonomous (pausing)"
@@ -2103,7 +2111,7 @@ class BehaviorEngine:
                         decisions.append(decision)
                         
                         # AUTONOMOUS MODE: Track note generation for phrase completion
-                        if self.phrase_generator.autonomous_mode:
+                        if self.phrase_generator and hasattr(self.phrase_generator, 'autonomous_mode') and self.phrase_generator.autonomous_mode:
                             self.phrase_generator.mark_note_generated(voice_type)
                         
                         # Update timing for voice immediately to prevent overlap
