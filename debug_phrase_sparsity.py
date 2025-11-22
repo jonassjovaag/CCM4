@@ -202,6 +202,13 @@ def run_diagnostic_test(duration_minutes: int = 3, verbose: bool = False):
         elapsed = time.time() - start_time
         print(f"\n✓ Test completed in {elapsed:.1f}s")
         
+        # Check for errors
+        if result.returncode != 0:
+            print(f"\n⚠️  Warning: Process exited with code {result.returncode}")
+            if result.stderr:
+                print(f"\n❌ Error output:")
+                print(result.stderr[:1000])
+        
         # Find most recent timing log
         logs_dir = Path("logs")
         timing_logs = sorted(logs_dir.glob("timing_events_*.csv"), 
@@ -212,12 +219,6 @@ def run_diagnostic_test(duration_minutes: int = 3, verbose: bool = False):
             analyze_timing_log(timing_logs[0])
         else:
             print("\n❌ No timing log found - logger may not be enabled")
-        
-        # Check for errors
-        if result.returncode != 0:
-            print(f"\n⚠️  Warning: Process exited with code {result.returncode}")
-            if result.stderr:
-                print(f"Stderr:\n{result.stderr[:500]}")
         
     except subprocess.TimeoutExpired:
         print(f"\n⚠️  Test timed out after {(duration_minutes * 60) + 45}s")
