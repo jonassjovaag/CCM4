@@ -85,6 +85,9 @@ from rhythmic_engine.audio_file_learning.lightweight_rhythmic_analyzer import Li
 from rhythmic_engine.memory.rhythm_oracle import RhythmOracle
 from rhythmic_engine.agent.rhythmic_behavior_engine import RhythmicBehaviorEngine
 
+# Somax2 AI operator (controls external Somax2 via OSC)
+from agent.somax_operator import SomaxOperator, OperatorMode
+
 # New correlation components
 from correlation_engine.unified_decision_engine import UnifiedDecisionEngine, CrossModalContext, MusicalContext
 
@@ -214,7 +217,7 @@ class EnhancedDriftEngineAI:
     Combines harmonic and rhythmic intelligence
     """
     
-    def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None, 
+    def __init__(self, midi_port: Optional[str] = None, input_device: Optional[int] = None,
                  enable_rhythmic: bool = True, enable_mpe: bool = True, enable_meld: bool = False,
                  performance_duration: int = 0,
                  performance_arc_path: Optional[str] = None,
@@ -223,7 +226,9 @@ class EnhancedDriftEngineAI:
                  wav2vec_model: str = "m-a-p/MERT-v1-95M", use_gpu: bool = False,
                  gesture_window: float = 1.5, gesture_min_tokens: int = 2,
                  debug_decisions: bool = False, enable_visualization: bool = False,
-                 enable_gpt_reflection: bool = True, reflection_interval: float = 60.0):
+                 enable_gpt_reflection: bool = True, reflection_interval: float = 60.0,
+                 enable_somax_operator: bool = False, somax_host: str = "127.0.0.1",
+                 somax_port: int = 7400, somax_player: str = "player1"):
         # Core harmonic components (unchanged)
         self.listener: Optional[DriftListener] = None
         self.memory_buffer = MemoryBuffer()
@@ -360,7 +365,21 @@ class EnhancedDriftEngineAI:
         
         if self.rhythm_oracle:
             print("🥁 RhythmOracle initialized - ready to learn rhythmic phrasing")
-        
+
+        # Somax2 AI operator (controls external Somax2 via OSC)
+        self.enable_somax_operator = enable_somax_operator
+        self.somax_operator = None
+        if enable_somax_operator:
+            self.somax_operator = SomaxOperator(
+                somax_host=somax_host,
+                somax_port=somax_port,
+                player_name=somax_player
+            )
+            print("🎛️  SomaxOperator enabled - AI operator for Somax2")
+            print(f"   OSC target: {somax_host}:{somax_port}")
+            print(f"   Player: {somax_player}")
+            print("   MusicHal_9000 will control Somax2 instead of generating MIDI directly")
+
         # Unified decision engine for cross-modal intelligence
         self.unified_decision_engine = UnifiedDecisionEngine()
         print("🔗 Unified decision engine enabled")
@@ -1277,7 +1296,28 @@ class EnhancedDriftEngineAI:
         
         # Update status bar NOW (after hybrid extraction)
         self._update_status_bar(event, event_data)
-        
+
+        # Send to Somax2 operator if enabled (instead of generating MIDI directly)
+        if self.enable_somax_operator and self.somax_operator:
+            # Get episode state for operator
+            episode_state = 'ACTIVE'
+            if hasattr(self, 'ai_agent') and self.ai_agent and hasattr(self.ai_agent, 'behavior_engine'):
+                if hasattr(self.ai_agent.behavior_engine, 'melodic_episode_manager'):
+                    mgr = self.ai_agent.behavior_engine.melodic_episode_manager
+                    if hasattr(mgr, 'state'):
+                        episode_state = mgr.state.upper() if hasattr(mgr.state, 'upper') else 'ACTIVE'
+
+            # Send to operator
+            self.somax_operator.on_audio_event(
+                event_data,
+                style=self.current_style if hasattr(self, 'current_style') else 'unknown',
+                episode_state=episode_state
+            )
+
+            # Skip normal MIDI generation when using operator
+            # Somax2 will generate the actual output
+            return
+
         # Emit audio analysis visualization event (ALWAYS emit, even without full data)
         if self.visualization_manager:
             # Get raw audio buffer if available
@@ -3689,7 +3729,15 @@ def main():
                        help='Disable GPT-OSS live reflections (default: enabled)')
     parser.add_argument('--reflection-interval', type=float, default=60.0,
                        help='GPT reflection interval in seconds (default: 60)')
-    
+    parser.add_argument('--somax-operator', action='store_true',
+                       help='Enable Somax2 AI operator mode (control Somax2 via OSC instead of generating MIDI)')
+    parser.add_argument('--somax-host', type=str, default='127.0.0.1',
+                       help='Somax2 OSC host (default: 127.0.0.1)')
+    parser.add_argument('--somax-port', type=int, default=7400,
+                       help='Somax2 OSC port (default: 7400)')
+    parser.add_argument('--somax-player', type=str, default='player1',
+                       help='Somax2 player name (default: player1)')
+
     args = parser.parse_args()
     
     # Create and start Enhanced Drift Engine AI
@@ -3711,7 +3759,11 @@ def main():
         debug_decisions=args.debug_decisions,
         enable_visualization=not args.no_visualize,
         enable_gpt_reflection=not args.no_gpt_reflection,
-        reflection_interval=args.reflection_interval
+        reflection_interval=args.reflection_interval,
+        enable_somax_operator=args.somax_operator,
+        somax_host=args.somax_host,
+        somax_port=args.somax_port,
+        somax_player=args.somax_player
     )
     
     # Set parameters
