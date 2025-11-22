@@ -3963,7 +3963,9 @@ def main():
     if not args.no_autonomous:
         if (hasattr(drift_ai, 'ai_agent') and drift_ai.ai_agent and 
             hasattr(drift_ai.ai_agent, 'behavior_engine') and 
-            hasattr(drift_ai.ai_agent.behavior_engine, 'phrase_generator')):
+            drift_ai.ai_agent.behavior_engine and
+            hasattr(drift_ai.ai_agent.behavior_engine, 'phrase_generator') and
+            drift_ai.ai_agent.behavior_engine.phrase_generator is not None):
             drift_ai.ai_agent.behavior_engine.phrase_generator.set_autonomous_mode(True)
         print(f"🤖 Autonomous generation enabled (interval: {args.autonomous_interval:.1f}s)")
         print(f"🎸 Bass accompaniment: {args.bass_accompaniment:.0%} probability")
