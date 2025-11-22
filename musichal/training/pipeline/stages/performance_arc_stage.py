@@ -125,6 +125,8 @@ class PerformanceArcStage(PipelineStage):
             audio_path: Path to source audio file
         """
         import json
+        import tempfile
+        import shutil
         
         try:
             # Create ai_learning_data directory if it doesn't exist
@@ -134,11 +136,30 @@ class PerformanceArcStage(PipelineStage):
             # Create filename based on audio file
             output_file = ai_data_dir / f"{audio_path.stem}_performance_arc.json"
             
-            # Save
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(arc_dict, f, indent=2)
+            # Write to temporary file first (atomic write to prevent corruption)
+            with tempfile.NamedTemporaryFile(
+                mode='w', 
+                encoding='utf-8', 
+                delete=False, 
+                suffix='.json',
+                dir=ai_data_dir
+            ) as tmp_file:
+                json.dump(arc_dict, tmp_file, indent=2, ensure_ascii=False)
+                tmp_file.flush()  # Ensure all data is written
+                import os
+                os.fsync(tmp_file.fileno())  # Force write to disk
+                temp_path = tmp_file.name
+            
+            # Move temp file to final location (atomic on most systems)
+            shutil.move(temp_path, output_file)
                 
             logger.info(f"Saved performance arc to: {output_file}")
             
         except Exception as e:
             logger.warning(f"Failed to save performance arc to ai_learning_data: {e}")
+            # Clean up temp file if it exists
+            if 'temp_path' in locals() and Path(temp_path).exists():
+                try:
+                    Path(temp_path).unlink()
+                except:
+                    pass
