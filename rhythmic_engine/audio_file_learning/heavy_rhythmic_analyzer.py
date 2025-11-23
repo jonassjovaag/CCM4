@@ -29,6 +29,7 @@ class RhythmicPattern:
     meter: str
     pattern_type: str
     confidence: float
+    duration_pattern: List[int]  # Brandtsegg rational duration pattern
 
 @dataclass
 class RhythmicAnalysis:
@@ -476,6 +477,9 @@ class HeavyRhythmicAnalyzer:
         # Calculate confidence based on pattern consistency
         confidence = self._calculate_pattern_confidence(onsets, tempo)
         
+        # CRITICAL: Compute Brandtsegg duration pattern from onsets
+        duration_pattern = self._compute_duration_pattern(onsets)
+        
         return RhythmicPattern(
             pattern_id=f"pattern_{pattern_id}",
             start_time=start_time,
@@ -485,7 +489,8 @@ class HeavyRhythmicAnalyzer:
             syncopation=syncopation,
             meter="4/4",  # Default, could be improved
             pattern_type=pattern_type,
-            confidence=confidence
+            confidence=confidence,
+            duration_pattern=duration_pattern
         )
     
     def _estimate_tempo_from_onsets(self, audio: np.ndarray, sr: int) -> float:
@@ -693,6 +698,64 @@ class HeavyRhythmicAnalyzer:
         confidence = (regularity * 0.5 + tempo_alignment * 0.5)
         
         return min(confidence, 1.0)
+    
+    def _compute_duration_pattern(self, onsets: List[float]) -> List[int]:
+        """
+        Compute Brandtsegg duration pattern from onset timestamps
+        
+        Uses RatioAnalyzer to find rational relationships between onset intervals,
+        producing varied patterns like [1,3,2,2] instead of uniform [2,2,2,2].
+        
+        Args:
+            onsets: List of onset timestamps
+            
+        Returns:
+            Duration pattern as list of integers (e.g., [2,1,1,4])
+        """
+        if len(onsets) < 3:
+            # Too few onsets for meaningful Brandtsegg analysis
+            return [2, 2] if len(onsets) == 2 else [2]
+        
+        try:
+            from rhythmic_engine.ratio_analyzer import RatioAnalyzer
+            
+            # Create analyzer with balanced weights
+            analyzer = RatioAnalyzer(
+                complexity_weight=0.5,
+                deviation_weight=0.5,
+                simplify=True,
+                div_limit=4
+            )
+            
+            # Analyze onsets to find rational duration pattern
+            onset_array = np.array(onsets)
+            result = analyzer.analyze(onset_array)
+            
+            # Extract duration pattern
+            duration_pattern = result['duration_pattern']
+            
+            # Ensure it's a list of ints
+            if isinstance(duration_pattern, np.ndarray):
+                duration_pattern = duration_pattern.tolist()
+            
+            # Ensure all elements are int
+            duration_pattern = [int(d) for d in duration_pattern]
+            
+            # Validate pattern (no zeros, not too long)
+            if len(duration_pattern) == 0 or any(d <= 0 for d in duration_pattern):
+                # Invalid pattern, use safe default
+                return [2, 2, 2, 2]
+            
+            # Limit pattern length to avoid memory issues
+            if len(duration_pattern) > 16:
+                duration_pattern = duration_pattern[:16]
+            
+            return duration_pattern
+            
+        except Exception as e:
+            # Brandtsegg analysis failed, use safe default
+            print(f"⚠️ Duration pattern computation failed: {e}")
+            return [2, 2, 2, 2]
     
     def analyze_rational_structure(self, onset_times: np.ndarray) -> Optional[Dict]:
         """
