@@ -2286,6 +2286,9 @@ class EnhancedDriftEngineAI:
                         # Get recent audio from listener
                         audio_buffer = self.listener.get_recent_audio(duration_seconds=3.0)
                         
+                        # Debug: Check what we got
+                        print(f"🔍 CLAP audio buffer: type={type(audio_buffer)}, shape={audio_buffer.shape if hasattr(audio_buffer, 'shape') else 'N/A'}, dtype={audio_buffer.dtype if hasattr(audio_buffer, 'dtype') else type(audio_buffer)}")
+                        
                         # Detect style and roles
                         style_result = self.clap_detector.detect_style(audio_buffer, self.listener.sr)
                         role_result = self.clap_detector.detect_roles(audio_buffer, self.listener.sr)
