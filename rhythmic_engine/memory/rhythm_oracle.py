@@ -35,6 +35,10 @@ class RhythmicPattern:
         """
         Convert duration pattern to absolute onset times at given tempo
         
+        Brandtsegg ratios are RELATIVE integer ratios, not beat counts.
+        Example: [3, 1, 1, 3, 2] means 3:1:1:3:2 timing relationship.
+        We normalize to fit within ~4 beats for musical phrasing.
+        
         Args:
             tempo: Target tempo in BPM
             start_time: Starting timestamp
@@ -42,12 +46,42 @@ class RhythmicPattern:
         Returns:
             List of absolute onset times
         """
-        beat_duration = 60.0 / tempo
-        onsets = [start_time]
+        if not self.duration_pattern:
+            return []
         
-        for duration in self.duration_pattern:
-            next_onset = onsets[-1] + (beat_duration * duration)
+        beat_duration = 60.0 / tempo
+        
+        # CRITICAL: Normalize Brandtsegg ratios to fit musical phrase length
+        # Target: 4 beats for short patterns, 8 beats for long patterns
+        total_ratio_units = sum(self.duration_pattern)
+        
+        # Choose target beat count based on pattern length
+        if len(self.duration_pattern) <= 4:
+            target_beats = 4.0  # Short phrase = 4 beats (1 measure)
+        elif len(self.duration_pattern) <= 8:
+            target_beats = 8.0  # Medium phrase = 8 beats (2 measures)
+        else:
+            target_beats = 16.0  # Long phrase = 16 beats (4 measures)
+        
+        # Normalize: each ratio unit = (target_beats / total_units) beats
+        beat_per_unit = target_beats / total_ratio_units if total_ratio_units > 0 else 1.0
+        
+        print(f"🥁 TIMING NORMALIZATION: pattern={self.duration_pattern[:8]}{'...' if len(self.duration_pattern) > 8 else ''}")
+        print(f"   Total ratio units: {total_ratio_units}, Target: {target_beats} beats, Scale: {beat_per_unit:.3f} beats/unit")
+        
+        # Convert to absolute onset times
+        onsets = [start_time]
+        for duration_ratio in self.duration_pattern:
+            # Scale ratio to beat count, then to seconds
+            beat_count = duration_ratio * beat_per_unit
+            time_delta = beat_count * beat_duration
+            next_onset = onsets[-1] + time_delta
             onsets.append(next_onset)
+        
+        # Show first few onsets for debugging
+        if len(onsets) > 1:
+            intervals_sec = [onsets[i+1] - onsets[i] for i in range(min(5, len(onsets)-1))]
+            print(f"   First intervals: {[f'{x:.2f}s' for x in intervals_sec]} (tempo={tempo:.1f} BPM)")
         
         # Return all but first (which is start_time)
         return onsets[1:]
