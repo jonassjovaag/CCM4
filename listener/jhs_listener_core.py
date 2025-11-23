@@ -807,8 +807,22 @@ class DriftListener:
         num_samples = int(self.sr * duration_seconds)
         num_samples = min(num_samples, self.clap_buffer_size)
         
+        # Ensure we have at least some samples
+        if num_samples <= 0:
+            return np.zeros(int(self.sr * 3.0), dtype=np.float32)
+        
         # Extract samples from ring buffer (most recent)
-        idx = (np.arange(num_samples) + self._clap_ring_pos) % self.clap_buffer_size
-        audio = self._clap_ring[idx].copy()
+        # Note: Ring buffer is filled starting from position 0, wrapping around
+        # We want the MOST RECENT samples, which are before the current write position
+        start_pos = (self._clap_ring_pos - num_samples) % self.clap_buffer_size
+        
+        if start_pos + num_samples <= self.clap_buffer_size:
+            # Contiguous chunk
+            audio = self._clap_ring[start_pos:start_pos + num_samples].copy()
+        else:
+            # Wrapped around - need to concatenate two chunks
+            chunk1 = self._clap_ring[start_pos:].copy()
+            chunk2 = self._clap_ring[:num_samples - len(chunk1)].copy()
+            audio = np.concatenate([chunk1, chunk2])
         
         return audio
