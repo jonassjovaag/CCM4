@@ -134,6 +134,11 @@ class PhraseGenerator:
         self.phrase_complete_time = {'melodic': 0.0, 'bass': 0.0}
         self.last_generation_time = {'melodic': 0.0, 'bass': 0.0}
         self.autonomous_interval = 0.5  # Generation attempt interval
+        
+        # DIVERSITY ENHANCEMENT: Track recently used notes to reduce repetition
+        self.recent_notes = {'melodic': [], 'bass': []}
+        self.recent_notes_window = 8  # Remember last 8 notes
+        self.repetition_penalty = 0.3  # Reduce probability of recent notes by 30%
     
     def track_event(self, event_data: Dict, source: str = 'human'):
         """
@@ -400,12 +405,12 @@ class PhraseGenerator:
             return None
     
     def _apply_rhythmic_phrasing_to_timing(self, rhythmic_phrasing: Dict, num_notes: int, 
-                                          voice_type: str = "melodic") -> List[float]:
+                                          voice_type: str = "melodic") -> Tuple[List[float], List[float]]:
         """
-        Convert rhythmic phrasing parameters into actual note timing array
+        Convert rhythmic phrasing parameters into actual note timing and duration arrays
         
         NOW TEMPO-INDEPENDENT: Uses absolute_onsets from RhythmOracle pattern scaled to current tempo.
-        This is where RhythmOracle patterns become actual MIDI timing!
+        This is where RhythmOracle Brandtsegg patterns become actual MIDI timing!
         
         Args:
             rhythmic_phrasing: Dict with absolute_onsets (already scaled to current tempo)
@@ -413,12 +418,13 @@ class PhraseGenerator:
             voice_type: "melodic" or "bass" for context
             
         Returns:
-            List of timing values (inter-onset intervals in seconds)
+            Tuple of (timings, durations) - both as lists of floats in seconds
         """
         if not rhythmic_phrasing:
-            # Fallback to default timing
-            base = 0.5 if voice_type == "melodic" else 1.0
-            return [base] * num_notes
+            # Fallback to default timing and duration
+            base_timing = 0.5 if voice_type == "melodic" else 1.0
+            base_duration = 0.8 if voice_type == "melodic" else 0.6
+            return ([base_timing] * num_notes, [base_duration] * num_notes)
         
         # Use pre-scaled absolute onsets from RhythmOracle pattern
         if 'absolute_onsets' in rhythmic_phrasing:
@@ -430,15 +436,36 @@ class PhraseGenerator:
                 for i in range(len(absolute_onsets) - 1):
                     intervals.append(absolute_onsets[i+1] - absolute_onsets[i])
                 
-                # If we need more notes than pattern length, repeat pattern
-                while len(intervals) < num_notes:
-                    intervals.extend(intervals[:min(len(intervals), num_notes - len(intervals))])
+                # IMPROVED: Cycle complete patterns instead of truncating mid-pattern
+                if len(intervals) < num_notes:
+                    import math
+                    num_cycles = math.ceil(num_notes / len(intervals))
+                    cycled_intervals = intervals * num_cycles
+                    intervals = cycled_intervals[:num_notes]
+                    print(f"🥁 RhythmOracle: Cycled pattern {num_cycles}x to fit {num_notes} notes")
+                else:
+                    intervals = intervals[:num_notes]
                 
-                # Trim to exact number of notes needed
-                return intervals[:num_notes]
+                # Infer durations from inter-onset intervals (articulation from Brandtsegg ratios)
+                durations = []
+                for ioi in intervals:
+                    if ioi < 0.5:  # Dense/fast notes
+                        duration = ioi * random.uniform(0.5, 0.7)  # Staccato (50-70% of IOI)
+                    elif ioi > 1.0:  # Sparse/slow notes
+                        duration = ioi * random.uniform(0.8, 1.2)  # Sustained (80-120% of IOI)
+                    else:  # Medium notes
+                        duration = ioi * random.uniform(0.6, 0.9)  # Normal articulation
+                    durations.append(max(0.1, duration))  # Minimum 0.1s
+                
+                print(f"🥁 RhythmOracle: Applied pattern [{rhythmic_phrasing.get('pattern_id', 'unknown')}] "
+                      f"to {num_notes} notes (similarity={rhythmic_phrasing.get('confidence', 0):.2f})")
+                
+                return (intervals, durations)
         
         # Fallback: use density/syncopation if no absolute_onsets
         # (This should rarely happen now that we have duration patterns)
+        print(f"🥁 RhythmOracle: No absolute_onsets, using density/syncopation fallback")
+        
         tempo = rhythmic_phrasing.get('current_tempo', 120.0)
         density = rhythmic_phrasing.get('density', 0.5)
         syncopation = rhythmic_phrasing.get('syncopation', 0.0)
@@ -463,6 +490,7 @@ class PhraseGenerator:
         syncopation_amount = syncopation * 0.3  # Max 30% deviation
         
         timings = []
+        durations = []
         for i in range(num_notes):
             # Apply syncopation as random offset
             if syncopation > 0.3:
@@ -473,13 +501,16 @@ class PhraseGenerator:
                 offset = random.uniform(-0.05, 0.05) * beat_duration
             
             timing = max(0.1, base_ioi + offset)  # Ensure minimum 0.1s
-            timing = self._apply_timing_profile(timing, timing_variation=0.1, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
+            
+            # Infer duration from IOI
+            duration = timing * random.uniform(0.6, 0.9)
+            durations.append(duration)
         
-        print(f"🥁 Applied rhythmic phrasing: tempo={tempo:.0f}, density={density:.2f}, "
+        print(f"🥁 Applied rhythmic phrasing (fallback): tempo={tempo:.0f}, density={density:.2f}, "
               f"syncopation={syncopation:.2f} → avg_IOI={np.mean(timings):.3f}s")
         
-        return timings
+        return (timings, durations)
     
     def _apply_density_filter(self, notes: List[int], rhythmic_density: float, 
                               voice_type: str = "melodic") -> Tuple[List[int], List[int]]:
@@ -533,6 +564,83 @@ class PhraseGenerator:
             print(f"🎵 Density filter ({rhythmic_density:.2f}): {len(filtered_notes)}/{len(notes)} notes kept ({skipped_count} skipped)")
         
         return filtered_notes, kept_indices
+    
+    def _apply_diversity_filter(self, notes: List[int], voice_type: str = "melodic") -> List[int]:
+        """
+        Reduce repetition by penalizing recently used notes.
+        
+        Tracks the last N notes played for each voice and reduces the probability
+        of selecting recently used notes, especially for bass to avoid MIDI 36 
+        appearing 42% of the time.
+        
+        Args:
+            notes: List of MIDI note numbers from oracle
+            voice_type: "melodic" or "bass"
+            
+        Returns:
+            Filtered list with reduced repetition
+        """
+        if not notes or len(notes) < 2:
+            return notes
+        
+        recent = self.recent_notes.get(voice_type, [])
+        if not recent:
+            return notes  # No history yet
+        
+        # Count how often each note appears in recent history
+        recent_counts = {}
+        for note in recent:
+            recent_counts[note] = recent_counts.get(note, 0) + 1
+        
+        # Apply penalty to notes that appear frequently in recent history
+        filtered_notes = []
+        for note in notes:
+            if note in recent_counts:
+                # Penalize based on frequency (more repetitions = higher penalty)
+                penalty = min(recent_counts[note] / len(recent), 0.8)  # Max 80% penalty
+                if random.random() > penalty:
+                    filtered_notes.append(note)
+                # else: note filtered out due to recent repetition
+            else:
+                # Note not in recent history - always keep
+                filtered_notes.append(note)
+        
+        # Ensure we don't filter out ALL notes
+        if not filtered_notes and notes:
+            # Keep the least recently used note
+            for note in reversed(notes):
+                if note not in recent[-3:]:  # Not in last 3 notes
+                    filtered_notes = [note]
+                    break
+            if not filtered_notes:
+                filtered_notes = [notes[0]]  # Fallback: keep first note
+        
+        filtered_count = len(notes) - len(filtered_notes)
+        if filtered_count > 0:
+            print(f"🎨 Diversity filter: {len(filtered_notes)}/{len(notes)} notes kept ({filtered_count} recent repeats removed)")
+        
+        return filtered_notes
+    
+    def _update_recent_notes(self, notes: List[int], voice_type: str = "melodic") -> None:
+        """
+        Update the recent notes history for diversity tracking.
+        
+        Maintains a sliding window of the last N notes played per voice
+        to enable diversity penalties that reduce repetition.
+        
+        Args:
+            notes: List of MIDI notes just generated
+            voice_type: "melodic" or "bass"
+        """
+        if not notes:
+            return
+        
+        # Add new notes to recent history
+        recent = self.recent_notes.get(voice_type, [])
+        recent.extend(notes)
+        
+        # Keep only the last N notes (sliding window)
+        self.recent_notes[voice_type] = recent[-self.recent_notes_window:]
     
     # ========================================
     # Melodic Constraint Helpers (Phase 2-4)
@@ -1466,6 +1574,10 @@ class PhraseGenerator:
             notes = oracle_notes[:phrase_length]
             print(f"   Phrase notes: {notes}")
             
+            # DIVERSITY ENHANCEMENT: Apply diversity penalty to reduce repetition
+            notes = self._apply_diversity_filter(notes, voice_type)
+            print(f"   After diversity filter: {notes}")
+            
             # Apply density filter ONLY if we have enough notes (>3)
             # For very short phrases, keep all notes for coherence
             if len(notes) > 3:
@@ -1482,33 +1594,40 @@ class PhraseGenerator:
             rhythmic_phrasing = None
             if request and 'rhythmic_phrasing' in request:
                 rhythmic_phrasing = request['rhythmic_phrasing']
-                print(f"🥁 Using RhythmOracle phrasing for timing generation")
+                print(f"🥁 Buildup: Using RhythmOracle phrasing from request")
             
-            # Generate timings using rhythmic phrasing if available
+            # Generate timings and durations using rhythmic phrasing if available
             if rhythmic_phrasing:
-                timings = self._apply_rhythmic_phrasing_to_timing(
+                timings, learned_durations = self._apply_rhythmic_phrasing_to_timing(
                     rhythmic_phrasing, 
                     len(notes), 
                     voice_type
                 )
+                # Use learned durations from Brandtsegg ratios
+                durations = learned_durations
+                print(f"🥁 Buildup: Applied RhythmOracle timing to {len(notes)} notes")
             else:
                 # Fallback to default timing
+                print(f"🥁 Buildup: No RhythmOracle phrasing, using fallback timing")
                 beat_duration = self._get_beat_duration(current_event)
                 timings = []
+                durations = []
                 for i in range(len(notes)):
                     timing = base_timing + random.uniform(-timing_variation, timing_variation)
                     timing = self._apply_timing_profile(timing, timing_variation, voice_profile, beat_duration)
                     timings.append(max(0.3, timing))
+                    # Melody: longer sustained notes; Bass: shorter punchy notes
+                    duration = random.uniform(0.4, 1.2) if voice_type == "melodic" else random.uniform(0.2, 0.6)
+                    durations.append(duration)
             
-            # Generate velocities and durations
+            # Generate velocities
             velocities = []
-            durations = []
             for i in range(len(notes)):
                 velocity = random.randint(60, 100) if voice_type == "melodic" else random.randint(70, 110)
                 velocities.append(velocity)
-                # Melody: longer sustained notes; Bass: shorter punchy notes
-                duration = random.uniform(0.4, 1.2) if voice_type == "melodic" else random.uniform(0.2, 0.6)
-                durations.append(duration)
+            
+            # DIVERSITY TRACKING: Update recent notes for diversity penalty
+            self._update_recent_notes(notes, voice_type)
             
             return MusicalPhrase(
                 phrase_id=f"buildup_oracle_{voice_type}_{int(timestamp)}",
@@ -1688,6 +1807,9 @@ class PhraseGenerator:
                 duration = random.uniform(0.2, 0.6)  # Shorter bass notes
             durations.append(duration)
         
+        # DIVERSITY TRACKING: Update recent notes for diversity penalty
+        self._update_recent_notes(notes, voice_type)
+        
         return MusicalPhrase(
             phrase_id=f"buildup_{voice_type}_{int(timestamp)}",
             notes=notes,
@@ -1852,22 +1974,41 @@ class PhraseGenerator:
             
             notes.append(note)
             previous_note = note
-            
-            # EXTREME variation for peaks too! (TRIPLED: 0.1-0.2 → 0.3-0.6)
-            beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(0.3, 0.6)  # Tripled timing range
-            timing = self._apply_timing_profile(timing, timing_variation=0.15, voice_profile=voice_profile, beat_duration=beat_duration)
-            timings.append(timing)
-            
-            # HIGH velocity with max variation
-            velocity = random.randint(60, 127)  # High but variable
-            velocities.append(velocity)
-            
-            # VARIABLE durations - unpredictable
-            duration = random.uniform(0.15, 1.2)
-            durations.append(duration)
         
-        return MusicalPhrase(
+        # RHYTHMIC PHRASING: Query RhythmOracle for learned timing patterns
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        
+        if rhythmic_phrasing:
+            # Use Brandtsegg learned timing (ground truth)
+            timings, durations = self._apply_rhythmic_phrasing_to_timing(
+                rhythmic_phrasing,
+                len(notes),
+                voice_type
+            )
+            # Apply timing_precision variance on top of learned patterns (heavy variance for loose feel)
+            beat_duration = self._get_beat_duration(current_event)
+            for i in range(len(timings)):
+                timings[i] = self._apply_timing_profile(timings[i], timing_variation=0.15, 
+                                                        voice_profile=voice_profile, beat_duration=beat_duration)
+            print(f"🥁 Peak: Applied RhythmOracle timing to {len(notes)} notes")
+        else:
+            # Fallback: random timing (old behavior)
+            print(f"🥁 Peak: No RhythmOracle patterns found, using fallback timing")
+            timings = []
+            durations = []
+            beat_duration = self._get_beat_duration(current_event)
+            for i in range(len(notes)):
+                # EXTREME variation for peaks! (TRIPLED: 0.1-0.2 → 0.3-0.6)
+                timing = random.uniform(0.3, 0.6)  # Tripled timing range
+                timing = self._apply_timing_profile(timing, timing_variation=0.15, voice_profile=voice_profile, beat_duration=beat_duration)
+                timings.append(timing)
+                # VARIABLE durations - unpredictable
+                duration = random.uniform(0.15, 1.2)
+                durations.append(duration)
+        
+        # Generate velocities
+        velocities = []
+        for i in range(len(notes)):
             phrase_id=f"peak_{voice_type}_{int(timestamp)}",
             notes=notes,
             timings=timings,
@@ -1952,6 +2093,10 @@ class PhraseGenerator:
         velocities = []
         durations = []
         
+        # RHYTHMIC PHRASING: Query RhythmOracle for learned timing patterns
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        
+        # Generate notes first
         for i in range(phrase_length):
             # Descending motion
             interval = -random.choice([1, 2, 3])
@@ -1961,20 +2106,38 @@ class PhraseGenerator:
             # Clamp to range
             note = max(min_note, min(note, max_note))
             notes.append(note)
-            
-            # Slower timing (TRIPLED: 0.25-0.5 → 0.75-1.5)
+        
+        # Apply RhythmOracle timing if available
+        if rhythmic_phrasing:
+            # Use Brandtsegg learned timing (ground truth)
+            timings, durations = self._apply_rhythmic_phrasing_to_timing(
+                rhythmic_phrasing,
+                len(notes),
+                voice_type
+            )
+            # Apply timing_precision variance on top of learned patterns
             beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(0.75, 1.5)
-            timing = self._apply_timing_profile(timing, timing_variation=0.375, voice_profile=voice_profile, beat_duration=beat_duration)
-            timings.append(timing)
-            
-            # Decreasing velocity
+            for i in range(len(timings)):
+                timings[i] = self._apply_timing_profile(timings[i], timing_variation=0.375, 
+                                                        voice_profile=voice_profile, beat_duration=beat_duration)
+            print(f"🥁 Release: Applied RhythmOracle timing to {len(notes)} notes")
+        else:
+            # Fallback: slower timing for release feel
+            print(f"🥁 Release: No RhythmOracle patterns found, using fallback timing")
+            beat_duration = self._get_beat_duration(current_event)
+            for i in range(phrase_length):
+                # Slower timing (TRIPLED: 0.25-0.5 → 0.75-1.5)
+                timing = random.uniform(0.75, 1.5)
+                timing = self._apply_timing_profile(timing, timing_variation=0.375, voice_profile=voice_profile, beat_duration=beat_duration)
+                timings.append(timing)
+                # Longer durations
+                duration = 1.0 + i * 0.2
+                durations.append(duration)
+        
+        # Generate velocities (decreasing for release)
+        for i in range(len(notes)):
             velocity = 80 - i * 8
             velocities.append(velocity)
-            
-            # Longer durations
-            duration = 1.0 + i * 0.2
-            durations.append(duration)
         
         return MusicalPhrase(
             phrase_id=f"release_{voice_type}_{int(timestamp)}",
@@ -2061,6 +2224,10 @@ class PhraseGenerator:
         velocities = []
         durations = []
         
+        # RHYTHMIC PHRASING: Query RhythmOracle for learned timing patterns
+        rhythmic_phrasing = self._get_rhythmic_phrasing_from_oracle()
+        
+        # Generate notes first
         for i in range(phrase_length):
             # Simple stepwise motion
             interval = random.choice([1, 2])
@@ -2070,20 +2237,38 @@ class PhraseGenerator:
             # Clamp to range
             note = max(min_note, min(note, max_note))
             notes.append(note)
-            
-            # Slow, meditative timing (TRIPLED: 0.4-0.8 → 1.2-2.4)
+        
+        # Apply RhythmOracle timing if available
+        if rhythmic_phrasing:
+            # Use Brandtsegg learned timing (ground truth)
+            timings, durations = self._apply_rhythmic_phrasing_to_timing(
+                rhythmic_phrasing,
+                len(notes),
+                voice_type
+            )
+            # Apply timing_precision variance on top of learned patterns
             beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(1.2, 2.4)
-            timing = self._apply_timing_profile(timing, timing_variation=0.6, voice_profile=voice_profile, beat_duration=beat_duration)
-            timings.append(timing)
-            
-            # Soft velocity
+            for i in range(len(timings)):
+                timings[i] = self._apply_timing_profile(timings[i], timing_variation=0.6, 
+                                                        voice_profile=voice_profile, beat_duration=beat_duration)
+            print(f"🥁 Contemplation: Applied RhythmOracle timing to {len(notes)} notes")
+        else:
+            # Fallback: very slow meditative timing
+            print(f"🥁 Contemplation: No RhythmOracle patterns found, using fallback timing")
+            beat_duration = self._get_beat_duration(current_event)
+            for i in range(phrase_length):
+                # Slow, meditative timing (TRIPLED: 0.4-0.8 → 1.2-2.4)
+                timing = random.uniform(1.2, 2.4)
+                timing = self._apply_timing_profile(timing, timing_variation=0.6, voice_profile=voice_profile, beat_duration=beat_duration)
+                timings.append(timing)
+                # Long, sustained durations
+                duration = 2.0 + random.uniform(-0.5, 1.0)
+                durations.append(duration)
+        
+        # Generate velocities (soft for contemplation)
+        for i in range(len(notes)):
             velocity = 40 + random.randint(-5, 15)
             velocities.append(velocity)
-            
-            # Long, sustained durations
-            duration = 2.0 + random.uniform(-0.5, 1.0)
-            durations.append(duration)
         
         return MusicalPhrase(
             phrase_id=f"contemplation_{voice_type}_{int(timestamp)}",
