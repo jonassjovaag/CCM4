@@ -3972,18 +3972,6 @@ def main():
     drift_ai.bass_accompaniment_probability = args.bass_accompaniment
     drift_ai.melody_silence_when_active = args.silence_melody_when_active  # Now directly uses the flag
     
-    # Enable autonomous mode in PhraseGenerator
-    if not args.no_autonomous:
-        if (hasattr(drift_ai, 'ai_agent') and drift_ai.ai_agent and 
-            hasattr(drift_ai.ai_agent, 'behavior_engine') and 
-            drift_ai.ai_agent.behavior_engine and
-            hasattr(drift_ai.ai_agent.behavior_engine, 'phrase_generator') and
-            drift_ai.ai_agent.behavior_engine.phrase_generator is not None):
-            drift_ai.ai_agent.behavior_engine.phrase_generator.set_autonomous_mode(True)
-        print(f"🤖 Autonomous generation enabled (interval: {args.autonomous_interval:.1f}s)")
-        print(f"🎸 Bass accompaniment: {args.bass_accompaniment:.0%} probability")
-        print(f"🎤 Melody while active: {'No (silent)' if args.silence_melody_when_active else 'Yes (sparse)'}")
-    
     # Handle target learning/loading
     if args.learn_target:
         print(f"🎯 Starting target learning: {args.learn_target}")
@@ -4008,6 +3996,21 @@ def main():
     if not drift_ai.start():
         print("❌ Failed to start Enhanced Drift Engine AI")
         return 1
+    
+    # Enable autonomous mode in PhraseGenerator AFTER start() completes
+    # (start() calls _load_learning_data() which creates a new PhraseGenerator)
+    if not args.no_autonomous:
+        if (hasattr(drift_ai, 'ai_agent') and drift_ai.ai_agent and 
+            hasattr(drift_ai.ai_agent, 'behavior_engine') and 
+            drift_ai.ai_agent.behavior_engine and
+            hasattr(drift_ai.ai_agent.behavior_engine, 'phrase_generator') and
+            drift_ai.ai_agent.behavior_engine.phrase_generator is not None):
+            drift_ai.ai_agent.behavior_engine.phrase_generator.set_autonomous_mode(True)
+            print(f"🤖 Autonomous generation enabled (interval: {args.autonomous_interval:.1f}s)")
+            print(f"🎸 Bass accompaniment: {args.bass_accompaniment:.0%} probability")
+            print(f"🎤 Melody while active: {'No (silent)' if args.silence_melody_when_active else 'Yes (sparse)'}")
+        else:
+            print("⚠️ Could not enable autonomous mode - phrase_generator not found")
     
     try:
         print("\n🎵 Enhanced Drift Engine AI is running!")
