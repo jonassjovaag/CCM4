@@ -123,8 +123,9 @@ class FeatureAnalysisStage(PipelineStage):
             event.wav2vec_features = result.wav2vec_features
             event.features = result.wav2vec_features  # AudioOracle expects 'features' key
             event.gesture_token = result.gesture_token
-            event.harmonic_token = result.harmonic_token  # Dual vocabulary support
-            event.percussive_token = result.percussive_token  # Dual vocabulary support
+            # Dual vocabulary support (only if available)
+            event.harmonic_token = getattr(result, 'harmonic_token', None)
+            event.percussive_token = getattr(result, 'percussive_token', None)
             event.chord = result.chord_label
             event.consonance = result.consonance
 
