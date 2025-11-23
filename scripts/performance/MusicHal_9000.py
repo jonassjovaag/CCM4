@@ -3734,6 +3734,8 @@ class EnhancedDriftEngineAI:
             # More human activity = MUCH less AI density
             activity_factor = 1.0 + (self.human_activity_level * 8.0)  # 1.0 to 9.0x slower - give MORE space
             generation_interval = self.autonomous_interval_base * activity_factor
+            # Cap at 6 seconds to prevent excessive waiting (was causing 20+ second gaps)
+            generation_interval = min(generation_interval, 6.0)
         
         # If just entered autonomous mode, generate immediately as a response
         if just_entered_autonomous:

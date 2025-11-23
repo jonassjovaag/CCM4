@@ -320,8 +320,24 @@ class PhraseGenerator:
             print(f"🥁 DEBUG: RhythmOracle returned {len(similar_patterns) if similar_patterns else 0} patterns")
             
             if similar_patterns:
-                # Use most similar pattern (first in sorted list)
-                best_pattern, similarity = similar_patterns[0]
+                # Select pattern with WEIGHTED RANDOMNESS instead of always picking most similar
+                # This creates variation while favoring better matches
+                if len(similar_patterns) > 1:
+                    # Use similarity scores as weights for probabilistic selection
+                    patterns = [p for p, _ in similar_patterns]
+                    similarities = np.array([s for _, s in similar_patterns])
+                    
+                    # Square similarities to favor higher scores while keeping variation
+                    weights = similarities ** 2
+                    weights = weights / weights.sum()  # Normalize to probabilities
+                    
+                    # Randomly select pattern using weighted probabilities
+                    selected_idx = np.random.choice(len(patterns), p=weights)
+                    best_pattern = patterns[selected_idx]
+                    similarity = similarities[selected_idx]
+                else:
+                    # Only one pattern, use it
+                    best_pattern, similarity = similar_patterns[0]
                 
                 # Estimate current tempo from recent events (for scaling pattern to playback)
                 # IMPROVED: Detect subdivision level to avoid tempo inflation

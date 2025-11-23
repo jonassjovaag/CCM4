@@ -851,12 +851,20 @@ class PolyphonicAudioOracle(AudioOracle):
                 # Use filtered frames if any found, otherwise fall back to all frames
                 if filtered_frames:
                     next_frames = filtered_frames
-                    print(f"🔍 Dual vocab filtered: {len(filtered_frames)} frames (from {len(list(self.states[current_state]['next'].keys()))})")
+                    print(f"🔍 Dual vocab filtered: {len(filtered_frames)} frames (from {len(list(self.states[current_state]['next'].keys()))})") 
                 else:
                     # No matches found - fall back to unfiltered
-                    print(f"🔍 Dual vocab found 0 matches - will use parameter filtering on {len(next_frames)} frames")
-            
-            # If no request, choose uniformly
+                    # DEBUG: Show why matching failed
+                    sample_frame = self.audio_frames[next_frames[0]] if next_frames else None
+                    if sample_frame:
+                        sample_data = sample_frame.audio_data if hasattr(sample_frame, 'audio_data') else {}
+                        sample_h = sample_data.get('harmonic_token')
+                        sample_p = sample_data.get('percussive_token')
+                        print(f"🔍 Dual vocab found 0 matches - will use parameter filtering on {len(next_frames)} frames")
+                        print(f"   Input tokens: harm={input_harmonic_token}, perc={input_percussive_token}")
+                        print(f"   Sample frame tokens: harm={sample_h}, perc={sample_p}")
+                    else:
+                        print(f"🔍 Dual vocab found 0 matches - will use parameter filtering on {len(next_frames)} frames")            # If no request, choose uniformly
             if request is None or 'response_mode' not in request:
                 # Temperature-based sampling
                 probabilities = np.ones(len(next_frames))

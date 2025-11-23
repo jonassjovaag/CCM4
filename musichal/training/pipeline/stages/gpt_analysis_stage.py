@@ -110,12 +110,22 @@ class GPTAnalysisStage(PipelineStage):
             harmonic_patterns = None
             if music_theory_insights:
                 harmonic_patterns = music_theory_insights.chord_progression
+            
+            # Extract rhythmic patterns - handle both dict and RhythmicAnalysis object
+            rhythmic_patterns = None
+            if rhythmic_analysis:
+                if hasattr(rhythmic_analysis, 'patterns'):
+                    # RhythmicAnalysis dataclass
+                    rhythmic_patterns = rhythmic_analysis.patterns
+                elif isinstance(rhythmic_analysis, dict):
+                    # Dict format
+                    rhythmic_patterns = rhythmic_analysis.get('patterns')
                 
             # Run analysis
             analysis = client.analyze_musical_events(
                 events=enriched_events,
                 harmonic_patterns=harmonic_patterns,
-                rhythmic_patterns=rhythmic_analysis.get('patterns') if rhythmic_analysis else None
+                rhythmic_patterns=rhythmic_patterns
             )
             
             if analysis:
