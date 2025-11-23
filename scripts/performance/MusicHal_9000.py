@@ -227,7 +227,7 @@ class EnhancedDriftEngineAI:
                  gesture_window: float = 1.5, gesture_min_tokens: int = 2,
                  debug_decisions: bool = False, enable_visualization: bool = False,
                  enable_gpt_reflection: bool = True, reflection_interval: float = 60.0,
-                 enable_somax: bool = False):
+                 enable_somax: bool = False, enable_clap: bool = False):
         # Core harmonic components (unchanged)
         self.listener: Optional[DriftListener] = None
         self.memory_buffer = MemoryBuffer()
@@ -3974,6 +3974,8 @@ def main():
                        help='GPT reflection interval in seconds (default: 60)')
     parser.add_argument('--enable-somax', action='store_true',
                        help='Enable SomaxBridge for DYCI2-style phrasing and give-and-take behavior')
+    parser.add_argument('--enable-clap', action='store_true',
+                       help='Enable CLAP style/role detection for adaptive behavioral modes (auto-detects ballad/rock/jazz/etc every 5s)')
     
     args = parser.parse_args()
     
@@ -3997,7 +3999,8 @@ def main():
         enable_visualization=not args.no_visualize,
         enable_gpt_reflection=not args.no_gpt_reflection,
         reflection_interval=args.reflection_interval,
-        enable_somax=args.enable_somax
+        enable_somax=args.enable_somax,
+        enable_clap=args.enable_clap
     )
     
     # Set parameters
