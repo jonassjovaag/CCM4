@@ -244,10 +244,19 @@ class CLAPStyleDetector:
 
         try:
             # Ensure audio is float32 and 1D
+            if not isinstance(audio, np.ndarray):
+                print(f"⚠️ CLAP: audio is not ndarray, got {type(audio)}")
+                return None
+                
             if audio.dtype != np.float32:
                 audio = audio.astype(np.float32)
             if len(audio.shape) > 1:
                 audio = audio.flatten()
+            
+            # Ensure we have actual audio data
+            if audio.size == 0:
+                print(f"⚠️ CLAP: empty audio buffer")
+                return None
 
             # CLAP expects 48kHz audio
             if sr != 48000:
@@ -258,11 +267,16 @@ class CLAPStyleDetector:
             # Normalize audio
             if np.abs(audio).max() > 0:
                 audio = audio / np.abs(audio).max()
+            
+            # Ensure still ndarray after operations
+            if not isinstance(audio, np.ndarray):
+                print(f"⚠️ CLAP: audio became {type(audio)} after preprocessing")
+                return None
 
-            # Extract audio embedding
+            # Extract audio embedding (CLAP expects list of arrays)
             with torch.no_grad():
                 audio_embedding = self.model.get_audio_embedding_from_data(
-                    x=audio,
+                    x=[audio],  # Wrap in list for batch processing
                     use_tensor=False  # Return numpy
                 )
 
@@ -342,10 +356,19 @@ class CLAPStyleDetector:
         
         try:
             # Ensure audio is float32 and 1D
+            if not isinstance(audio, np.ndarray):
+                print(f"⚠️ CLAP roles: audio is not ndarray, got {type(audio)}")
+                return None
+                
             if audio.dtype != np.float32:
                 audio = audio.astype(np.float32)
             if len(audio.shape) > 1:
                 audio = audio.flatten()
+            
+            # Ensure we have actual audio data
+            if audio.size == 0:
+                print(f"⚠️ CLAP roles: empty audio buffer")
+                return None
             
             # CLAP expects 48kHz audio
             if sr != 48000:
@@ -357,10 +380,15 @@ class CLAPStyleDetector:
             if np.abs(audio).max() > 0:
                 audio = audio / np.abs(audio).max()
             
-            # Extract audio embedding
+            # Ensure still ndarray after operations
+            if not isinstance(audio, np.ndarray):
+                print(f"⚠️ CLAP roles: audio became {type(audio)} after preprocessing")
+                return None
+            
+            # Extract audio embedding (CLAP expects list of arrays)
             with torch.no_grad():
                 audio_embedding = self.model.get_audio_embedding_from_data(
-                    x=audio,
+                    x=[audio],  # Wrap in list for batch processing
                     use_tensor=False
                 )
             
