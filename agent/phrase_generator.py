@@ -1070,7 +1070,8 @@ class PhraseGenerator:
     def generate_phrase(self, current_event: Dict, voice_type: str, 
                        mode: str, harmonic_context: Dict, temperature: float = 0.8, 
                        activity_multiplier: float = 1.0,
-                       voice_profile: Optional[Dict[str, float]] = None) -> Optional[MusicalPhrase]:
+                       voice_profile: Optional[Dict[str, float]] = None,
+                       mode_flags: Optional[Dict[str, bool]] = None) -> Optional[MusicalPhrase]:
         """Generate a musical phrase based on context and rhythm patterns
         
         Args:
@@ -1080,9 +1081,16 @@ class PhraseGenerator:
                 - During buildup: 0.3 → 1.0 (sparse → full)
                 - During main: 1.0 (full activity)
                 - During ending: 1.0 → 0.0 (gradual fade)
+            mode_flags: Optional flags from episode managers (reactive, chill)
+                - reactive: Sparse bursts (drums_heavy > 0.6)
+                - chill: Sustained grounding (melody_dense > 0.7)
         """
         
         current_time = time.time()
+        
+        # Default mode_flags to empty dict if not provided
+        if mode_flags is None:
+            mode_flags = {'reactive': False, 'chill': False}
         
         # Check if enough time passed since last phrase
         if current_time - self.last_phrase_time < self.min_phrase_separation:
@@ -1176,16 +1184,16 @@ class PhraseGenerator:
             phrase = self._generate_silence_phrase(current_time)
             self.phrases_since_silence = 0
         elif phrase_arc == PhraseArc.BUILDUP:
-            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
+            phrase = self._generate_buildup_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile, mode_flags)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.PEAK:
-            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
+            phrase = self._generate_peak_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile, mode_flags)
             self.phrases_since_silence += 1
         elif phrase_arc == PhraseArc.RELEASE:
-            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
+            phrase = self._generate_release_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile, mode_flags)
             self.phrases_since_silence += 1
         else:
-            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile)
+            phrase = self._generate_contemplation_phrase(mode, voice_type, current_time, current_event, temperature, activity_multiplier, voice_profile, mode_flags)
             self.phrases_since_silence += 1
         
         if phrase:
@@ -1454,13 +1462,18 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
+    def _generate_buildup_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None, mode_flags: Optional[Dict[str, bool]] = None) -> MusicalPhrase:
         """Generate a phrase that builds energy
         
         Args:
             activity_multiplier: Scale phrase length (0.3-1.0 during buildup phase)
             voice_profile: Optional timing profile for precision and syncopation
+            mode_flags: Optional flags (reactive/chill) for phrase characteristics
         """
+        
+        # Default mode_flags
+        if mode_flags is None:
+            mode_flags = {'reactive': False, 'chill': False}
         
         # Melody: 2-4 notes (short musical phrases), scaled by activity
         # Bass: 1-2 notes (sparse accompaniment), scaled by activity
@@ -1468,6 +1481,14 @@ class PhraseGenerator:
             base_length = random.randint(2, 4)
         else:
             base_length = random.randint(1, 2)
+        
+        # Apply mode_flags constraints
+        if mode_flags.get('reactive', False):
+            # Reactive mode: sparse bursts (2-4 notes max)
+            base_length = min(base_length, random.randint(2, 4))
+        elif mode_flags.get('chill', False):
+            # Chill mode: sustained phrases (3-6 notes)
+            base_length = max(base_length, random.randint(3, 6))
         
         # Scale phrase length by activity multiplier
         # activity_multiplier: 0.3 → 1.0 during buildup
@@ -1839,13 +1860,26 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
+    def _generate_peak_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None, mode_flags: Optional[Dict[str, bool]] = None) -> MusicalPhrase:
         """Generate a peak phrase (high energy)"""
+        
+        # Default mode_flags
+        if mode_flags is None:
+            mode_flags = {'reactive': False, 'chill': False}
         
         # Scale phrase length by rhythmic_density and activity
         # Dense voices (0.8): 6-16 notes, Sparse voices (0.2): 2-4 notes
         rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
         base_length = int(4 + rhythmic_density * 12)  # 4-16 notes based on density
+        
+        # Apply mode_flags constraints
+        if mode_flags.get('reactive', False):
+            # Reactive: controlled bursts (clamp to 3-10 notes)
+            base_length = min(base_length, 10)
+        elif mode_flags.get('chill', False):
+            # Chill: fuller sustained phrases (boost minimum)
+            base_length = max(base_length, 6)
+        
         phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
         phrase_length = max(2, min(phrase_length, 20))  # Clamp to 2-20 notes
         
@@ -2042,13 +2076,26 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
+    def _generate_release_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None, mode_flags: Optional[Dict[str, bool]] = None) -> MusicalPhrase:
         """Generate a release phrase (settling down)"""
+        
+        # Default mode_flags
+        if mode_flags is None:
+            mode_flags = {'reactive': False, 'chill': False}
         
         # Scale phrase length by rhythmic_density and activity
         # Dense voices: 4-12 notes, Sparse voices: 2-3 notes
         rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
         base_length = int(3 + rhythmic_density * 9)  # 3-12 notes based on density
+        
+        # Apply mode_flags constraints
+        if mode_flags.get('reactive', False):
+            # Reactive: sparse release (clamp to 2-6 notes)
+            base_length = min(base_length, 6)
+        elif mode_flags.get('chill', False):
+            # Chill: sustained release (boost minimum)
+            base_length = max(base_length, 5)
+        
         phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
         phrase_length = max(2, min(phrase_length, 15))  # Clamp to 2-15 notes
         
@@ -2173,13 +2220,26 @@ class PhraseGenerator:
             timestamp=timestamp
         )
     
-    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None) -> MusicalPhrase:
+    def _generate_contemplation_phrase(self, mode: str, voice_type: str, timestamp: float, current_event: Dict = None, temperature: float = 0.8, activity_multiplier: float = 1.0, voice_profile: Optional[Dict[str, float]] = None, mode_flags: Optional[Dict[str, bool]] = None) -> MusicalPhrase:
         """Generate a contemplation phrase (meditative)"""
+        
+        # Default mode_flags
+        if mode_flags is None:
+            mode_flags = {'reactive': False, 'chill': False}
         
         # Scale phrase length by rhythmic_density - contemplation should be sparse
         # Dense voices: 3-8 notes, Sparse voices: 2-3 notes
         rhythmic_density = voice_profile.get('rhythmic_density', 0.5) if voice_profile else 0.5
         base_length = int(2 + rhythmic_density * 6)  # 2-8 notes based on density
+        
+        # Apply mode_flags constraints (subtle in contemplation)
+        if mode_flags.get('reactive', False):
+            # Reactive: very sparse (2-3 notes typically)
+            base_length = min(base_length, 3)
+        elif mode_flags.get('chill', False):
+            # Chill: slightly more sustained (3-5 notes)
+            base_length = max(3, min(base_length, 5))
+        
         phrase_length = int(base_length * activity_multiplier)  # Scale by arc activity
         phrase_length = max(2, min(phrase_length, 10))  # Clamp to 2-10 notes
         

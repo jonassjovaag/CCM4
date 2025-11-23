@@ -2058,7 +2058,8 @@ class BehaviorEngine:
                     current_event, voice_type, mode.value, harmonic_context,
                     temperature=current_params['temperature'],
                     activity_multiplier=activity_multiplier,
-                    voice_profile=voice_profile
+                    voice_profile=voice_profile,
+                    mode_flags=episode_manager.mode_flags  # Pass mode flags from episode manager
                 )
                 
                 if phrase:

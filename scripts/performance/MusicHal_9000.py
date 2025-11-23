@@ -396,10 +396,20 @@ class EnhancedDriftEngineAI:
             else:
                 print("⚠️  PyQt5 not available, visualization disabled")
         
+        # Initialize CLAP style detector (if enabled)
+        self.clap_detector = None
+        self.last_clap_detection_time = 0.0
+        self.clap_detection_interval = 5.0  # Detect style every 5 seconds
+        if enable_clap:
+            try:
+                from listener.clap_style_detector import CLAPStyleDetector
+                self.clap_detector = CLAPStyleDetector()
+                print("🎵 CLAP style/role detection enabled (every 5s)")
+            except Exception as e:
+                print(f"⚠️  CLAP initialization failed: {e}")
+                self.clap_detector = None
+        
         # Initialize AI Agent now that visualization_manager is available
-        # TODO: CLAP configuration disabled until audio buffer access added
-        # CLAP needs raw audio from listener, but current architecture doesn't expose it
-        # See ORACLE_ACTIVITY_FIX.md for implementation plan
         self.ai_agent = AIAgent(
             rhythm_oracle=self.rhythm_oracle,
             visualization_manager=self.visualization_manager
@@ -2270,10 +2280,37 @@ class EnhancedDriftEngineAI:
             try:
                 current_time = time.time()
                 
-                # TODO: CLAP style/role detection requires audio buffer access
-                # Currently disabled - MemoryBuffer doesn't have get_recent_audio() method
-                # Need to add audio buffering to listener or create separate audio ring buffer
-                # See ORACLE_ACTIVITY_FIX.md for full CLAP integration plan
+                # CLAP style/role detection (every 5 seconds)
+                if self.clap_detector and (current_time - self.last_clap_detection_time) >= self.clap_detection_interval:
+                    try:
+                        # Get recent audio from listener
+                        audio_buffer = self.listener.get_recent_audio(duration_seconds=3.0)
+                        
+                        # Detect style and roles
+                        style_result = self.clap_detector.detect_style(audio_buffer, self.listener.sr)
+                        role_result = self.clap_detector.detect_roles(audio_buffer, self.listener.sr)
+                        
+                        if style_result and 'style' in style_result:
+                            # Update episode profiles based on detected style/roles
+                            self.ai_agent.behavior_engine.update_episode_profiles(
+                                style_profile=style_result['style'],
+                                role_detection=role_result
+                            )
+                            
+                            # Log detection
+                            self.performance_logger.log_decision(
+                                'clap_detection',
+                                f"Style: {style_result['style']} (conf: {style_result.get('confidence', 0):.2f}), "
+                                f"Bass: {role_result.get('bass_present', 0):.2f}, "
+                                f"Melody: {role_result.get('melody_dense', 0):.2f}, "
+                                f"Drums: {role_result.get('drums_heavy', 0):.2f}"
+                            )
+                        
+                        self.last_clap_detection_time = current_time
+                        
+                    except Exception as e:
+                        # Silently continue - don't disrupt performance
+                        pass
                 
                 # Update statistics
                 self.stats['uptime'] = current_time - self.start_time

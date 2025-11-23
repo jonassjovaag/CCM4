@@ -153,6 +153,12 @@ class DriftListener:
         self._long_ring = np.zeros(self.long_frame, dtype=np.float32)
         self._long_ring_pos = 0
 
+        # CLAP audio buffer (5 seconds for style/role detection)
+        self.clap_buffer_duration = 5.0  # seconds
+        self.clap_buffer_size = int(sr * self.clap_buffer_duration)
+        self._clap_ring = np.zeros(self.clap_buffer_size, dtype=np.float32)
+        self._clap_ring_pos = 0
+
         self._q: "queue.Queue[np.ndarray]" = queue.Queue(maxsize=8)
         self._running = False
         self._stream = None
@@ -607,6 +613,15 @@ class DriftListener:
                     self._long_ring[lpos:] = hopseg[:lk]; self._long_ring[:self.hop-lk] = hopseg[lk:]
                 self._long_ring_pos = (self._long_ring_pos + self.hop) % self._long_ring.shape[0]
 
+                # 3. Update CLAP ringbuffer (for style/role detection)
+                cpos = self._clap_ring_pos; cend = cpos + self.hop
+                if cend <= self._clap_ring.shape[0]:
+                    self._clap_ring[cpos:cend] = hopseg
+                else:
+                    ck = self._clap_ring.shape[0] - cpos
+                    self._clap_ring[cpos:] = hopseg[:ck]; self._clap_ring[:self.hop-ck] = hopseg[ck:]
+                self._clap_ring_pos = (self._clap_ring_pos + self.hop) % self._clap_ring.shape[0]
+
                 # Extract frames
                 idx = (np.arange(self.frame) + self._ring_pos) % self.frame
                 frame = self._ring[idx].copy()
@@ -777,3 +792,23 @@ class DriftListener:
                     
                     self._cb(event)
                     self._last_gui_t = nowc
+
+    def get_recent_audio(self, duration_seconds: float = 3.0) -> np.ndarray:
+        """Get recent audio buffer for CLAP style/role detection
+        
+        Args:
+            duration_seconds: Duration of audio to retrieve (max 5.0s)
+            
+        Returns:
+            numpy array of recent audio samples (mono, float32)
+        """
+        # Ensure duration doesn't exceed buffer size
+        duration_seconds = min(duration_seconds, self.clap_buffer_duration)
+        num_samples = int(self.sr * duration_seconds)
+        num_samples = min(num_samples, self.clap_buffer_size)
+        
+        # Extract samples from ring buffer (most recent)
+        idx = (np.arange(num_samples) + self._clap_ring_pos) % self.clap_buffer_size
+        audio = self._clap_ring[idx].copy()
+        
+        return audio
