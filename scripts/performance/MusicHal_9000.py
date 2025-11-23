@@ -2286,14 +2286,17 @@ class EnhancedDriftEngineAI:
                         # Get recent audio from listener
                         audio_buffer = self.listener.get_recent_audio(duration_seconds=3.0)
                         
-                        # Debug: Check what we got
-                        print(f"🔍 CLAP audio buffer: type={type(audio_buffer)}, shape={audio_buffer.shape if hasattr(audio_buffer, 'shape') else 'N/A'}, dtype={audio_buffer.dtype if hasattr(audio_buffer, 'dtype') else type(audio_buffer)}")
-                        
                         # Detect style and roles
                         style_result = self.clap_detector.detect_style(audio_buffer, self.listener.sr)
                         role_result = self.clap_detector.detect_roles(audio_buffer, self.listener.sr)
                         
                         if style_result and 'style' in style_result:
+                            # Console output for visibility
+                            print(f"🎵 CLAP Detection - Style: {style_result['style']} (conf: {style_result.get('confidence', 0):.2f}), "
+                                  f"Bass: {role_result.get('bass_present', 0):.2f}, "
+                                  f"Melody: {role_result.get('melody_dense', 0):.2f}, "
+                                  f"Drums: {role_result.get('drums_heavy', 0):.2f}")
+                            
                             # Update episode profiles based on detected style/roles
                             self.ai_agent.behavior_engine.update_episode_profiles(
                                 style_profile=style_result['style'],
@@ -2308,6 +2311,8 @@ class EnhancedDriftEngineAI:
                                 f"Melody: {role_result.get('melody_dense', 0):.2f}, "
                                 f"Drums: {role_result.get('drums_heavy', 0):.2f}"
                             )
+                        else:
+                            print(f"⚠️ CLAP: No valid detection (style_result={style_result})")
                         
                         self.last_clap_detection_time = current_time
                         
