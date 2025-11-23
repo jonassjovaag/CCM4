@@ -2009,6 +2009,11 @@ class PhraseGenerator:
         # Generate velocities
         velocities = []
         for i in range(len(notes)):
+            # HIGH velocity with max variation
+            velocity = random.randint(60, 127)  # High but variable
+            velocities.append(velocity)
+        
+        return MusicalPhrase(
             phrase_id=f"peak_{voice_type}_{int(timestamp)}",
             notes=notes,
             timings=timings,
