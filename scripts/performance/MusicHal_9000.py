@@ -1087,11 +1087,6 @@ class EnhancedDriftEngineAI:
         if hasattr(self.performance_logger, 'close'):
             self.performance_logger.close()
         
-        # Close visualization system
-        if self.visualization_manager:
-            self.visualization_manager.close()
-            print("🎨 Visualization system closed")
-        
         # Stop GPT reflector
         if self.gpt_reflector:
             self.gpt_reflector.stop()
@@ -1101,6 +1096,11 @@ class EnhancedDriftEngineAI:
             if threading.current_thread() != self.main_thread:
                 self.main_thread.join(timeout=2.0)
             # If we ARE in the main thread, it will exit naturally after this returns
+        
+        # Close visualization system (AFTER main thread stops to avoid race conditions)
+        if self.visualization_manager:
+            self.visualization_manager.close()
+            print("🎨 Visualization system closed")
         
         print("✅ Enhanced Drift Engine AI stopped")
     
@@ -1581,8 +1581,23 @@ class EnhancedDriftEngineAI:
                 elif decision.voice_type == 'melodic':
                     # Melody behavior depends on configuration
                     if not self.melody_silence_when_active:
-                        # Allow sparse melody (increased to 40% probability)
-                        if random.random() < 0.4:
+                        # Check for percussion dominance (drums detected)
+                        # If human is playing drums, we should provide the melody!
+                        percussive_ratio = event_data.get('percussive_ratio', 0.0)
+                        is_percussive = percussive_ratio > 0.6
+                        
+                        # Base probability (sparse when human plays melody)
+                        melody_prob = 0.4
+                        
+                        # Boost if percussion detected (fill the harmonic void)
+                        if is_percussive:
+                            melody_prob = 0.85
+                            # Only log occasionally to avoid spam
+                            if random.random() < 0.1:
+                                print(f"🥁 Percussion detected ({percussive_ratio:.2f}) - Boosting melody autonomy")
+                        
+                        # Allow melody based on calculated probability
+                        if random.random() < melody_prob:
                             decisions.append(decision)
                     # Otherwise: melody stays quiet to give space
         

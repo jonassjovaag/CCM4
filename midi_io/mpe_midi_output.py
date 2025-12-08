@@ -6,6 +6,7 @@ import mido
 import time
 import threading
 import random
+import math
 from typing import Dict, List, Optional, Callable, Tuple
 from dataclasses import dataclass
 from queue import Queue, Empty
@@ -21,7 +22,9 @@ class MPENote:
     
     # MPE-specific parameters
     pitch_bend: float = 0.0  # -1.0 to 1.0 (centered at 0.0)
-    pressure: int = 64       # Aftertouch (0-127)
+    pressure: int = 64       # Current Aftertouch (0-127)
+    peak_pressure: int = 64  # Peak Aftertouch for arc
+    enable_pressure_arc: bool = False # Whether to apply pressure arc
     timbre: int = 64         # CC 74 (timbre)
     brightness: int = 64     # CC 2 (brightness)
     
@@ -163,9 +166,14 @@ class MPEMIDIOutput:
             
             # Calculate MPE parameters with enhanced expressiveness
             pitch_bend = self._calculate_pitch_bend(pitch_deviation)
-            pressure = self._calculate_pressure(pressure_sensitivity)
+            peak_pressure = self._calculate_pressure(pressure_sensitivity)
             timbre = self._calculate_timbre(midi_params, timbre_variation)
             brightness = self._calculate_brightness(midi_params, expression_level)
+            
+            # Enable pressure arc for long notes (> 0.5s) and specifically for Bass voice
+            # This creates a swelling effect on the Hydrasynth Explorer
+            enable_pressure_arc = (midi_params.duration > 0.5) and (voice_type == 'bass')
+            initial_pressure = 0 if enable_pressure_arc else peak_pressure
             
             # Create MPE note
             note = MPENote(
@@ -175,7 +183,9 @@ class MPEMIDIOutput:
                 timestamp=time.time(),
                 duration=midi_params.duration,
                 pitch_bend=pitch_bend,
-                pressure=pressure,
+                pressure=initial_pressure,
+                peak_pressure=peak_pressure,
+                enable_pressure_arc=enable_pressure_arc,
                 timbre=timbre,
                 brightness=brightness,
                 attack_time=midi_params.attack_time,
@@ -332,9 +342,9 @@ class MPEMIDIOutput:
         # Only send pressure if it's significantly different from default
         pressure = max(0, min(127, int(note.pressure)))
         if abs(pressure - 64) > 10:  # Only send if significantly different
-            self.port.send(mido.Message('polytouch',
+            # Use Channel Pressure (Aftertouch) for MPE
+            self.port.send(mido.Message('aftertouch',
                                       channel=note.channel,
-                                      note=note.note,
                                       value=pressure))
             time.sleep(0.001)  # Small delay after pressure
         
@@ -342,11 +352,33 @@ class MPEMIDIOutput:
         # This should significantly reduce the number of MIDI messages per note
     
     def _update_active_notes(self):
-        """Update active notes and send note offs"""
+        """Update active notes, handle pressure arcs, and send note offs"""
         current_time = time.time()
         notes_to_remove = []
         
         for note_num, note in self.active_notes.items():
+            # Handle Pressure Arc (Aftertouch)
+            if self.enable_mpe and note.enable_pressure_arc:
+                # Calculate progress (0.0 to 1.0)
+                progress = (current_time - note.timestamp) / note.duration
+                
+                if 0.0 <= progress <= 1.0:
+                    # Calculate arc using sine wave (0 -> 1 -> 0)
+                    arc_factor = math.sin(progress * math.pi)
+                    
+                    # Calculate target pressure
+                    target_pressure = int(note.peak_pressure * arc_factor)
+                    target_pressure = max(0, min(127, target_pressure))
+                    
+                    # Send update if changed significantly (hysteresis to reduce traffic)
+                    if abs(target_pressure - note.pressure) >= 2:
+                        # MPE uses Channel Pressure (Aftertouch) per channel
+                        msg = mido.Message('aftertouch',
+                                         channel=note.channel,
+                                         value=target_pressure)
+                        self.port.send(msg)
+                        note.pressure = target_pressure
+
             if hasattr(note, 'note_off_time') and current_time >= note.note_off_time:
                 # Send note off
                 note_off = mido.Message('note_off',
@@ -370,6 +402,11 @@ class MPEMIDIOutput:
                     self.port.send(mido.Message('pitchwheel',
                                               channel=note.channel,
                                               pitch=0))  # Center pitch bend (0 = no bend)
+                    
+                    # Reset pressure
+                    self.port.send(mido.Message('aftertouch',
+                                              channel=note.channel,
+                                              value=0))
                 
                 notes_to_remove.append(note_num)
                 
