@@ -65,7 +65,10 @@ class BehaviorScheduler:
     
     def _calculate_decision_probability(self) -> float:
         """Calculate probability of making a decision"""
-        base_probability = 0.25  # Increased from 0.1 for better responsiveness
+        # DRASTICALLY INCREASED from 0.25 to 0.95
+        # The main loop already gates generation via time intervals.
+        # The scheduler shouldn't add another layer of low-probability randomness.
+        base_probability = 0.95
         
         # Adjust based on density level
         density_factor = 0.4 + self.density_level * 0.4  # Increased range

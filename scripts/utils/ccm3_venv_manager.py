@@ -37,7 +37,13 @@ class CCM3EnvironmentManager:
             ccm4_root = self._find_ccm4_root()
         
         self.ccm4_root = Path(ccm4_root)
-        self.ccm3_venv_path = self.ccm4_root / "CCM3"
+        
+        # Check for CCM or CCM3 (prefer CCM if available)
+        if (self.ccm4_root / "CCM").exists():
+            self.ccm3_venv_path = self.ccm4_root / "CCM"
+        else:
+            self.ccm3_venv_path = self.ccm4_root / "CCM3"
+            
         self.is_windows = platform.system() == "Windows"
         
         # Virtual environment paths
@@ -55,12 +61,12 @@ class CCM3EnvironmentManager:
         current = Path.cwd()
         
         # Check if we're already in CCM4 directory
-        if (current / "CCM3").exists() and (current / "MusicHal_9000.py").exists():
+        if ((current / "CCM3").exists() or (current / "CCM").exists()) and (current / "MusicHal_9000.py").exists():
             return str(current)
         
         # Search upward for CCM4 directory
         while current.parent != current:
-            if (current / "CCM3").exists() and (current / "MusicHal_9000.py").exists():
+            if ((current / "CCM3").exists() or (current / "CCM").exists()) and (current / "MusicHal_9000.py").exists():
                 return str(current)
             current = current.parent
         
@@ -119,11 +125,11 @@ class CCM3EnvironmentManager:
             True if activation successful, False otherwise
         """
         if not self.is_ccm3_venv_available():
-            print(f"❌ CCM3 virtual environment not found at: {self.ccm3_venv_path}")
+            print(f"❌ Virtual environment not found at: {self.ccm3_venv_path}")
             return False
         
         if self.is_ccm3_venv_active():
-            print(f"✅ CCM3 virtual environment already active")
+            print(f"✅ Virtual environment {self.ccm3_venv_path.name} already active")
             return True
         
         try:
@@ -140,7 +146,7 @@ class CCM3EnvironmentManager:
                 site_packages_str = str(site_packages)
                 if site_packages_str not in sys.path:
                     sys.path.insert(0, site_packages_str)
-                    print(f"✅ Added CCM3 site-packages to Python path: {site_packages_str}")
+                    print(f"✅ Added {self.ccm3_venv_path.name} site-packages to Python path: {site_packages_str}")
             
             # Update environment variables
             os.environ['VIRTUAL_ENV'] = str(self.ccm3_venv_path)

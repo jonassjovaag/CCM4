@@ -102,7 +102,7 @@ class PhraseGenerator:
         # Musical arcs - start with active arc
         self.current_arc = PhraseArc.BUILDUP
         self.arc_start_time = time.time()
-        self.arc_duration = 15.0  # seconds (shorter cycles)
+        self.arc_duration = 75.0  # seconds (longer cycles)
         
         # Phrase state - TUNED for better musical flow
         self.last_phrase_time = 0.0
@@ -425,7 +425,15 @@ class PhraseGenerator:
                     intervals.extend(intervals[:min(len(intervals), num_notes - len(intervals))])
                 
                 # Trim to exact number of notes needed
-                return intervals[:num_notes]
+                timings = intervals[:num_notes]
+                
+                # BASS FIX: Ensure bass has room to breathe even with RhythmOracle patterns
+                if voice_type == "bass":
+                    # Scale up timings to allow for longer notes (0.2s - 2.0s)
+                    # If intervals are tight, this will slow down the bass line
+                    timings = [t * random.uniform(1.5, 2.5) for t in timings]
+                
+                return timings
         
         # Fallback: use density/syncopation if no absolute_onsets
         # (This should rarely happen now that we have duration patterns)
@@ -440,7 +448,10 @@ class PhraseGenerator:
         # High density (0.8-1.0) → notes closer together (0.5x-0.75x beat)
         # Medium density (0.4-0.6) → notes on beat (1.0x beat)
         # Low density (0.0-0.3) → notes spread out (1.5x-2.0x beat)
-        if density > 0.7:
+        if voice_type == "bass":
+             # BASS: Force sparse spacing to allow long notes
+             spacing_multiplier = random.uniform(2.0, 4.0)
+        elif density > 0.7:
             spacing_multiplier = random.uniform(0.5, 0.75)  # Dense
         elif density > 0.4:
             spacing_multiplier = random.uniform(0.75, 1.25)  # Medium
@@ -1095,7 +1106,7 @@ class PhraseGenerator:
                 self.current_arc = random.choices(list(PhraseArc), weights=weights)[0]
             
             self.arc_start_time = current_time
-            self.arc_duration = random.uniform(10.0, 20.0)  # Shorter arc cycles (10-20 seconds)
+            self.arc_duration = random.uniform(75.0, 300.0)  # Longer arc cycles (75-300 seconds)
         
         return self.current_arc
     
@@ -1210,11 +1221,11 @@ class PhraseGenerator:
         """
         
         # Melody: 2-4 notes (short musical phrases), scaled by activity
-        # Bass: 1-2 notes (sparse accompaniment), scaled by activity
+        # Bass: 3-6 notes (more substantial lines), scaled by activity
         if voice_type == "melodic":
             base_length = random.randint(2, 4)
         else:
-            base_length = random.randint(1, 2)
+            base_length = random.randint(3, 6)
         
         # Scale phrase length by activity multiplier
         # activity_multiplier: 0.3 → 1.0 during buildup
@@ -1319,9 +1330,13 @@ class PhraseGenerator:
             timing_variation = 0.5
         else:
             min_note, max_note = self.bass_range
-            # Bass: sparse, supportive (3.0-5.0s)
-            base_timing = random.uniform(3.0, 5.0)  # Much sparser
-            timing_variation = 1.0
+            # Bass: varied rhythmic feel (1.0-4.0s)
+            # 30% chance of faster, more active bass line
+            if random.random() < 0.3:
+                base_timing = random.uniform(0.8, 1.5)  # Active/walking feel
+            else:
+                base_timing = random.uniform(2.0, 4.0)  # Supportive feel
+            timing_variation = 0.8
         
         # DRAMATICALLY EXPANDED generation algorithm
         notes = []
@@ -1367,7 +1382,17 @@ class PhraseGenerator:
                 beat_duration = self._get_beat_duration(current_event)
                 timings = []
                 for i in range(len(notes)):
-                    timing = base_timing + random.uniform(-timing_variation, timing_variation)
+                    # BASS: Force more variety in timing (mix of short and long gaps)
+                    if voice_type == "bass":
+                        # 40% chance of a long gap (2.0-4.0s) to let notes breathe
+                        if random.random() < 0.4:
+                            timing = random.uniform(2.0, 4.0)
+                        else:
+                            # 60% chance of active movement (0.5-1.5s)
+                            timing = random.uniform(0.5, 1.5)
+                    else:
+                        timing = base_timing + random.uniform(-timing_variation, timing_variation)
+                    
                     timing = self._apply_timing_profile(timing, timing_variation, voice_profile, beat_duration)
                     timings.append(max(0.3, timing))
             
@@ -1378,7 +1403,16 @@ class PhraseGenerator:
                 velocity = random.randint(60, 100) if voice_type == "melodic" else random.randint(70, 110)
                 velocities.append(velocity)
                 # Melody: longer sustained notes; Bass: shorter punchy notes
-                duration = random.uniform(0.4, 1.2) if voice_type == "melodic" else random.uniform(0.2, 0.6)
+                if voice_type == "melodic":
+                    duration = random.uniform(0.4, 1.2)
+                else:
+                    # Bass: varied length (0.2s to 2.0s)
+                    duration = random.uniform(0.2, 2.0)
+                    # Ensure monophonic behavior
+                    if i < len(timings):
+                        current_ioi = timings[i]
+                        if duration > current_ioi:
+                            duration = current_ioi * 0.95
                 durations.append(duration)
             
             return MusicalPhrase(
@@ -1541,7 +1575,18 @@ class PhraseGenerator:
             
             # Musical timing - use base_timing already calculated per voice type
             beat_duration = self._get_beat_duration(current_event)
-            timing = base_timing + random.uniform(-timing_variation, timing_variation)
+            
+            # BASS: Force more variety in timing (mix of short and long gaps)
+            if voice_type == "bass":
+                # 40% chance of a long gap (2.0-4.0s) to let notes breathe
+                if random.random() < 0.4:
+                    timing = random.uniform(2.0, 4.0)
+                else:
+                    # 60% chance of active movement (0.5-1.5s)
+                    timing = random.uniform(0.5, 1.5)
+            else:
+                timing = base_timing + random.uniform(-timing_variation, timing_variation)
+            
             timing = self._apply_timing_profile(timing, timing_variation, voice_profile, beat_duration)
             timings.append(max(0.3, timing))
             
@@ -1556,7 +1601,12 @@ class PhraseGenerator:
             if voice_type == "melodic":
                 duration = random.uniform(0.4, 1.2)  # Sustained melodic notes
             else:
-                duration = random.uniform(0.2, 0.6)  # Shorter bass notes
+                # Bass: varied length (0.2s to 2.0s)
+                duration = random.uniform(0.2, 2.0)
+                # Ensure monophonic behavior (no overlap)
+                current_ioi = timings[-1]
+                if duration > current_ioi:
+                    duration = current_ioi * 0.95
             durations.append(duration)
         
         return MusicalPhrase(
@@ -1726,7 +1776,16 @@ class PhraseGenerator:
             
             # EXTREME variation for peaks too! (TRIPLED: 0.1-0.2 → 0.3-0.6)
             beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(0.3, 0.6)  # Tripled timing range
+            
+            if voice_type == "bass":
+                # Bass peaks: mix of driving fast notes and powerful long notes
+                if random.random() < 0.3:
+                    timing = random.uniform(1.5, 3.0)  # Long powerful notes
+                else:
+                    timing = random.uniform(0.3, 0.8)  # Driving fast notes
+            else:
+                timing = random.uniform(0.3, 0.6)  # Tripled timing range
+                
             timing = self._apply_timing_profile(timing, timing_variation=0.15, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
@@ -1735,7 +1794,15 @@ class PhraseGenerator:
             velocities.append(velocity)
             
             # VARIABLE durations - unpredictable
-            duration = random.uniform(0.15, 1.2)
+            if voice_type == "melodic":
+                duration = random.uniform(0.15, 1.2)
+            else:
+                # Bass: varied length (0.2s to 2.0s)
+                duration = random.uniform(0.2, 2.0)
+                # Ensure monophonic behavior
+                current_ioi = timings[-1]
+                if duration > current_ioi:
+                    duration = current_ioi * 0.95
             durations.append(duration)
         
         return MusicalPhrase(
@@ -1835,7 +1902,13 @@ class PhraseGenerator:
             
             # Slower timing (TRIPLED: 0.25-0.5 → 0.75-1.5)
             beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(0.75, 1.5)
+            
+            if voice_type == "bass":
+                # Bass release: generally slower, allowing for long decay
+                timing = random.uniform(1.0, 3.0)
+            else:
+                timing = random.uniform(0.75, 1.5)
+                
             timing = self._apply_timing_profile(timing, timing_variation=0.375, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
@@ -1844,7 +1917,15 @@ class PhraseGenerator:
             velocities.append(velocity)
             
             # Longer durations
-            duration = 1.0 + i * 0.2
+            if voice_type == "melodic":
+                duration = 1.0 + i * 0.2
+            else:
+                # Bass: varied length (0.2s to 2.0s)
+                duration = random.uniform(0.2, 2.0)
+                # Ensure monophonic behavior
+                current_ioi = timings[-1]
+                if duration > current_ioi:
+                    duration = current_ioi * 0.95
             durations.append(duration)
         
         return MusicalPhrase(
@@ -1944,7 +2025,12 @@ class PhraseGenerator:
             
             # Slow, meditative timing (TRIPLED: 0.4-0.8 → 1.2-2.4)
             beat_duration = self._get_beat_duration(current_event)
-            timing = random.uniform(1.2, 2.4)
+            
+            if voice_type == "bass":
+                timing = random.uniform(1.5, 4.0) # Very spacious for bass
+            else:
+                timing = random.uniform(1.2, 2.4)
+                
             timing = self._apply_timing_profile(timing, timing_variation=0.6, voice_profile=voice_profile, beat_duration=beat_duration)
             timings.append(timing)
             
@@ -1953,7 +2039,15 @@ class PhraseGenerator:
             velocities.append(velocity)
             
             # Long, sustained durations
-            duration = 2.0 + random.uniform(-0.5, 1.0)
+            if voice_type == "bass":
+                # Use user-requested range even in contemplation, but biased toward long
+                duration = random.uniform(0.5, 3.0)
+                # Ensure monophonic behavior
+                current_ioi = timings[-1]
+                if duration > current_ioi:
+                    duration = current_ioi * 0.95
+            else:
+                duration = 2.0 + random.uniform(-0.5, 1.0)
             durations.append(duration)
         
         return MusicalPhrase(

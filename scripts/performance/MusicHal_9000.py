@@ -28,11 +28,11 @@ if sys.platform == 'win32':
 try:
     from scripts.utils.ccm3_venv_manager import ensure_ccm3_venv_active
     ensure_ccm3_venv_active()
-    print("✅ CCM3 virtual environment activated")
+    print("✅ Virtual environment activated")
 except ImportError:
-    print("⚠️  CCM3 virtual environment manager not found, continuing with current environment")
+    print("⚠️  Virtual environment manager not found, continuing with current environment")
 except Exception as e:
-    print(f"⚠️  CCM3 virtual environment activation failed: {e}")
+    print(f"⚠️  Virtual environment activation failed: {e}")
     print("Continuing with current environment...")
 
 import time
@@ -1575,13 +1575,14 @@ class EnhancedDriftEngineAI:
             for decision in all_decisions:
                 if decision.voice_type == 'bass':
                     # Bass can play sparsely as accompaniment
-                    if random.random() < self.bass_accompaniment_probability:
+                    # INCREASED to 0.95 to ensure bass plays even when human is active
+                    if random.random() < 0.95:
                         decisions.append(decision)
                 elif decision.voice_type == 'melodic':
                     # Melody behavior depends on configuration
                     if not self.melody_silence_when_active:
-                        # Allow sparse melody (20% probability)
-                        if random.random() < 0.2:
+                        # Allow sparse melody (increased to 40% probability)
+                        if random.random() < 0.4:
                             decisions.append(decision)
                     # Otherwise: melody stays quiet to give space
         
@@ -3663,12 +3664,12 @@ class EnhancedDriftEngineAI:
         """Track human activity level for autonomous generation adjustment"""
         # Update last human event time
         rms_db = event_data.get('rms_db', -80)
-        if rms_db > -60:  # Significant audio detected
+        if rms_db > -70:  # Significant audio detected (lowered from -60dB)
             self.last_human_event_time = current_time
             
             # Update activity level with exponential smoothing
             # Higher RMS = higher activity
-            instant_activity = min(1.0, (rms_db + 60) / 40)  # -60dB to 0dB mapped to 0-1
+            instant_activity = min(1.0, (rms_db + 70) / 40)  # -70dB to -30dB mapped to 0-1
             alpha = 0.3  # Smoothing factor
             self.human_activity_level = alpha * instant_activity + (1 - alpha) * self.human_activity_level
         else:
@@ -3710,8 +3711,9 @@ class EnhancedDriftEngineAI:
             generation_interval = self.autonomous_interval_base * 0.5  # 2x faster when alone (1.5s base)
         else:
             # Responsive mode: adjust to human activity
-            # More human activity = MUCH less AI density
-            activity_factor = 1.0 + (self.human_activity_level * 8.0)  # 1.0 to 9.0x slower - give MORE space
+            # More human activity = less AI density (but don't stop completely)
+            # Reduced scaling from 8.0 to 1.5 to allow accompaniment
+            activity_factor = 1.0 + (self.human_activity_level * 1.5)  # 1.0 to 2.5x slower
             generation_interval = self.autonomous_interval_base * activity_factor
         
         # If just entered autonomous mode, generate immediately as a response

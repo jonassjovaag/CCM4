@@ -71,7 +71,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.05,  # Steady on-beat
                 'timbre_variance': 0.2,  # Stable, cool
                 # Episode engagement (bass foundation with breathing room)
-                'episode_active_duration_range': (8.0, 20.0),  # Steady foundational presence
+                'episode_active_duration_range': (20.0, 40.0),  # Steady foundational presence
                 'episode_listening_duration_range': (2.0, 6.0),  # Reduced from (3,8) - avoid sync with melodic
                 'interference_probability': 0.5,  # Increased from 0.15 for steadier bass
                 'early_exit_probability': 0.05,  # Very stable
@@ -97,7 +97,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.1,  # Mostly on-beat
                 'timbre_variance': 0.25,  # Consistent tone
                 # Episode engagement (walking bass consistency)
-                'episode_active_duration_range': (15.0, 45.0),  # Long walking patterns
+                'episode_active_duration_range': (30.0, 60.0),  # Long walking patterns
                 'episode_listening_duration_range': (3.0, 8.0),  # Very brief breaks
                 'interference_probability': 0.2,  # Supportive foundation
                 'early_exit_probability': 0.08,  # Steady walk
@@ -123,7 +123,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.05,  # Groove-locked
                 'timbre_variance': 0.2,  # Stable foundation
                 # Episode engagement (blues groove consistency)
-                'episode_active_duration_range': (12.0, 35.0),  # Long groove patterns
+                'episode_active_duration_range': (25.0, 50.0),  # Long groove patterns
                 'episode_listening_duration_range': (3.0, 10.0),  # Brief breaks
                 'interference_probability': 0.15,  # Steady support
                 'early_exit_probability': 0.05,  # Locked groove
@@ -149,7 +149,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.02,  # Almost pedal tones
                 'timbre_variance': 0.1,  # Very stable
                 # Episode engagement (ambient foundation)
-                'episode_active_duration_range': (20.0, 60.0),  # Long sustained presence
+                'episode_active_duration_range': (40.0, 80.0),  # Long sustained presence
                 'episode_listening_duration_range': (5.0, 15.0),  # Occasional breaks
                 'interference_probability': 0.1,  # Minimal interference
                 'early_exit_probability': 0.1,  # Stable foundation
@@ -175,7 +175,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.05,  # Mostly on-beat
                 'timbre_variance': 0.15,  # Consistent
                 # Episode engagement (classical foundation)
-                'episode_active_duration_range': (15.0, 40.0),  # Long harmonic foundation
+                'episode_active_duration_range': (30.0, 60.0),  # Long harmonic foundation
                 'episode_listening_duration_range': (4.0, 12.0),  # Brief rests
                 'interference_probability': 0.15,  # Supportive role
                 'early_exit_probability': 0.05,  # Formal stability
@@ -201,7 +201,7 @@ class VoiceTimingProfile:
                 'syncopation_tendency': 0.15,  # Some off-beats
                 'timbre_variance': 0.2,  # Stable foundation
                 # Episode engagement (electronic consistency)
-                'episode_active_duration_range': (15.0, 50.0),  # Long patterns
+                'episode_active_duration_range': (30.0, 60.0),  # Long patterns
                 'episode_listening_duration_range': (3.0, 10.0),  # Brief drops
                 'interference_probability': 0.2,  # Tight production
                 'early_exit_probability': 0.08,  # Programmed consistency
