@@ -66,7 +66,10 @@ class FeatureMapper:
         self.last_melody_time = 0.0
         self.last_bass_time = 0.0
         self.min_timing_separation = 0.1  # Minimum 100ms between melody and bass notes
-        
+
+        # Pattern-based timing state (for RatioAnalyzer integration)
+        self._pattern_beat_index = 0  # Tracks position in learned rhythmic pattern
+
         # Chord tone definitions (relative to root)
         self.chord_tones = {
             'major': [0, 4, 7],
@@ -135,11 +138,16 @@ class FeatureMapper:
         # Apply timing separation to avoid simultaneous melody/bass notes
         duration = self._apply_timing_separation(duration, voice_type)
 
-        # Extract timing deviation from ratio analyzer output
-        # deviation_polarity: -1 (early), 0 (on-time), 1 (late)
-        # Convert to seconds: ±25ms feels human, ±50ms is noticeable
+        # Extract timing deviation from RatioAnalyzer output
+        # Use full pattern data if available, otherwise fall back to polarity
+        deviations = event_data.get('deviations', None)
+        rhythm_tempo = event_data.get('rhythm_tempo', 120.0)
+        duration_pattern = event_data.get('duration_pattern', None)
         deviation_polarity = event_data.get('deviation_polarity', 0)
-        timing_deviation = self._calculate_timing_deviation(deviation_polarity, ioi)
+
+        timing_deviation = self._calculate_timing_deviation_from_pattern(
+            deviations, rhythm_tempo, duration_pattern, deviation_polarity, ioi
+        )
 
         # Apply AI decision modifications
         params = MIDIParameters(
@@ -401,43 +409,66 @@ class FeatureMapper:
         
         return max(0.0, min(1.0, reverb))
 
-    def _calculate_timing_deviation(self, deviation_polarity: int, ioi: float) -> float:
+    def _calculate_timing_deviation_from_pattern(
+        self,
+        deviations: list,
+        rhythm_tempo: float,
+        duration_pattern: list,
+        deviation_polarity: int,
+        ioi: float
+    ) -> float:
         """
-        Convert deviation polarity from RatioAnalyzer to timing offset in seconds.
+        Calculate timing deviation from RatioAnalyzer pattern data.
 
-        The RatioAnalyzer outputs deviation_polarity as:
-          -1 = early (human played ahead of beat)
-           0 = on-time
-          +1 = late (human played behind the beat)
+        Uses the full deviations array and tempo to apply pattern-based
+        timing feel, not just per-note micro-timing.
 
-        We mirror this feel in our output:
-          - If human plays early, we play slightly early too (negative offset)
-          - If human plays late, we play slightly late (positive offset)
+        The deviations array contains fractional timing offsets for each
+        beat position in the learned pattern. We cycle through these
+        to match the human's rhythmic feel.
 
         Args:
-            deviation_polarity: -1, 0, or 1 from RatioAnalyzer
-            ioi: Inter-onset interval in seconds (used to scale deviation)
+            deviations: Full deviations array from RatioAnalyzer (fractional offsets)
+            rhythm_tempo: Tempo in BPM from RatioAnalyzer
+            duration_pattern: Duration ratios (e.g., [3, 2] for swing)
+            deviation_polarity: Fallback polarity if no pattern data
+            ioi: Inter-onset interval for fallback calculation
 
         Returns:
-            Timing offset in seconds (-0.05 to +0.05)
+            Timing offset in seconds
         """
+        # If we have full pattern data, use pattern-based timing
+        if deviations and len(deviations) > 0 and rhythm_tempo > 0:
+            # Get deviation for current beat position in pattern
+            pattern_len = len(deviations)
+            beat_idx = self._pattern_beat_index % pattern_len
+
+            # Get fractional deviation for this beat position
+            # deviations are fractions of the beat duration (e.g., 0.05 = 5% late)
+            fractional_deviation = deviations[beat_idx]
+
+            # Convert to seconds using tempo
+            # beat_duration = 60 / tempo (seconds per beat)
+            beat_duration = 60.0 / rhythm_tempo
+            timing_deviation_seconds = fractional_deviation * beat_duration
+
+            # Advance beat position for next note
+            self._pattern_beat_index = (self._pattern_beat_index + 1) % pattern_len
+
+            # Clamp to reasonable range (±100ms max for pattern-based)
+            timing_deviation_seconds = max(-0.1, min(0.1, timing_deviation_seconds))
+
+            return timing_deviation_seconds
+
+        # Fallback: use polarity-based micro-timing (original behavior)
         if deviation_polarity == 0:
             return 0.0
 
-        # Base deviation: 25ms feels natural, 50ms is the max
-        # Scale slightly with IOI - faster passages need smaller deviations
-        base_deviation_ms = 25.0  # milliseconds
-
-        # Scale factor based on IOI (shorter IOI = smaller deviation)
-        # IOI of 0.5s (120bpm eighth notes) = full deviation
-        # IOI of 0.25s (fast) = half deviation
-        # IOI of 1.0s (slow) = full deviation (capped)
+        # Base deviation: 25ms feels natural
+        base_deviation_ms = 25.0
         ioi_scale = min(1.0, max(0.5, ioi / 0.5))
-
-        # Calculate final deviation in seconds
         deviation_seconds = (base_deviation_ms / 1000.0) * ioi_scale * deviation_polarity
 
-        # Clamp to ±50ms maximum
         return max(-0.05, min(0.05, deviation_seconds))
 
     def _apply_decision_modifications(self, params: MIDIParameters, 

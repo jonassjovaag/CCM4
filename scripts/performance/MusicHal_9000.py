@@ -1459,17 +1459,28 @@ class EnhancedDriftEngineAI:
                             # Extract current position in duration pattern
                             # (Use most recent onset's characteristics)
                             pattern_idx = -1  # Last position in pattern
-                            
+
                             self.latest_rhythm_ratio = rhythm_result['duration_pattern'][pattern_idx] if len(rhythm_result['duration_pattern']) > 0 else 1
                             self.latest_barlow_complexity = rhythm_result['complexity']
                             self.latest_deviation_polarity = rhythm_result['deviation_polarity'][pattern_idx] if len(rhythm_result['deviation_polarity']) > 0 else 0
-                            
+
+                            # Store FULL pattern data for pattern-based timing
+                            self.latest_duration_pattern = rhythm_result['duration_pattern']
+                            self.latest_deviations = rhythm_result['deviations']  # Full fractional deviations
+                            self.latest_rhythm_tempo = rhythm_result['tempo']
+                            self.latest_rhythm_pulse = rhythm_result['pulse']
+
                             # Store in event_data for downstream use
                             event_data['rhythm_ratio'] = self.latest_rhythm_ratio
                             event_data['barlow_complexity'] = self.latest_barlow_complexity
                             event_data['deviation_polarity'] = self.latest_deviation_polarity
                             event_data['rhythm_subdiv_tempo'] = rhythm_result['tempo']
                             event_data['rhythm_pulse'] = rhythm_result['pulse']
+
+                            # Pass full pattern data for proper timing deviation calculation
+                            event_data['duration_pattern'] = self.latest_duration_pattern
+                            event_data['deviations'] = self.latest_deviations
+                            event_data['rhythm_tempo'] = self.latest_rhythm_tempo
                             
                     except Exception as e:
                         # Silently handle rhythm analysis errors (don't clutter terminal)
@@ -1483,6 +1494,11 @@ class EnhancedDriftEngineAI:
                     event_data['rhythm_ratio'] = self.latest_rhythm_ratio
                     event_data['barlow_complexity'] = self.latest_barlow_complexity
                     event_data['deviation_polarity'] = self.latest_deviation_polarity
+                    # Pass full pattern data for pattern-based timing
+                    if hasattr(self, 'latest_duration_pattern'):
+                        event_data['duration_pattern'] = self.latest_duration_pattern
+                        event_data['deviations'] = self.latest_deviations
+                        event_data['rhythm_tempo'] = self.latest_rhythm_tempo
         
         # Update pause and phrase state
         self.in_pause = self.pause_detector.detect_pause(
