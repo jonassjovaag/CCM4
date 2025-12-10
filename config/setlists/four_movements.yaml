@@ -17,26 +17,27 @@ bass_port: "IAC Meld Bass"         # Port for bass voice (routed to Hydrasynth)
 # Named patch library
 # Define your Hydrasynth patches here for easy reference
 # Find your patch numbers in Hydrasynth's patch browser
+# Bank F = LSB 5, Patches 1-4 = Programs 0-3
 patch_library:
   opening_pad:
-    bank: 0
+    bank: 5
     program: 0
-    display_name: "Opening Pad"
+    display_name: "F:001"
 
   development_texture:
-    bank: 0
+    bank: 5
     program: 1
-    display_name: "Development Texture"
+    display_name: "F:002"
 
   exploration_ambient:
-    bank: 0
+    bank: 5
     program: 2
-    display_name: "Exploration Ambient"
+    display_name: "F:003"
 
   finale_lead:
-    bank: 0
+    bank: 5
     program: 3
-    display_name: "Finale Lead"
+    display_name: "F:004"
 
 # Concert program
 # Total: 36 min music + 25 min pauses = 61 minutes
