@@ -106,19 +106,26 @@ class HydrasynthController:
             self.port = None
         self.connected = False
 
+    # Bank letter to LSB mapping for Hydrasynth
+    BANK_MAP = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7}
+
     def change_patch(self, bank: int = 0, program: int = 0,
                      delay_ms: float = 10.0) -> bool:
         """
         Change Hydrasynth patch using Bank Select + Program Change
 
         The Hydrasynth expects messages in this order:
-        1. Bank Select MSB (CC 0)
-        2. Bank Select LSB (CC 32)
-        3. Program Change
+        1. Bank Select MSB (CC 0) - always 0 for Hydrasynth
+        2. Bank Select LSB (CC 32) - bank A-H = 0-7
+        3. Program Change - patch 1-128 = 0-127
+
+        Hydrasynth Bank Mapping:
+            Bank A = 0, Bank B = 1, Bank C = 2, Bank D = 3
+            Bank E = 4, Bank F = 5, Bank G = 6, Bank H = 7
 
         Args:
-            bank: Bank number (0-16383, split into MSB/LSB)
-            program: Program number within bank (0-127)
+            bank: Bank number (0-7 for banks A-H)
+            program: Program/patch number within bank (0-127)
             delay_ms: Delay between messages in milliseconds
 
         Returns:
@@ -129,9 +136,9 @@ class HydrasynthController:
             return False
 
         try:
-            # Split bank into MSB and LSB
-            bank_msb = (bank >> 7) & 0x7F  # High 7 bits
-            bank_lsb = bank & 0x7F          # Low 7 bits
+            # Hydrasynth uses MSB=0, LSB=bank (0-7 for A-H)
+            bank_msb = 0
+            bank_lsb = max(0, min(7, bank))  # Clamp to valid range 0-7
 
             # Clamp program to valid range
             program = max(0, min(127, program))
@@ -163,7 +170,9 @@ class HydrasynthController:
             self.current_bank = bank
             self.current_program = program
 
-            print(f"🎛️ Hydrasynth patch changed: Bank {bank} (MSB:{bank_msb}, LSB:{bank_lsb}), Program {program}")
+            # Get bank letter for display
+            bank_letter = chr(ord('A') + bank_lsb)
+            print(f"🎛️ Hydrasynth patch: {bank_letter}:{program + 1:03d}")
             return True
 
         except Exception as e:
@@ -191,6 +200,39 @@ class HydrasynthController:
 
         print(f"Patch '{name}' not found in library")
         return False
+
+    def change_patch_by_id(self, patch_id: str) -> bool:
+        """
+        Change patch using Hydrasynth-style ID like "F:001" or "A:045"
+
+        Args:
+            patch_id: Patch ID in format "BANK:NUMBER" (e.g., "F:001", "A:045")
+
+        Returns:
+            True if patch changed successfully
+        """
+        try:
+            # Parse "F:001" format
+            parts = patch_id.upper().split(':')
+            if len(parts) != 2:
+                print(f"Invalid patch ID format: {patch_id} (expected 'F:001')")
+                return False
+
+            bank_letter = parts[0].strip()
+            patch_num = int(parts[1].strip())
+
+            if bank_letter not in self.BANK_MAP:
+                print(f"Invalid bank letter: {bank_letter} (must be A-H)")
+                return False
+
+            bank = self.BANK_MAP[bank_letter]
+            program = patch_num - 1  # Convert 1-indexed to 0-indexed
+
+            return self.change_patch(bank, program)
+
+        except ValueError as e:
+            print(f"Invalid patch ID: {patch_id} - {e}")
+            return False
 
     def register_patch(self, name: str, bank: int, program: int,
                        display_name: Optional[str] = None):
