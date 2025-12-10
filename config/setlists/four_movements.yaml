@@ -1,0 +1,84 @@
+# Performance Conductor Setlist: Four Movements
+# A four-part generative concert for Hydrasynth Explorer
+#
+# Usage:
+#   python scripts/performance/performance_conductor.py --setlist config/setlists/four_movements.yaml
+#   python scripts/performance/performance_conductor.py --setlist config/setlists/four_movements.yaml --dry-run
+
+name: "Four Movements"
+description: "A four-part generative concert exploring different sonic textures"
+
+# MIDI port configuration
+# Adjust these to match your system's IAC/virtual MIDI setup
+hydrasynth_port: "IAC Meld Bass"   # Port for Hydrasynth patch changes (same as bass)
+melodic_port: "IAC Meld"           # Port for melodic voice
+bass_port: "IAC Meld Bass"         # Port for bass voice (routed to Hydrasynth)
+
+# Named patch library
+# Define your Hydrasynth patches here for easy reference
+# Find your patch numbers in Hydrasynth's patch browser
+patch_library:
+  opening_pad:
+    bank: 0
+    program: 0
+    display_name: "Opening Pad"
+
+  development_texture:
+    bank: 0
+    program: 1
+    display_name: "Development Texture"
+
+  exploration_ambient:
+    bank: 0
+    program: 2
+    display_name: "Exploration Ambient"
+
+  finale_lead:
+    bank: 0
+    program: 3
+    display_name: "Finale Lead"
+
+# Concert program
+# Total: 36 min music + 25 min pauses = 61 minutes
+pieces:
+  # Movement I: Opening (10 min)
+  # Sets the tone with atmospheric textures
+  - name: "Movement I: Opening"
+    duration_minutes: 10
+    patch_name: "opening_pad"
+    pause_after_minutes: 5
+    # Conservative parameters for opening
+    density: 0.4
+    give_space: 0.5
+    initiative: 0.5
+
+  # Movement II: Development (7 min)
+  # Building complexity and interaction
+  - name: "Movement II: Development"
+    duration_minutes: 7
+    patch_name: "development_texture"
+    pause_after_minutes: 15
+    density: 0.5
+    give_space: 0.4
+    initiative: 0.6
+
+  # Movement III: Exploration (13 min)
+  # The longest piece - deep exploration
+  - name: "Movement III: Exploration"
+    duration_minutes: 13
+    patch_name: "exploration_ambient"
+    pause_after_minutes: 5
+    density: 0.55
+    give_space: 0.35
+    initiative: 0.65
+    enable_somax: false  # Enable for phrase-aware generation
+
+  # Movement IV: Finale (6 min)
+  # Energetic conclusion
+  - name: "Movement IV: Finale"
+    duration_minutes: 6
+    patch_name: "finale_lead"
+    pause_after_minutes: 0
+    density: 0.7
+    give_space: 0.25
+    initiative: 0.8
