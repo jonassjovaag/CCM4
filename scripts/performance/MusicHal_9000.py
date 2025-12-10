@@ -1759,8 +1759,13 @@ class EnhancedDriftEngineAI:
                     expression_level = self._calculate_expressive_intensity(decision, event_data)
                     timbre_variation = self._calculate_timbre_variation(decision, event_data)
                     pressure_sensitivity = self._calculate_pressure_sensitivity(decision, event_data)
-                    
-                    if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0, expression_level, 
+
+                    # Apply timing deviation from RatioAnalyzer (humanize timing)
+                    # Positive deviation = play late, negative = play early (immediate)
+                    if hasattr(midi_params, 'timing_deviation') and midi_params.timing_deviation > 0:
+                        time.sleep(midi_params.timing_deviation)
+
+                    if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0, expression_level,
                                                                   timbre_variation, pressure_sensitivity):
                         self.stats['notes_sent'] += 1
                         # IRCAM Phase 1.1: Track sent note to prevent learning from own output
@@ -2405,8 +2410,12 @@ class EnhancedDriftEngineAI:
                             expression_level = self._calculate_expressive_intensity(decision, event_data)
                             timbre_variation = self._calculate_timbre_variation(decision, event_data)
                             pressure_sensitivity = self._calculate_pressure_sensitivity(decision, event_data)
-                            
-                            if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0, expression_level, 
+
+                            # Apply timing deviation from RatioAnalyzer (humanize timing)
+                            if hasattr(midi_params, 'timing_deviation') and midi_params.timing_deviation > 0:
+                                time.sleep(midi_params.timing_deviation)
+
+                            if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0, expression_level,
                                                                              timbre_variation, pressure_sensitivity):
                                 self.stats['notes_sent'] += 1
                                 # IRCAM Phase 1.1: Track sent note to prevent learning from own output
@@ -3842,9 +3851,13 @@ class EnhancedDriftEngineAI:
                         expression_level = self._calculate_expressive_intensity(decision, synthetic_event)
                         timbre_variation = self._calculate_timbre_variation(decision, synthetic_event)
                         pressure_sensitivity = self._calculate_pressure_sensitivity(decision, synthetic_event)
-                        
-                        if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0, 
-                                                                       expression_level, timbre_variation, 
+
+                        # Apply timing deviation from RatioAnalyzer (humanize timing)
+                        if hasattr(midi_params, 'timing_deviation') and midi_params.timing_deviation > 0:
+                            time.sleep(midi_params.timing_deviation)
+
+                        if self.mpe_midi_outputs[voice_type].send_note(midi_params, voice_type, 0.0,
+                                                                       expression_level, timbre_variation,
                                                                        pressure_sensitivity):
                             self.stats['notes_sent'] += 1
                             # IRCAM Phase 1.1: Track sent note to prevent learning from own output

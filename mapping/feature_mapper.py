@@ -17,6 +17,7 @@ class MIDIParameters:
     modulation_depth: float
     pan: float
     reverb_amount: float
+    timing_deviation: float = 0.0  # Timing offset in seconds (-0.05 to +0.05)
 
 class FeatureMapper:
     """
@@ -133,7 +134,13 @@ class FeatureMapper:
         
         # Apply timing separation to avoid simultaneous melody/bass notes
         duration = self._apply_timing_separation(duration, voice_type)
-        
+
+        # Extract timing deviation from ratio analyzer output
+        # deviation_polarity: -1 (early), 0 (on-time), 1 (late)
+        # Convert to seconds: ±25ms feels human, ±50ms is noticeable
+        deviation_polarity = event_data.get('deviation_polarity', 0)
+        timing_deviation = self._calculate_timing_deviation(deviation_polarity, ioi)
+
         # Apply AI decision modifications
         params = MIDIParameters(
             note=note,
@@ -144,7 +151,8 @@ class FeatureMapper:
             filter_cutoff=filter_cutoff,
             modulation_depth=modulation_depth,
             pan=pan,
-            reverb_amount=reverb_amount
+            reverb_amount=reverb_amount,
+            timing_deviation=timing_deviation
         )
         
         # Modify based on AI decision
@@ -392,7 +400,46 @@ class FeatureMapper:
             reverb *= 0.7  # Slightly less reverb for bass
         
         return max(0.0, min(1.0, reverb))
-    
+
+    def _calculate_timing_deviation(self, deviation_polarity: int, ioi: float) -> float:
+        """
+        Convert deviation polarity from RatioAnalyzer to timing offset in seconds.
+
+        The RatioAnalyzer outputs deviation_polarity as:
+          -1 = early (human played ahead of beat)
+           0 = on-time
+          +1 = late (human played behind the beat)
+
+        We mirror this feel in our output:
+          - If human plays early, we play slightly early too (negative offset)
+          - If human plays late, we play slightly late (positive offset)
+
+        Args:
+            deviation_polarity: -1, 0, or 1 from RatioAnalyzer
+            ioi: Inter-onset interval in seconds (used to scale deviation)
+
+        Returns:
+            Timing offset in seconds (-0.05 to +0.05)
+        """
+        if deviation_polarity == 0:
+            return 0.0
+
+        # Base deviation: 25ms feels natural, 50ms is the max
+        # Scale slightly with IOI - faster passages need smaller deviations
+        base_deviation_ms = 25.0  # milliseconds
+
+        # Scale factor based on IOI (shorter IOI = smaller deviation)
+        # IOI of 0.5s (120bpm eighth notes) = full deviation
+        # IOI of 0.25s (fast) = half deviation
+        # IOI of 1.0s (slow) = full deviation (capped)
+        ioi_scale = min(1.0, max(0.5, ioi / 0.5))
+
+        # Calculate final deviation in seconds
+        deviation_seconds = (base_deviation_ms / 1000.0) * ioi_scale * deviation_polarity
+
+        # Clamp to ±50ms maximum
+        return max(-0.05, min(0.05, deviation_seconds))
+
     def _apply_decision_modifications(self, params: MIDIParameters, 
                                    decision_data: Dict) -> MIDIParameters:
         """Apply AI decision modifications to parameters"""
