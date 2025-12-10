@@ -10,7 +10,7 @@ description: "A four-part generative concert exploring different sonic textures"
 
 # MIDI port configuration
 # Adjust these to match your system's IAC/virtual MIDI setup
-hydrasynth_port: "IAC Meld Bass"   # Port for Hydrasynth patch changes (same as bass)
+hydrasynth_port: "HYDRASYNTH EXPLORER"   # Direct USB connection for patch changes
 melodic_port: "IAC Meld"           # Port for melodic voice
 bass_port: "IAC Meld Bass"         # Port for bass voice (routed to Hydrasynth)
 
