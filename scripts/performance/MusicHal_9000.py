@@ -1209,6 +1209,7 @@ class EnhancedDriftEngineAI:
                     
                     # Store hybrid analysis in event data
                     event_data['hybrid_consonance'] = hybrid_result.consonance
+                    event_data['consonance'] = hybrid_result.consonance  # Alias for phrase_generator
                     if hybrid_result.chroma is not None:
                         event_data['hybrid_chroma'] = hybrid_result.chroma.tolist()
                     if hybrid_result.active_pitch_classes is not None:
@@ -2394,7 +2395,12 @@ class EnhancedDriftEngineAI:
                         event_data = {
                             'instrument': decision.voice_type,
                             'harmonic_context': None,
-                            'rhythmic_context': None
+                            'rhythmic_context': None,
+                            # Include latest rhythm data for timing humanization
+                            'duration_pattern': getattr(self, 'latest_duration_pattern', None),
+                            'deviations': getattr(self, 'latest_deviations', []),
+                            'rhythm_tempo': getattr(self, 'latest_rhythm_tempo', 120.0),
+                            'pulse': getattr(self, 'latest_rhythm_pulse', 4),
                         }
                         
                         midi_params = self.feature_mapper.map_features_to_midi(
@@ -3805,7 +3811,12 @@ class EnhancedDriftEngineAI:
                 'instrument': 'autonomous',
                 'harmonic_context': None,
                 'rhythmic_context': None,
-                't': current_time
+                't': current_time,
+                # Include latest rhythm data for timing humanization
+                'duration_pattern': getattr(self, 'latest_duration_pattern', None),
+                'deviations': getattr(self, 'latest_deviations', []),
+                'rhythm_tempo': getattr(self, 'latest_rhythm_tempo', 120.0),
+                'pulse': getattr(self, 'latest_rhythm_pulse', 4),
             }
             
             # Make decision - AI will use learned patterns from memory
