@@ -1608,7 +1608,7 @@ class EnhancedDriftEngineAI:
         
         # Filter decisions based on human activity and voice type
         is_autonomous = time_since_last_human >= self.silence_timeout and self.human_activity_level <= 0.3
-        
+
         if is_autonomous:
             # Autonomous mode - both voices can play freely
             decisions = all_decisions
@@ -1618,10 +1618,9 @@ class EnhancedDriftEngineAI:
             import random
             for decision in all_decisions:
                 if decision.voice_type == 'bass':
-                    # Bass can play sparsely as accompaniment
-                    # INCREASED to 0.95 to ensure bass plays even when human is active
-                    if random.random() < 0.95:
-                        decisions.append(decision)
+                    # Bass: steady foundation - no random filtering
+                    # Episode state machine handles rest periods, oracles handle timing
+                    decisions.append(decision)
                 elif decision.voice_type == 'melodic':
                     # Melody behavior depends on configuration
                     if not self.melody_silence_when_active:
@@ -1648,20 +1647,30 @@ class EnhancedDriftEngineAI:
         # Apply performance arc guidance (including fade-out)
         if self.timeline_manager:
             guidance = self.timeline_manager.get_performance_guidance()
-            if not guidance['should_respond']:
-                return  # Skip processing if timeline says we should be silent
-            
-            # Apply graceful fade-out in final minute
-            fade_factor = self.timeline_manager.get_fade_out_factor(fade_duration=60.0)
-            
+
             # During grace period (after scheduled end), don't generate any new notes
             remaining = self.timeline_manager.get_time_remaining()
             if remaining <= 0:
                 return  # Grace period: let final notes finish, but don't start new ones
-            
-            if random.random() > fade_factor:
-                return  # Randomly skip responses during fade-out
-            
+
+            # Apply fade-out and should_respond filtering per voice type
+            # Bass is the foundation - more reliable, less random filtering
+            fade_factor = self.timeline_manager.get_fade_out_factor(fade_duration=60.0)
+
+            filtered_decisions = []
+            for decision in decisions:
+                if decision.voice_type == 'bass':
+                    # Bass: foundation voice - only filter during final fade-out
+                    # Let episode state machine and oracles drive timing
+                    if fade_factor > 0.1:  # Only block bass when nearly silent
+                        filtered_decisions.append(decision)
+                else:
+                    # Melody: apply full timeline guidance (should_respond + fade)
+                    if guidance['should_respond'] and random.random() < fade_factor:
+                        filtered_decisions.append(decision)
+
+            decisions = filtered_decisions
+
             # Override behavior mode based on performance arc
             if guidance.get('behavior_mode'):
                 from agent.behaviors import BehaviorMode
@@ -1676,13 +1685,8 @@ class EnhancedDriftEngineAI:
             # Use SomaxBridge to decide if we should respond
             if not self.somax_bridge.should_respond():
                 # Bridge says to stay silent (phrase complete, listening, etc.)
-                # Keep only bass (it's okay to have sparse bass even when melody is silent)
+                # Keep bass playing - it's the foundation, silencing handled by episode state
                 final_decisions = [d for d in final_decisions if d.voice_type == 'bass']
-                if final_decisions:
-                    # Even bass gets filtered by bridge continuity
-                    import random
-                    if random.random() > 0.3:  # 30% chance to play bass
-                        final_decisions = []
 
             # Also use bridge for navigation-based note selection
             if final_decisions:

@@ -911,12 +911,9 @@ class EngagementEpisodeManager:
             
             # ACTIVE episode behavior depends on voice type
             if self.voice_type == "bass":
-                # BASS: Simple, steady foundation - rarely yields to human
-                # Only check interference probability as a small courtesy to give human space
-                if human_active and random.random() > self.interference_probability * 3:
-                    # Very low chance to yield (bass interference is 15-25%, so 45-75% chance to yield)
-                    return (False, f"ACTIVE but briefly yielding to human")
-                # Bass mostly just plays steadily
+                # BASS: Steady foundation - when ACTIVE, always play
+                # The episode state machine handles rest periods via LISTENING state
+                # No random yielding - let the trained RhythmOracle/AudioOracle drive timing
                 return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s)")
             
             else:  # melodic
