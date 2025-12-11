@@ -917,17 +917,10 @@ class EngagementEpisodeManager:
                 return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s)")
             
             else:  # melodic
-                # MELODY: More thoughtful engagement with interference logic
-                if human_active:
-                    # Roll for yielding (opposite of interference)
-                    if random.random() > self.interference_probability:
-                        # Yield to human this time (don't interfere)
-                        return (False, f"ACTIVE but yielding to human (interference roll failed)")
-                    # Otherwise, allow interference (play over human)
-                
-                # Default ACTIVE: generate phrase
-                interference_note = " + INTERFERENCE" if human_active else ""
-                return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s){interference_note}")
+                # MELODY: When ACTIVE, play - let oracles drive musical conversation
+                # The episode state machine handles rest periods via LISTENING state
+                # No random yielding - trained RhythmOracle/AudioOracle drive timing and phrasing
+                return (True, f"ACTIVE episode ({elapsed:.1f}/{self.episode_duration:.1f}s)")
         
         # Fallback
         return (False, "Unknown episode state")

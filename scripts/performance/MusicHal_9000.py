@@ -1622,27 +1622,12 @@ class EnhancedDriftEngineAI:
                     # Episode state machine handles rest periods, oracles handle timing
                     decisions.append(decision)
                 elif decision.voice_type == 'melodic':
-                    # Melody behavior depends on configuration
+                    # Melody: conversational voice - no random filtering
+                    # Episode state machine handles rest periods, oracles handle timing
+                    # Respect melody_silence_when_active config if set
                     if not self.melody_silence_when_active:
-                        # Check for percussion dominance (drums detected)
-                        # If human is playing drums, we should provide the melody!
-                        percussive_ratio = event_data.get('percussive_ratio', 0.0)
-                        is_percussive = percussive_ratio > 0.6
-                        
-                        # Base probability - increased to 0.7 for more responsive melody
-                        melody_prob = 0.7
-                        
-                        # Boost if percussion detected (fill the harmonic void)
-                        if is_percussive:
-                            melody_prob = 0.9
-                            # Only log occasionally to avoid spam
-                            if random.random() < 0.1:
-                                print(f"🥁 Percussion detected ({percussive_ratio:.2f}) - Boosting melody autonomy")
-                        
-                        # Allow melody based on calculated probability
-                        if random.random() < melody_prob:
-                            decisions.append(decision)
-                    # Otherwise: melody stays quiet to give space
+                        decisions.append(decision)
+                    # Otherwise: melody stays quiet (user configured silence)
         
         # Apply performance arc guidance (including fade-out)
         if self.timeline_manager:
@@ -1653,21 +1638,17 @@ class EnhancedDriftEngineAI:
             if remaining <= 0:
                 return  # Grace period: let final notes finish, but don't start new ones
 
-            # Apply fade-out and should_respond filtering per voice type
-            # Bass is the foundation - more reliable, less random filtering
+            # Apply fade-out filtering - only block during final fade
+            # Episode state machine handles rest periods, oracles handle timing
             fade_factor = self.timeline_manager.get_fade_out_factor(fade_duration=60.0)
 
             filtered_decisions = []
             for decision in decisions:
-                if decision.voice_type == 'bass':
-                    # Bass: foundation voice - only filter during final fade-out
-                    # Let episode state machine and oracles drive timing
-                    if fade_factor > 0.1:  # Only block bass when nearly silent
-                        filtered_decisions.append(decision)
-                else:
-                    # Melody: apply full timeline guidance (should_respond + fade)
-                    if guidance['should_respond'] and random.random() < fade_factor:
-                        filtered_decisions.append(decision)
+                # Both voices: only filter during final fade-out
+                # Episode state machine handles rest periods, oracles handle timing
+                # No probabilistic filtering - let trained AI drive musical decisions
+                if fade_factor > 0.1:  # Only block when nearly silent (final fade)
+                    filtered_decisions.append(decision)
 
             decisions = filtered_decisions
 
