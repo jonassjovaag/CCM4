@@ -1235,13 +1235,17 @@ class PolyphonicAudioOracle(AudioOracle):
             print(f"❌ Error loading from pickle: {e}")
             return False
     
-    def load_from_file(self, filepath: str) -> bool:
+    def load_from_file(self, filepath: str,
+                        harmonic_vocab_path: str = None,
+                        percussive_vocab_path: str = None) -> bool:
         """
         Load polyphonic AudioOracle from file
-        
+
         Args:
             filepath: Path to load file
-            
+            harmonic_vocab_path: Optional path to harmonic vocab (joblib) for token assignment
+            percussive_vocab_path: Optional path to percussive vocab (joblib) for token assignment
+
         Returns:
             True if successful
         """
@@ -1249,6 +1253,26 @@ class PolyphonicAudioOracle(AudioOracle):
             import os
             file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
             print(f"📂 Loading AudioOracle model ({file_size_mb:.1f} MB)...")
+
+            # Load vocab files if provided (for dual vocabulary token assignment)
+            harmonic_quantizer = None
+            percussive_quantizer = None
+
+            if harmonic_vocab_path and os.path.exists(harmonic_vocab_path):
+                try:
+                    import joblib
+                    harmonic_quantizer = joblib.load(harmonic_vocab_path)
+                    print(f"   🎸 Loaded harmonic vocab: {harmonic_vocab_path}")
+                except Exception as e:
+                    print(f"   ⚠️ Could not load harmonic vocab: {e}")
+
+            if percussive_vocab_path and os.path.exists(percussive_vocab_path):
+                try:
+                    import joblib
+                    percussive_quantizer = joblib.load(percussive_vocab_path)
+                    print(f"   🥁 Loaded percussive vocab: {percussive_vocab_path}")
+                except Exception as e:
+                    print(f"   ⚠️ Could not load percussive vocab: {e}")
             
             print("   ⏳ Reading JSON file...")
             with open(filepath, 'r') as f:
@@ -1315,27 +1339,53 @@ class PolyphonicAudioOracle(AudioOracle):
             # Load audio_frames (CRITICAL for note generation!)
             print(f"   ⏳ Loading {len(data.get('audio_frames', {}))} audio frames (this may take a while)...")
             self.audio_frames = {}
+            tokens_assigned = 0
+
             if 'audio_frames' in data:
                 from .audio_oracle import AudioFrame
                 frame_data_dict = data['audio_frames']
                 total_frames = len(frame_data_dict)
                 progress_step = max(1, total_frames // 10)  # Report every 10%
-                
+
                 for idx, (frame_id_str, frame_data) in enumerate(frame_data_dict.items()):
                     frame_id = int(frame_id_str)
+                    features = np.array(frame_data['features'])
+                    audio_data = frame_data['audio_data'].copy()  # Copy to avoid modifying original
+
+                    # DUAL VOCABULARY: Assign tokens if vocabs loaded and tokens missing
+                    if harmonic_quantizer is not None and 'harmonic_token' not in audio_data:
+                        try:
+                            # Transform 768D features to token
+                            features_64 = features.astype(np.float64)
+                            harmonic_token = int(harmonic_quantizer.transform(features_64.reshape(1, -1))[0])
+                            audio_data['harmonic_token'] = harmonic_token
+                            tokens_assigned += 1
+                        except Exception:
+                            pass  # Skip if transform fails
+
+                    if percussive_quantizer is not None and 'percussive_token' not in audio_data:
+                        try:
+                            features_64 = features.astype(np.float64)
+                            percussive_token = int(percussive_quantizer.transform(features_64.reshape(1, -1))[0])
+                            audio_data['percussive_token'] = percussive_token
+                        except Exception:
+                            pass
+
                     self.audio_frames[frame_id] = AudioFrame(
                         timestamp=frame_data['timestamp'],
-                        features=np.array(frame_data['features']),
-                        audio_data=frame_data['audio_data'],
+                        features=features,
+                        audio_data=audio_data,
                         frame_id=frame_data['frame_id']
                     )
-                    
+
                     # Progress indicator
                     if (idx + 1) % progress_step == 0 or idx == total_frames - 1:
                         progress_pct = ((idx + 1) / total_frames) * 100
                         print(f"      {progress_pct:.0f}% ({idx + 1}/{total_frames} frames)")
-                
+
                 print(f"   ✅ Loaded {len(self.audio_frames)} audio_frames")
+                if tokens_assigned > 0:
+                    print(f"   🎯 Assigned dual vocab tokens to {tokens_assigned} frames")
             else:
                 print(f"   ⚠️  No audio_frames in saved file (old model format)")
             

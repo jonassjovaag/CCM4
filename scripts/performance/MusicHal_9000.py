@@ -2622,6 +2622,33 @@ class EnhancedDriftEngineAI:
                 use_pickle = False
             
             if most_recent_file:
+                # DUAL VOCABULARY: Determine vocab file paths for token assignment at load time
+                base_filename = most_recent_file.replace('_model.pkl.gz', '').replace('_model.pkl', '').replace('_model.json', '')
+                harmonic_vocab_file = base_filename + '_harmonic_vocab.joblib'
+                percussive_vocab_file = base_filename + '_percussive_vocab.joblib'
+
+                # Fallback: Check input_audio/ if not found alongside model
+                if not (os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file)):
+                    name_only = os.path.basename(base_filename)
+                    alt_harmonic = os.path.join('input_audio', name_only + '_harmonic_vocab.joblib')
+                    alt_percussive = os.path.join('input_audio', name_only + '_percussive_vocab.joblib')
+                    if os.path.exists(alt_harmonic) and os.path.exists(alt_percussive):
+                        harmonic_vocab_file = alt_harmonic
+                        percussive_vocab_file = alt_percussive
+                    else:
+                        # Try finding ANY vocab files in input_audio
+                        try:
+                            input_files = os.listdir('input_audio')
+                            h_candidates = [f for f in input_files if f.endswith('_harmonic_vocab.joblib')]
+                            p_candidates = [f for f in input_files if f.endswith('_percussive_vocab.joblib')]
+                            if h_candidates and p_candidates:
+                                h_candidates.sort(key=lambda x: os.path.getmtime(os.path.join('input_audio', x)), reverse=True)
+                                p_candidates.sort(key=lambda x: os.path.getmtime(os.path.join('input_audio', x)), reverse=True)
+                                harmonic_vocab_file = os.path.join('input_audio', h_candidates[0])
+                                percussive_vocab_file = os.path.join('input_audio', p_candidates[0])
+                        except Exception:
+                            pass  # No vocab files found
+
                 # Load model configuration first to initialize clustering with correct parameters
                 # For pickle files, we'll load config from a companion JSON if it exists
                 if use_pickle:
@@ -2692,14 +2719,22 @@ class EnhancedDriftEngineAI:
                             json.dump(oracle_data, tmp)
                             temp_oracle_file = tmp.name
                         
-                        polyphonic_oracle_loaded = self.clustering.load_from_file(temp_oracle_file)
-                        
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(
+                            temp_oracle_file,
+                            harmonic_vocab_path=harmonic_vocab_file if os.path.exists(harmonic_vocab_file) else None,
+                            percussive_vocab_path=percussive_vocab_file if os.path.exists(percussive_vocab_file) else None
+                        )
+
                         # Clean up temp file
                         os.unlink(temp_oracle_file)
                     else:
                         # Legacy format - load directly
                         print("📦 Detected legacy training format")
-                        polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(
+                            most_recent_file,
+                            harmonic_vocab_path=harmonic_vocab_file if os.path.exists(harmonic_vocab_file) else None,
+                            percussive_vocab_path=percussive_vocab_file if os.path.exists(percussive_vocab_file) else None
+                        )
                 
                 if polyphonic_oracle_loaded:
                     print("✅ Successfully loaded AudioOracle model!")
@@ -2962,7 +2997,19 @@ class EnhancedDriftEngineAI:
                     json_files.sort(key=lambda x: os.path.getmtime(os.path.join(json_dir, x)), reverse=True)
                     most_recent_file = os.path.join(json_dir, json_files[0])
                     print(f"🎓 Loading most recent training results: {most_recent_file}")
-                    
+
+                    # DUAL VOCABULARY: Determine vocab file paths for token assignment
+                    base_filename = most_recent_file.replace('.json', '')
+                    harmonic_vocab_file = base_filename + '_harmonic_vocab.joblib'
+                    percussive_vocab_file = base_filename + '_percussive_vocab.joblib'
+                    if not (os.path.exists(harmonic_vocab_file) and os.path.exists(percussive_vocab_file)):
+                        name_only = os.path.basename(base_filename)
+                        alt_h = os.path.join('input_audio', name_only + '_harmonic_vocab.joblib')
+                        alt_p = os.path.join('input_audio', name_only + '_percussive_vocab.joblib')
+                        if os.path.exists(alt_h) and os.path.exists(alt_p):
+                            harmonic_vocab_file = alt_h
+                            percussive_vocab_file = alt_p
+
                     # Load config and initialize clustering if not already done
                     if self.clustering is None:
                         model_config = self._load_model_config(most_recent_file)
@@ -3001,11 +3048,15 @@ class EnhancedDriftEngineAI:
                             json.dump(oracle_data, tmp)
                             temp_oracle_file = tmp.name
                         
-                        polyphonic_oracle_loaded = self.clustering.load_from_file(temp_oracle_file)
-                        
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(
+                            temp_oracle_file,
+                            harmonic_vocab_path=harmonic_vocab_file if os.path.exists(harmonic_vocab_file) else None,
+                            percussive_vocab_path=percussive_vocab_file if os.path.exists(percussive_vocab_file) else None
+                        )
+
                         # Clean up temp file
                         os.unlink(temp_oracle_file)
-                        
+
                         # Also extract rhythm_oracle if present
                         if 'rhythm_oracle' in file_data['data'] and self.rhythm_oracle and self.enable_rhythmic:
                             try:
@@ -3030,8 +3081,12 @@ class EnhancedDriftEngineAI:
                     else:
                         # Legacy format - load directly
                         print("📦 Detected legacy training format (JSON)")
-                        polyphonic_oracle_loaded = self.clustering.load_from_file(most_recent_file)
-                    
+                        polyphonic_oracle_loaded = self.clustering.load_from_file(
+                            most_recent_file,
+                            harmonic_vocab_path=harmonic_vocab_file if os.path.exists(harmonic_vocab_file) else None,
+                            percussive_vocab_path=percussive_vocab_file if os.path.exists(percussive_vocab_file) else None
+                        )
+
                     if polyphonic_oracle_loaded:
                         print("✅ Successfully loaded training results!")
                         # Get model statistics
@@ -3089,7 +3144,20 @@ class EnhancedDriftEngineAI:
                             max_pattern_length=model_config.get('max_pattern_length', 50)
                         )
                     
-                    polyphonic_oracle_loaded = self.clustering.load_from_file(model_path)
+                    # DUAL VOCABULARY: Determine vocab paths from model path
+                    model_base = model_path.replace('_model.pkl.gz', '').replace('_model.pkl', '').replace('_model.json', '').replace('.json', '')
+                    h_vocab = model_base + '_harmonic_vocab.joblib'
+                    p_vocab = model_base + '_percussive_vocab.joblib'
+                    if not os.path.exists(h_vocab):
+                        h_vocab = os.path.join('input_audio', os.path.basename(model_base) + '_harmonic_vocab.joblib')
+                    if not os.path.exists(p_vocab):
+                        p_vocab = os.path.join('input_audio', os.path.basename(model_base) + '_percussive_vocab.joblib')
+
+                    polyphonic_oracle_loaded = self.clustering.load_from_file(
+                        model_path,
+                        harmonic_vocab_path=h_vocab if os.path.exists(h_vocab) else None,
+                        percussive_vocab_path=p_vocab if os.path.exists(p_vocab) else None
+                    )
                     if polyphonic_oracle_loaded:
                         print("✅ Successfully loaded trained model!")
                         # Get model statistics
@@ -3111,7 +3179,15 @@ class EnhancedDriftEngineAI:
         if not model_loaded:
             # Load PolyphonicAudioOracle model from default location
             print("📝 No trained models found, loading default model...")
-            polyphonic_oracle_loaded = self.clustering.load_from_file(self.clustering_file)
+            # DUAL VOCABULARY: Try to find vocab files for default model
+            default_base = self.clustering_file.replace('_model.json', '').replace('.json', '')
+            default_h = default_base + '_harmonic_vocab.joblib'
+            default_p = default_base + '_percussive_vocab.joblib'
+            polyphonic_oracle_loaded = self.clustering.load_from_file(
+                self.clustering_file,
+                harmonic_vocab_path=default_h if os.path.exists(default_h) else None,
+                percussive_vocab_path=default_p if os.path.exists(default_p) else None
+            )
         
         # Load rhythmic data if enabled (fallback if not loaded from companion file)
         print(f"🔍 Debug: enable_rhythmic={self.enable_rhythmic}, rhythm_oracle={self.rhythm_oracle is not None}, rhythmic_loaded={rhythmic_loaded}")
