@@ -66,42 +66,59 @@ def load_training_data(filepath: str, harmonic_vocab_path: str = None, percussiv
     # Assign tokens from vocab files if they're not already in the data
     if harmonic_quantizer or percussive_quantizer:
         tokens_assigned = 0
+        features_not_found = 0
+        transform_errors = 0
+
         for frame_id, frame in frames.items():
             audio_data = frame.get('audio_data', {})
 
             # Features can be at frame level OR inside audio_data
-            features = frame.get('features')
-            if features is None:
-                features = audio_data.get('features')
-            if features is None:
-                features = audio_data.get('wav2vec_features')
+            # Try multiple possible locations
+            features = None
+            for key in ['features', 'wav2vec_features']:
+                if frame.get(key) is not None:
+                    features = frame.get(key)
+                    break
+                if audio_data.get(key) is not None:
+                    features = audio_data.get(key)
+                    break
 
             if features is None:
+                features_not_found += 1
                 continue
 
             features = np.array(features)
 
+            # Check feature dimensions
+            if len(features.shape) == 1 and features.shape[0] != 768:
+                # Might be wrong features
+                continue
+
             # Assign harmonic token
             if harmonic_quantizer and 'harmonic_token' not in audio_data:
                 try:
-                    features_64 = features.astype(np.float64)
-                    token = int(harmonic_quantizer.transform(features_64.reshape(1, -1))[0])
+                    features_64 = features.astype(np.float64).reshape(1, -1)
+                    token = int(harmonic_quantizer.transform(features_64)[0])
                     audio_data['harmonic_token'] = token
                     tokens_assigned += 1
-                except Exception:
-                    pass
+                except Exception as e:
+                    transform_errors += 1
 
             # Assign percussive token
             if percussive_quantizer and 'percussive_token' not in audio_data:
                 try:
-                    features_64 = features.astype(np.float64)
-                    token = int(percussive_quantizer.transform(features_64.reshape(1, -1))[0])
+                    features_64 = features.astype(np.float64).reshape(1, -1)
+                    token = int(percussive_quantizer.transform(features_64)[0])
                     audio_data['percussive_token'] = token
-                except Exception:
+                except Exception as e:
                     pass
 
         if tokens_assigned > 0:
             print(f"   🎯 Assigned dual vocab tokens to {tokens_assigned} frames")
+        if features_not_found > 0:
+            print(f"   ⚠️  Features not found in {features_not_found} frames")
+        if transform_errors > 0:
+            print(f"   ⚠️  Transform errors: {transform_errors}")
 
     return frames
 
@@ -272,14 +289,24 @@ def print_results(token_results: dict, interval_results: dict):
         print(f"   ❌ MERT primarily captures TIMBRE, not melody")
         print(f"   Tokens group by sound texture, not pitch content.")
 
-    # Show details for sample tokens
+    # Show details for sample tokens - spread across range
+    all_tokens = sorted(token_results['token_details'].keys())
+    num_tokens = len(all_tokens)
+
+    # Select up to 50 tokens spread evenly across the range
+    if num_tokens <= 50:
+        sample_tokens = all_tokens
+    else:
+        step = num_tokens / 50
+        sample_tokens = [all_tokens[int(i * step)] for i in range(50)]
+
     print(f"\n{'─'*70}")
-    print(f"Token Details (first 15):")
+    print(f"Token Details ({len(sample_tokens)} tokens spread across {num_tokens} total):")
     print(f"{'─'*70}")
     print(f"{'Token':>6} | {'Count':>5} | {'MIDI Range':>12} | {'Std':>6} | {'Type':>8}")
     print(f"{'─'*70}")
 
-    for token in sorted(token_results['token_details'].keys())[:15]:
+    for token in sample_tokens:
         details = token_results['token_details'][token]
         midi_range = f"{details['midi_range'][0]:.0f}-{details['midi_range'][1]:.0f}"
         print(f"{token:>6} | {details['count']:>5} | {midi_range:>12} | {details['midi_std']:>6.2f} | {details['type']:>8}")
@@ -313,13 +340,34 @@ def main():
         percussive_vocab_path=args.percussive_vocab
     )
 
-    # Check what token fields exist
+    # Check what token fields exist and debug frame structure
     sample_frame = list(frames.values())[0] if frames else {}
     audio_data = sample_frame.get('audio_data', {})
     available_fields = list(audio_data.keys())
 
-    print(f"\n🔍 Available fields in audio_data:")
-    print(f"   {available_fields[:20]}...")
+    print(f"\n🔍 Frame structure debug:")
+    print(f"   Frame-level keys: {list(sample_frame.keys())}")
+    print(f"   audio_data keys: {available_fields[:20]}...")
+
+    # Check where features are
+    has_frame_features = 'features' in sample_frame
+    has_audio_features = 'features' in audio_data
+    has_audio_wav2vec = 'wav2vec_features' in audio_data
+
+    print(f"   Features location:")
+    print(f"      frame['features']: {has_frame_features}")
+    print(f"      audio_data['features']: {has_audio_features}")
+    print(f"      audio_data['wav2vec_features']: {has_audio_wav2vec}")
+
+    if has_frame_features:
+        feat = np.array(sample_frame['features'])
+        print(f"      frame['features'] shape: {feat.shape}")
+    if has_audio_features:
+        feat = np.array(audio_data['features'])
+        print(f"      audio_data['features'] shape: {feat.shape}")
+    if has_audio_wav2vec:
+        feat = np.array(audio_data['wav2vec_features'])
+        print(f"      audio_data['wav2vec_features'] shape: {feat.shape}")
 
     # Determine which token field to use
     token_fields_to_check = []
