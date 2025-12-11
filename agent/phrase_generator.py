@@ -284,9 +284,17 @@ class PhraseGenerator:
                     if min_interval > 0:
                         duration_pattern = [int(round(interval / min_interval)) for interval in intervals]
             
-            # Extract other tempo-free features
-            densities = [e.get('density', 0.5) for e in human_events if 'density' in e]
-            syncopations = [e.get('syncopation', 0.0) for e in human_events if 'syncopation' in e]
+            # Extract other tempo-free features (with string-to-numeric conversion for density)
+            density_map = {'sparse': 0.25, 'moderate': 0.5, 'dense': 0.8}
+            densities = []
+            for e in human_events:
+                if 'density' in e:
+                    d = e['density']
+                    if isinstance(d, str):
+                        densities.append(density_map.get(d, 0.5))
+                    else:
+                        densities.append(float(d))
+            syncopations = [float(e.get('syncopation', 0.0)) for e in human_events if 'syncopation' in e]
             pulses = [e.get('pulse', 4) for e in human_events if 'pulse' in e]
             
             current_context = {

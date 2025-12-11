@@ -2401,6 +2401,8 @@ class EnhancedDriftEngineAI:
                             'deviations': getattr(self, 'latest_deviations', []),
                             'rhythm_tempo': getattr(self, 'latest_rhythm_tempo', 120.0),
                             'pulse': getattr(self, 'latest_rhythm_pulse', 4),
+                            'density': 0.5,  # Default density for phrase continuations
+                            'syncopation': 0.0,
                         }
                         
                         midi_params = self.feature_mapper.map_features_to_midi(
@@ -3817,6 +3819,8 @@ class EnhancedDriftEngineAI:
                 'deviations': getattr(self, 'latest_deviations', []),
                 'rhythm_tempo': getattr(self, 'latest_rhythm_tempo', 120.0),
                 'pulse': getattr(self, 'latest_rhythm_pulse', 4),
+                'density': 0.5,  # Default density for autonomous
+                'syncopation': 0.0,
             }
             
             # Make decision - AI will use learned patterns from memory
