@@ -197,7 +197,8 @@ class PhraseGenerator:
         if not human_events:
             return 0.5  # Default
         
-        consonances = [e.get('consonance', 0.5) for e in human_events]
+        # Check both 'consonance' and 'hybrid_consonance' keys for compatibility
+        consonances = [e.get('consonance', e.get('hybrid_consonance', 0.5)) for e in human_events]
         return float(np.mean(consonances))
     
     def _get_melodic_tendency(self, n: int = 5) -> float:

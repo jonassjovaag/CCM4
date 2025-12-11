@@ -351,6 +351,13 @@ class EnhancedDriftEngineAI:
         self.latest_rhythm_ratio = None
         self.latest_barlow_complexity = None
         self.latest_deviation_polarity = None
+        self.latest_duration_pattern = None
+        self.latest_deviations = []
+        self.latest_rhythm_tempo = 120.0
+        self.latest_rhythm_pulse = 4
+        
+        # Melodic tracking for midi_relative (interval between consecutive notes)
+        self._previous_midi_note: Optional[float] = None
         
         # Rhythm analyzer will be initialized in start() after listener is created
         self.rhythmic_analyzer = None
@@ -1124,6 +1131,21 @@ class EnhancedDriftEngineAI:
         # Convert Event to dict
         event_data = event.to_dict()
         
+        # Calculate midi_relative (interval from previous note) for melodic tendency tracking
+        current_midi = event_data.get('midi')
+        if current_midi is not None and self._previous_midi_note is not None:
+            event_data['midi_relative'] = current_midi - self._previous_midi_note
+        else:
+            event_data['midi_relative'] = 0.0
+        if current_midi is not None:
+            self._previous_midi_note = current_midi
+        
+        # Extract density and syncopation from rhythmic_context if available
+        rhythmic_ctx = event_data.get('rhythmic_context', {})
+        if rhythmic_ctx:
+            event_data['density'] = rhythmic_ctx.get('rhythmic_density', 0.5)
+            event_data['syncopation'] = rhythmic_ctx.get('syncopation_level', 0.0)
+        
         # Track human activity for autonomous generation adjustment
         self._track_human_activity(event_data, current_time)
         
@@ -1476,6 +1498,7 @@ class EnhancedDriftEngineAI:
                             event_data['deviation_polarity'] = self.latest_deviation_polarity
                             event_data['rhythm_subdiv_tempo'] = rhythm_result['tempo']
                             event_data['rhythm_pulse'] = rhythm_result['pulse']
+                            event_data['pulse'] = rhythm_result['pulse']  # Alias for phrase_generator
 
                             # Pass full pattern data for proper timing deviation calculation
                             event_data['duration_pattern'] = self.latest_duration_pattern
@@ -1494,6 +1517,7 @@ class EnhancedDriftEngineAI:
                     event_data['rhythm_ratio'] = self.latest_rhythm_ratio
                     event_data['barlow_complexity'] = self.latest_barlow_complexity
                     event_data['deviation_polarity'] = self.latest_deviation_polarity
+                    event_data['pulse'] = self.latest_rhythm_pulse  # For phrase_generator
                     # Pass full pattern data for pattern-based timing
                     if hasattr(self, 'latest_duration_pattern'):
                         event_data['duration_pattern'] = self.latest_duration_pattern
