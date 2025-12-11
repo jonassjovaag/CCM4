@@ -1143,8 +1143,11 @@ class EnhancedDriftEngineAI:
         # Extract density and syncopation from rhythmic_context if available
         rhythmic_ctx = event_data.get('rhythmic_context', {})
         if rhythmic_ctx:
-            event_data['density'] = rhythmic_ctx.get('rhythmic_density', 0.5)
-            event_data['syncopation'] = rhythmic_ctx.get('syncopation_level', 0.0)
+            # Convert string density ("sparse"/"moderate"/"dense") to numeric 0.0-1.0
+            density_str = rhythmic_ctx.get('rhythmic_density', 'moderate')
+            density_map = {'sparse': 0.25, 'moderate': 0.5, 'dense': 0.8}
+            event_data['density'] = density_map.get(density_str, 0.5) if isinstance(density_str, str) else float(density_str)
+            event_data['syncopation'] = float(rhythmic_ctx.get('syncopation_level', 0.0))
         
         # Track human activity for autonomous generation adjustment
         self._track_human_activity(event_data, current_time)
