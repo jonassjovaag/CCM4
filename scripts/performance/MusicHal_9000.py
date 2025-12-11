@@ -1630,12 +1630,12 @@ class EnhancedDriftEngineAI:
                         percussive_ratio = event_data.get('percussive_ratio', 0.0)
                         is_percussive = percussive_ratio > 0.6
                         
-                        # Base probability (sparse when human plays melody)
-                        melody_prob = 0.4
+                        # Base probability - increased to 0.7 for more responsive melody
+                        melody_prob = 0.7
                         
                         # Boost if percussion detected (fill the harmonic void)
                         if is_percussive:
-                            melody_prob = 0.85
+                            melody_prob = 0.9
                             # Only log occasionally to avoid spam
                             if random.random() < 0.1:
                                 print(f"🥁 Percussion detected ({percussive_ratio:.2f}) - Boosting melody autonomy")
