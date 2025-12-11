@@ -7,7 +7,6 @@ Contains data safety, models, configuration, and metadata management.
 from .voice import Voice, ShortTone, DroneTone
 from .engine import FrequencyEngine
 from .manager import HarmonicManager
-from .rhythm import RhythmEngine
 
 # Phase 1: Data Safety (expose key components)
 from .data_safety.atomic_file_writer import AtomicFileWriter
@@ -30,7 +29,6 @@ __all__ = [
     'DroneTone',
     'FrequencyEngine',
     'HarmonicManager',
-    'RhythmEngine',
 
     # Data safety (Phase 1)
     'AtomicFileWriter',

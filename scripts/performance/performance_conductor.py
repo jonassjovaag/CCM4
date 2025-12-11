@@ -34,7 +34,6 @@ class Piece:
     give_space: Optional[float] = None
     initiative: Optional[float] = None
     enable_meld: bool = False
-    enable_somax: bool = False
 
     def __post_init__(self):
         # Ensure numeric types
@@ -148,8 +147,7 @@ class PerformanceConductor:
                     density=piece_data.get('density'),
                     give_space=piece_data.get('give_space'),
                     initiative=piece_data.get('initiative'),
-                    enable_meld=piece_data.get('enable_meld', False),
-                    enable_somax=piece_data.get('enable_somax', False)
+                    enable_meld=piece_data.get('enable_meld', False)
                 )
                 pieces.append(piece)
 
@@ -225,7 +223,6 @@ class PerformanceConductor:
                 midi_port=self.setlist.melodic_port if self.setlist else "IAC Meld",
                 enable_mpe=True,
                 enable_meld=piece.enable_meld,
-                enable_somax=piece.enable_somax,
                 performance_duration=duration_int,
                 enable_visualization=False,  # No GUI in conductor mode
                 enable_gpt_reflection=True,
@@ -568,7 +565,6 @@ pieces:
     duration_minutes: 13
     patch_name: "ethereal"
     pause_after_minutes: 5
-    enable_somax: true           # Enable SomaxBridge for this piece
 
   - name: "Movement IV: Finale"
     duration_minutes: 6
