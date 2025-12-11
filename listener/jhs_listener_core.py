@@ -211,7 +211,7 @@ class DriftListener:
                 print("🎼 Real-time harmonic detection enabled")
             except Exception as e:
                 print(f"⚠️ Failed to initialize harmonic detector: {e}")
-        self._harmonic_update_interval = 0.5  # Update harmony every 500ms
+        self._harmonic_update_interval = 0.25  # Update harmony every 250ms (was 500ms)
         self._last_harmonic_update = 0.0
         self._harmonic_buffer = deque(maxlen=int(self.sr * 2.0 / self.hop))  # 2 seconds
         

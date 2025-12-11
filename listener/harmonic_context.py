@@ -1,6 +1,13 @@
 """
 Real-time Harmonic Context for Live Performance
 Provides chord, scale, and key awareness to the AI agent
+
+Updated: Now uses CQT-based extraction with harmonic weighting from harmonic_chroma.py
+This addresses the key problems:
+1. FFT can't distinguish fundamentals from harmonics (C4 vs C5)
+2. Harmonic weighting: fundamentals >> overtones
+3. Proper confidence calculation (no artificial inflation)
+4. Zero-vector guard for silence
 """
 
 import numpy as np
@@ -9,6 +16,9 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from collections import deque
 import time
+
+# Import superior CQT-based extraction
+from .harmonic_chroma import HarmonicAwareChromaExtractor
 
 
 @dataclass
@@ -34,8 +44,8 @@ class RealtimeHarmonicDetector:
     def __init__(self, window_size: int = 8192, hop_length: int = 2048):
         """
         Args:
-            window_size: FFT window size for chroma extraction
-            hop_length: Hop length for chroma extraction
+            window_size: FFT window size (kept for API compatibility)
+            hop_length: Hop length (kept for API compatibility)
         """
         # Validate parameters
         if window_size <= 0:
@@ -44,27 +54,36 @@ class RealtimeHarmonicDetector:
             raise ValueError(f"hop_length must be positive, got {hop_length}")
         if hop_length >= window_size:
             raise ValueError(f"hop_length ({hop_length}) must be less than window_size ({window_size})")
-        
+
         self.window_size = window_size
         self.hop_length = hop_length
-        
+
         # Note names
         self.note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-        
+
+        # Initialize CQT-based harmonic extractor (superior to FFT)
+        # Uses harmonic weighting to distinguish fundamentals from overtones
+        self.harmonic_extractor = HarmonicAwareChromaExtractor(
+            n_octaves=6,           # C3 to C8 range
+            bins_per_octave=12,    # Semitone resolution
+            fmin=130.81,           # C3
+            fmax=4186.0            # C8
+        )
+
         # Chord templates (expanded vocabulary)
         self.chord_templates = self._create_chord_templates()
-        
+
         # Scale templates
         self.scale_templates = self._create_scale_templates()
-        
+
         # Rolling buffer for temporal smoothing
         self.chroma_history = deque(maxlen=5)  # Keep last 5 chroma vectors
         self.chord_history = deque(maxlen=10)  # Keep last 10 detected chords
-        
+
         # Current state
         self.current_context: Optional[HarmonicContext] = None
         self.last_update_time = 0.0
-        
+
         # Temporal hysteresis (prevent rapid chord switching)
         self.min_chord_duration = 0.2  # seconds
         self.last_chord_change = 0.0
@@ -160,99 +179,91 @@ class RealtimeHarmonicDetector:
     
     def extract_chroma_from_audio(self, audio_buffer: np.ndarray, sr: int = 44100) -> np.ndarray:
         """
-        Extract chroma features from audio buffer
-        Optimized for low latency - simplified implementation without librosa dependency
-        
+        Extract chroma features from audio buffer using CQT with harmonic weighting.
+
+        Key improvements over simple FFT:
+        1. CQT provides logarithmic frequency spacing (like musical notes)
+        2. Harmonic weighting distinguishes fundamentals from overtones
+        3. Temporal correlation emphasizes sustained chord tones
+
         Args:
             audio_buffer: Audio samples (mono)
             sr: Sample rate
-            
+
         Returns:
-            12-dimensional chroma vector
+            12-dimensional chroma vector (normalized), or zeros for silence
         """
-        if len(audio_buffer) < self.window_size:
-            # Pad if necessary
-            audio_buffer = np.pad(audio_buffer, (0, self.window_size - len(audio_buffer)))
-        
-        # Simplified chroma extraction using FFT
-        # This is a basic implementation that works without librosa
-        chroma = np.zeros(12)
-        
-        # Apply window
-        windowed = audio_buffer[:self.window_size] * np.hanning(self.window_size)
-        
-        # Compute FFT
-        spectrum = np.fft.rfft(windowed)
-        magnitude = np.abs(spectrum)
-        freqs = np.fft.rfftfreq(self.window_size, 1/sr)
-        
-        # Map frequencies to pitch classes (0-11 for C-B)
-        # A4 = 440 Hz = pitch class 9 (A)
-        for i, freq in enumerate(freqs):
-            if freq < 50 or freq > 4000:  # Skip very low and very high frequencies
-                continue
-            
-            # Convert frequency to MIDI note number
-            if freq > 0:
-                midi_note = 69 + 12 * np.log2(freq / 440.0)
-                pitch_class = int(round(midi_note)) % 12
-                
-                # Accumulate energy for this pitch class
-                chroma[pitch_class] += magnitude[i]
-        
-        # Normalize
-        if np.sum(chroma) > 0:
-            chroma = chroma / np.sum(chroma)
-        
+        # Use CQT-based extraction with harmonic weighting
+        # live_mode=True applies noise gate and preprocessing for microphone input
+        chroma = self.harmonic_extractor.extract(
+            audio_buffer,
+            sr=sr,
+            use_temporal=True,   # Use temporal correlation for stability
+            live_mode=True       # Apply noise gate and preprocessing
+        )
+
         return chroma
     
     def detect_chord_from_chroma(self, chroma: np.ndarray, use_history: bool = True) -> Tuple[str, float, str]:
         """
         Detect chord from chroma vector
-        
+
         Args:
             chroma: 12-dimensional chroma vector
             use_history: Whether to use temporal smoothing
-            
+
         Returns:
             (chord_name, confidence, chord_type)
+            Returns ("N/A", 0.0, "unknown") for silence/invalid input
         """
-        # Add to history
+        # ZERO-VECTOR GUARD: Check for silence or invalid input
+        chroma_energy = np.sum(chroma)
+        if chroma_energy < 0.05:
+            # Too quiet to detect - don't guess
+            return ("N/A", 0.0, "unknown")
+
+        # Add to history for temporal smoothing
         if use_history:
             self.chroma_history.append(chroma)
-            # Average recent chroma
+            # Average recent chroma for stability
             chroma_avg = np.mean(list(self.chroma_history), axis=0)
         else:
             chroma_avg = chroma
-        
+
         best_chord = "N/A"
         best_score = 0.0
         best_type = "unknown"
-        
+
         # Match against templates
         for chord_name, template_info in self.chord_templates.items():
             # Create binary template
             template = np.zeros(12)
             for note in template_info['notes']:
                 template[note] = 1.0
-            
+
             # Normalize template
             template = template / np.sum(template)
-            
-            # Calculate similarity (dot product)
+
+            # Calculate similarity (dot product of normalized vectors)
             similarity = np.dot(chroma_avg, template)
-            
-            # Weight by template importance
+
+            # Weight by template importance (triads > 7ths > 9ths > sus > dim/aug)
             weighted_score = similarity * template_info['weight']
-            
+
             if weighted_score > best_score:
                 best_score = weighted_score
                 best_chord = chord_name
                 best_type = template_info['type']
-        
-        # Confidence is the score itself (0-1)
-        confidence = min(1.0, best_score * 1.5)  # Boost for better range
-        
+
+        # HONEST CONFIDENCE: No artificial inflation
+        # Raw similarity is already 0-1 (dot product of normalized vectors)
+        # Only report high confidence if we have a strong match
+        confidence = best_score
+
+        # Minimum threshold: reject weak matches
+        if confidence < 0.15:
+            return ("N/A", confidence, "unknown")
+
         return best_chord, confidence, best_type
     
     def detect_key_from_chroma(self, chroma: np.ndarray) -> Tuple[str, float]:
