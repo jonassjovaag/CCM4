@@ -25,8 +25,8 @@ from collections import defaultdict
 from pathlib import Path
 
 
-def load_training_data(filepath: str) -> dict:
-    """Load training data from JSON file"""
+def load_training_data(filepath: str, harmonic_vocab_path: str = None, percussive_vocab_path: str = None) -> dict:
+    """Load training data from JSON file, optionally assigning dual vocab tokens"""
     print(f"📂 Loading {filepath}...")
 
     with open(filepath, 'r') as f:
@@ -42,6 +42,60 @@ def load_training_data(filepath: str) -> dict:
 
     frames = oracle_data.get('audio_frames', {})
     print(f"   ✅ Loaded {len(frames)} frames")
+
+    # Load vocab files and assign tokens if provided
+    harmonic_quantizer = None
+    percussive_quantizer = None
+
+    if harmonic_vocab_path:
+        try:
+            import joblib
+            harmonic_quantizer = joblib.load(harmonic_vocab_path)
+            print(f"   🎸 Loaded harmonic vocab: {harmonic_vocab_path}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load harmonic vocab: {e}")
+
+    if percussive_vocab_path:
+        try:
+            import joblib
+            percussive_quantizer = joblib.load(percussive_vocab_path)
+            print(f"   🥁 Loaded percussive vocab: {percussive_vocab_path}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load percussive vocab: {e}")
+
+    # Assign tokens from vocab files if they're not already in the data
+    if harmonic_quantizer or percussive_quantizer:
+        tokens_assigned = 0
+        for frame_id, frame in frames.items():
+            audio_data = frame.get('audio_data', {})
+            features = frame.get('features')
+
+            if features is None:
+                continue
+
+            features = np.array(features)
+
+            # Assign harmonic token
+            if harmonic_quantizer and 'harmonic_token' not in audio_data:
+                try:
+                    features_64 = features.astype(np.float64)
+                    token = int(harmonic_quantizer.transform(features_64.reshape(1, -1))[0])
+                    audio_data['harmonic_token'] = token
+                    tokens_assigned += 1
+                except Exception:
+                    pass
+
+            # Assign percussive token
+            if percussive_quantizer and 'percussive_token' not in audio_data:
+                try:
+                    features_64 = features.astype(np.float64)
+                    token = int(percussive_quantizer.transform(features_64.reshape(1, -1))[0])
+                    audio_data['percussive_token'] = token
+                except Exception:
+                    pass
+
+        if tokens_assigned > 0:
+            print(f"   🎯 Assigned dual vocab tokens to {tokens_assigned} frames")
 
     return frames
 
@@ -246,8 +300,12 @@ def main():
 
     args = parser.parse_args()
 
-    # Load training data
-    frames = load_training_data(args.training_file)
+    # Load training data (with optional vocab files for dual token assignment)
+    frames = load_training_data(
+        args.training_file,
+        harmonic_vocab_path=args.harmonic_vocab,
+        percussive_vocab_path=args.percussive_vocab
+    )
 
     # Check what token fields exist
     sample_frame = list(frames.values())[0] if frames else {}
