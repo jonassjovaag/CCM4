@@ -92,7 +92,8 @@ class FeatureAnalysisStage(PipelineStage):
             use_gpu=self.config.get('use_gpu', True),
             enable_symbolic=True,
             enable_dual_vocabulary=self.config.get('enable_dual_vocabulary', False),
-            enable_wav2vec=enable_wav2vec
+            enable_wav2vec=enable_wav2vec,
+            extract_all_frames=False  # Training uses single frame per event, not all MERT frames
         )
         
         # Load audio file for feature extraction
