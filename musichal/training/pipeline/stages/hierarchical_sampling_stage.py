@@ -111,6 +111,15 @@ class HierarchicalSamplingStage(PipelineStage):
                         event_dict['chord'] = event.chord
                     if hasattr(event, 'consonance'):
                         event_dict['consonance'] = event.consonance
+                    # Dual vocabulary fields (HPSS-separated)
+                    if hasattr(event, 'harmonic_token'):
+                        event_dict['harmonic_token'] = event.harmonic_token
+                    if hasattr(event, 'percussive_token'):
+                        event_dict['percussive_token'] = event.percussive_token
+                    if hasattr(event, 'harmonic_features'):
+                        event_dict['harmonic_features'] = event.harmonic_features
+                    if hasattr(event, 'percussive_features'):
+                        event_dict['percussive_features'] = event.percussive_features
                     events_as_dicts.append(event_dict)
                 elif isinstance(event, dict):
                     events_as_dicts.append(event)
