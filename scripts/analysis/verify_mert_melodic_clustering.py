@@ -68,7 +68,13 @@ def load_training_data(filepath: str, harmonic_vocab_path: str = None, percussiv
         tokens_assigned = 0
         for frame_id, frame in frames.items():
             audio_data = frame.get('audio_data', {})
+
+            # Features can be at frame level OR inside audio_data
             features = frame.get('features')
+            if features is None:
+                features = audio_data.get('features')
+            if features is None:
+                features = audio_data.get('wav2vec_features')
 
             if features is None:
                 continue
