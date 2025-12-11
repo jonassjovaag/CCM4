@@ -1353,11 +1353,18 @@ class PolyphonicAudioOracle(AudioOracle):
                     audio_data = frame_data['audio_data'].copy()  # Copy to avoid modifying original
 
                     # DUAL VOCABULARY: Assign tokens if vocabs loaded and tokens missing
+                    # Use HPSS-separated features if available, otherwise fall back to main features
                     if harmonic_quantizer is not None and 'harmonic_token' not in audio_data:
                         try:
-                            # Transform 768D features to token
-                            features_64 = features.astype(np.float64)
-                            harmonic_token = int(harmonic_quantizer.transform(features_64.reshape(1, -1))[0])
+                            # Prefer HPSS-separated harmonic features if available (from dual vocab training)
+                            harm_feat = audio_data.get('harmonic_features')
+                            if harm_feat is not None:
+                                harm_feat = np.array(harm_feat, dtype=np.float64).reshape(1, -1)
+                            else:
+                                # Fall back to main features (old training or single vocab mode)
+                                harm_feat = features.astype(np.float64).reshape(1, -1)
+
+                            harmonic_token = int(harmonic_quantizer.transform(harm_feat)[0])
                             audio_data['harmonic_token'] = harmonic_token
                             tokens_assigned += 1
                         except Exception:
@@ -1365,8 +1372,15 @@ class PolyphonicAudioOracle(AudioOracle):
 
                     if percussive_quantizer is not None and 'percussive_token' not in audio_data:
                         try:
-                            features_64 = features.astype(np.float64)
-                            percussive_token = int(percussive_quantizer.transform(features_64.reshape(1, -1))[0])
+                            # Prefer HPSS-separated percussive features if available
+                            perc_feat = audio_data.get('percussive_features')
+                            if perc_feat is not None:
+                                perc_feat = np.array(perc_feat, dtype=np.float64).reshape(1, -1)
+                            else:
+                                # Fall back to main features (old training or single vocab mode)
+                                perc_feat = features.astype(np.float64).reshape(1, -1)
+
+                            percussive_token = int(percussive_quantizer.transform(perc_feat)[0])
                             audio_data['percussive_token'] = percussive_token
                         except Exception:
                             pass

@@ -222,6 +222,29 @@ class HybridBatchTrainer:
                 if hasattr(event, 'gesture_token'):
                     event_data['gesture_token'] = event.gesture_token
 
+                # Dual vocabulary tokens (from HPSS-separated audio)
+                if hasattr(event, 'harmonic_token') and event.harmonic_token is not None:
+                    event_data['harmonic_token'] = event.harmonic_token
+                if hasattr(event, 'percussive_token') and event.percussive_token is not None:
+                    event_data['percussive_token'] = event.percussive_token
+
+                # Dual vocabulary features (HPSS-separated 768D features)
+                if hasattr(event, 'harmonic_features') and event.harmonic_features is not None:
+                    import numpy as np
+                    harm_feat = event.harmonic_features
+                    if isinstance(harm_feat, np.ndarray):
+                        event_data['harmonic_features'] = harm_feat
+                    else:
+                        event_data['harmonic_features'] = np.array(harm_feat, dtype=np.float32)
+
+                if hasattr(event, 'percussive_features') and event.percussive_features is not None:
+                    import numpy as np
+                    perc_feat = event.percussive_features
+                    if isinstance(perc_feat, np.ndarray):
+                        event_data['percussive_features'] = perc_feat
+                    else:
+                        event_data['percussive_features'] = np.array(perc_feat, dtype=np.float32)
+
                 if hasattr(event, 'chord'):
                     event_data['chord'] = event.chord
 

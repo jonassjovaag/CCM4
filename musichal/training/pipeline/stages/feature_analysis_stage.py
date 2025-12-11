@@ -100,9 +100,13 @@ class FeatureAnalysisStage(PipelineStage):
 
         # Process events
         enriched_events = []
-        wav2vec_features = []
+        wav2vec_features = []  # For single vocab mode (mixed audio)
+        harmonic_features_list = []  # For dual vocab mode (HPSS harmonic)
+        percussive_features_list = []  # For dual vocab mode (HPSS percussive)
         gesture_tokens = []
         chord_detections = []
+
+        enable_dual_vocab = self.config.get('enable_dual_vocabulary', False)
 
         for event in audio_events:
             # Extract audio segment for this event
@@ -111,27 +115,70 @@ class FeatureAnalysisStage(PipelineStage):
             end_sample = int(min(len(audio_signal), (event.t + 0.05) * sr))
             audio_segment = audio_signal[start_sample:end_sample]
 
-            # Extract features using dual perception
-            result = analyzer.extract_features(
-                audio=audio_segment,
-                sr=sr,
-                timestamp=event.t,
-                detected_f0=event.f if hasattr(event, 'f') else None
-            )
+            if enable_dual_vocab and enable_wav2vec and analyzer.wav2vec_encoder:
+                # DUAL VOCABULARY MODE: HPSS-separate and extract features from both sources
+                # This ensures harmonic vocab trains on harmonic features only
+                audio_harmonic, audio_percussive = librosa.effects.hpss(
+                    audio_segment,
+                    kernel_size=31,
+                    power=2.0,
+                    mask=True
+                )
 
-            # Add features to event
-            event.wav2vec_features = result.wav2vec_features
-            event.features = result.wav2vec_features  # AudioOracle expects 'features' key
-            event.gesture_token = result.gesture_token
-            event.chord = result.chord_label
-            event.consonance = result.consonance
+                # Extract MERT features from harmonic component
+                harmonic_result = analyzer.wav2vec_encoder.encode(
+                    audio_harmonic, sr, event.t,
+                    return_all_frames=False
+                )
+                harmonic_features = harmonic_result.features
+
+                # Extract MERT features from percussive component
+                percussive_result = analyzer.wav2vec_encoder.encode(
+                    audio_percussive, sr, event.t,
+                    return_all_frames=False
+                )
+                percussive_features = percussive_result.features
+
+                # Store both feature sets on event
+                event.harmonic_features = harmonic_features
+                event.percussive_features = percussive_features
+                event.features = harmonic_features  # Primary features = harmonic (for melodic matching)
+
+                # Collect for vocab training
+                harmonic_features_list.append(harmonic_features)
+                percussive_features_list.append(percussive_features)
+                wav2vec_features.append(harmonic_features)  # For backwards compat
+
+                # Also extract chord/consonance using full dual perception
+                result = analyzer.extract_features(
+                    audio=audio_segment,
+                    sr=sr,
+                    timestamp=event.t,
+                    detected_f0=event.f if hasattr(event, 'f') else None
+                )
+                event.chord = result.chord_label
+                event.consonance = result.consonance
+                chord_detections.append(result.chord_label)
+            else:
+                # SINGLE VOCABULARY MODE: Extract from mixed audio
+                result = analyzer.extract_features(
+                    audio=audio_segment,
+                    sr=sr,
+                    timestamp=event.t,
+                    detected_f0=event.f if hasattr(event, 'f') else None
+                )
+
+                # Add features to event
+                event.features = result.wav2vec_features
+                event.gesture_token = result.gesture_token
+                event.chord = result.chord_label
+                event.consonance = result.consonance
+
+                # Collect features
+                wav2vec_features.append(result.wav2vec_features)
+                chord_detections.append(result.chord_label)
 
             enriched_events.append(event)
-
-            # Collect features
-            wav2vec_features.append(result.wav2vec_features)
-            # Note: gesture_token will be None here because quantizer isn't trained yet
-            chord_detections.append(result.chord_label)
 
         self.logger.info("Feature extraction complete. Training gesture quantizer...")
 
@@ -146,11 +193,15 @@ class FeatureAnalysisStage(PipelineStage):
                 from pathlib import Path
                 base_path = str(Path(audio_file).with_suffix(''))
 
-            if analyzer.enable_dual_vocabulary:
-                # Train both vocabularies
-                analyzer.train_gesture_vocabulary(wav2vec_features, vocabulary_type="harmonic")
-                analyzer.train_gesture_vocabulary(wav2vec_features, vocabulary_type="percussive")
-                
+            if analyzer.enable_dual_vocabulary and harmonic_features_list and percussive_features_list:
+                # Train harmonic vocabulary on HPSS-separated HARMONIC features
+                self.logger.info(f"Training harmonic vocab on {len(harmonic_features_list)} HPSS-harmonic features")
+                analyzer.train_gesture_vocabulary(harmonic_features_list, vocabulary_type="harmonic")
+
+                # Train percussive vocabulary on HPSS-separated PERCUSSIVE features
+                self.logger.info(f"Training percussive vocab on {len(percussive_features_list)} HPSS-percussive features")
+                analyzer.train_gesture_vocabulary(percussive_features_list, vocabulary_type="percussive")
+
                 # Save vocabularies
                 analyzer.save_vocabulary(f"{base_path}_harmonic_vocab.joblib", "harmonic")
                 analyzer.save_vocabulary(f"{base_path}_percussive_vocab.joblib", "percussive")
@@ -166,47 +217,81 @@ class FeatureAnalysisStage(PipelineStage):
             # Re-process events to assign tokens now that quantizer is trained
             self.logger.info("Assigning gesture tokens to events...")
             gesture_tokens = []
+            harmonic_tokens = []
+            percussive_tokens = []
+
             for i, event in enumerate(enriched_events):
-                # Get the features we extracted earlier
-                features = wav2vec_features[i]
-                
-                # Get token from analyzer (which now has trained quantizer)
-                # We need to manually call the internal method or use a helper
-                # Since extract_features does a lot of work, let's just use the quantizer directly
-                
-                token = None
-                if analyzer.enable_dual_vocabulary:
-                    # Use harmonic quantizer for primary token
-                    if analyzer.harmonic_quantizer:
-                        # Ensure float64 and 2D for sklearn
-                        f_64 = features.astype(np.float64).reshape(1, -1)
-                        token = int(analyzer.harmonic_quantizer.transform(f_64)[0])
+                if analyzer.enable_dual_vocabulary and harmonic_features_list and percussive_features_list:
+                    # DUAL VOCAB: Assign BOTH harmonic and percussive tokens
+                    # using their respective HPSS-separated features
+                    harm_feat = harmonic_features_list[i]
+                    perc_feat = percussive_features_list[i]
+
+                    # Harmonic token from harmonic features
+                    if analyzer.harmonic_quantizer and analyzer.harmonic_quantizer.is_fitted:
+                        f_64 = harm_feat.astype(np.float64).reshape(1, -1)
+                        harm_token = int(analyzer.harmonic_quantizer.transform(f_64)[0])
+                        event.harmonic_token = harm_token
+                        harmonic_tokens.append(harm_token)
+
+                    # Percussive token from percussive features
+                    if analyzer.percussive_quantizer and analyzer.percussive_quantizer.is_fitted:
+                        f_64 = perc_feat.astype(np.float64).reshape(1, -1)
+                        perc_token = int(analyzer.percussive_quantizer.transform(f_64)[0])
+                        event.percussive_token = perc_token
+                        percussive_tokens.append(perc_token)
+
+                    # gesture_token = harmonic_token for backwards compat
+                    event.gesture_token = event.harmonic_token if hasattr(event, 'harmonic_token') else None
+                    if event.gesture_token is not None:
+                        gesture_tokens.append(event.gesture_token)
                 else:
-                    if analyzer.quantizer:
+                    # SINGLE VOCAB: Use mixed audio features
+                    features = wav2vec_features[i]
+                    if analyzer.quantizer and analyzer.quantizer.is_fitted:
                         f_64 = features.astype(np.float64).reshape(1, -1)
                         token = int(analyzer.quantizer.transform(f_64)[0])
-                
-                if token is not None:
-                    event.gesture_token = token
-                    gesture_tokens.append(token)
-                    
-            self.logger.info(f"Assigned {len(gesture_tokens)} tokens")
+                        event.gesture_token = token
+                        gesture_tokens.append(token)
+
+            self.logger.info(f"Assigned {len(gesture_tokens)} gesture tokens")
+            if harmonic_tokens:
+                self.logger.info(f"Assigned {len(harmonic_tokens)} harmonic tokens, {len(percussive_tokens)} percussive tokens")
 
         self.logger.info("Feature analysis complete")
+
+        # Build output data
+        output_data = {
+            'enriched_events': enriched_events,
+            'features': wav2vec_features,  # Primary features (harmonic in dual mode, mixed in single)
+            'gesture_tokens': gesture_tokens,
+            'chord_detections': chord_detections
+        }
+
+        # Add dual vocab data if available
+        if harmonic_features_list:
+            output_data['harmonic_features'] = harmonic_features_list
+        if percussive_features_list:
+            output_data['percussive_features'] = percussive_features_list
+        if harmonic_tokens:
+            output_data['harmonic_tokens'] = harmonic_tokens
+        if percussive_tokens:
+            output_data['percussive_tokens'] = percussive_tokens
+
+        # Calculate metrics
+        metrics = {
+            'events_analyzed': len(enriched_events),
+            'unique_gesture_tokens': len(set(gesture_tokens)) if gesture_tokens else 0,
+            'chords_detected': len([c for c in chord_detections if c])
+        }
+        if harmonic_tokens:
+            metrics['unique_harmonic_tokens'] = len(set(harmonic_tokens))
+            metrics['unique_percussive_tokens'] = len(set(percussive_tokens)) if percussive_tokens else 0
 
         return StageResult(
             stage_name=self.name,
             success=True,
             duration_seconds=0,
-            data={
-                'enriched_events': enriched_events,
-                'wav2vec_features': wav2vec_features,
-                'gesture_tokens': gesture_tokens,
-                'chord_detections': chord_detections
-            },
-            metrics={
-                'events_analyzed': len(enriched_events),
-                'unique_tokens': len(set(gesture_tokens)) if gesture_tokens else 0,
-                'chords_detected': len([c for c in chord_detections if c])
-            }
+            data=output_data,
+            metrics=metrics
         )
