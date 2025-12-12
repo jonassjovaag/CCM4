@@ -37,6 +37,53 @@ def generate_test_tones() -> tuple:
     return sr, t, test_cases
 
 
+def yin_pitch(x: np.ndarray, sr: int = 44100, fmin: float = 80.0, fmax: float = 1000.0) -> float:
+    """
+    YIN pitch detection algorithm (standalone version).
+    Same algorithm used by DriftListener in live system.
+    """
+    x = x.astype(np.float32, copy=False)
+    N = x.shape[0]
+    xw = x * np.hanning(N).astype(np.float32)
+    xw = xw - np.mean(xw)
+    L = 1 << (N*2 - 1).bit_length()
+    X = np.fft.rfft(xw, n=L)
+    ac = np.fft.irfft(X * np.conj(X), n=L)[:N]
+    ac = ac / (float(np.max(ac)) + 1e-12)
+    d_full = 2.0 - 2.0*ac
+    d = d_full[:N//2].astype(np.float32, copy=False)
+    cmndf = np.empty_like(d)
+    cmndf[0] = 1.0
+    csum = 0.0
+    for tau in range(1, d.shape[0]):
+        csum += float(d[tau])
+        cmndf[tau] = d[tau] * tau / (csum + 1e-9)
+
+    yin_threshold = 0.15
+    tau = None
+    low = max(2, int(sr / fmax))
+    for i in range(low, d.shape[0]):
+        if cmndf[i] < yin_threshold:
+            # Parabolic interpolation
+            if 0 < i < len(cmndf) - 1:
+                y0, y1, y2 = cmndf[i-1], cmndf[i], cmndf[i+1]
+                denom = (y0 - 2*y1 + y2)
+                if abs(denom) > 1e-12:
+                    tau = float(i + 0.5*(y0 - y2)/denom)
+                else:
+                    tau = float(i)
+            else:
+                tau = float(i)
+            break
+
+    if tau is None:
+        i = int(np.argmin(cmndf[low:])) + low
+        tau = float(i)
+
+    f0 = sr / max(1e-9, float(tau))
+    return float(f0) if (fmin <= f0 <= fmax) else 0.0
+
+
 def test_yin_pitch_detection():
     """Test the YIN pitch detection algorithm (live system)."""
     print("\n" + "="*60)
@@ -44,17 +91,7 @@ def test_yin_pitch_detection():
     print("="*60)
     print("This is what the live listener uses for real-time pitch tracking\n")
 
-    from listener.jhs_listener_core import DriftListener
-
     sr, t, test_cases = generate_test_tones()
-
-    # Create listener with test settings
-    listener = DriftListener(
-        sr=sr,
-        fmin=80.0,
-        fmax=1000.0,
-        buffer_seconds=0.1
-    )
 
     results = []
     for name, freq, expected_midi in test_cases:
@@ -62,7 +99,7 @@ def test_yin_pitch_detection():
         audio = 0.5 * np.sin(2 * np.pi * freq * t[:4096]).astype(np.float32)
 
         # Detect pitch using YIN
-        detected_f0 = listener._yin_pitch(audio)
+        detected_f0 = yin_pitch(audio, sr=sr)
 
         # Convert to MIDI
         if detected_f0 > 0:
