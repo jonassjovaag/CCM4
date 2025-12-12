@@ -1864,125 +1864,101 @@ class EnhancedDriftEngineAI:
         return min(1.0, base_timbre + timbre_variation)
     
     def _update_status_bar(self, event, event_data: Optional[Dict] = None):
-        """Update live status bar with current pitch and system state - Clean minimal version"""
+        """Update live status bar - Simplified display showing essential info only"""
         current_time = time.time()
-        
+
         # Throttle updates to avoid terminal spam
         if current_time - self._last_status_update < self._status_update_interval:
             return
-        
+
         self._last_status_update = current_time
-        
-        # Build status line
+
+        # === 1. TIME LEFT IN CONCERT MODE ===
+        time_display = "---"
+        if self.performance_duration > 0:
+            elapsed = current_time - self.start_time
+            remaining = (self.performance_duration * 60) - elapsed
+            if remaining > 0:
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                time_display = f"{mins:02d}:{secs:02d}"
+            else:
+                time_display = "00:00"
+        else:
+            # No concert mode - show elapsed time
+            elapsed = current_time - self.start_time
+            mins = int(elapsed // 60)
+            secs = int(elapsed % 60)
+            time_display = f"+{mins:02d}:{secs:02d}"
+
+        # === 2a. MONOPHONIC PITCH ===
+        note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         if event.f0 > 0:
-            note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
             note_name = note_names[event.midi % 12]
             octave = (event.midi // 12) - 1
-            
-            # Ensemble approach: Combine ratio-based + ML with weighted confidence
-            chord_display = "---"
-            chord_conf = 0.0
-            consonance = 0.5  # Default consonance
-            
-            # Collect candidates with source weights
-            candidates = []
-            
-            # 0. Wav2Vec-based chord classification (weight: 1.0x - neural perception)
-            if self.wav2vec_chord_classifier and event_data and 'hybrid_wav2vec_features' in event_data:
-                try:
-                    wav2vec_features = event_data['hybrid_wav2vec_features']
-                    chord_name, w2v_conf = self.wav2vec_chord_classifier.predict_with_confidence(wav2vec_features)
-                    # Only add if confidence is reasonable (>15%)
-                    if chord_name and w2v_conf > 0.15:
-                        weighted_w2v = w2v_conf * 1.0  # Equal weight
-                        candidates.append((chord_name, w2v_conf, weighted_w2v, 'W2V'))
-                except Exception as ex:
-                    # Silently skip if classification fails
-                    pass
-            
-            # 1. Ratio-based detection (weight: 1.2x - good for clear triads/7ths)
-            if event_data and self.enable_hybrid_perception:
-                ratio_chord = event_data.get('hybrid_ratio_chord')
-                ratio_conf = event_data.get('hybrid_ratio_confidence')
-                consonance = event_data.get('hybrid_consonance', 0.5)
-                
-                if ratio_chord and ratio_conf and ratio_chord != 'unknown':
-                    # Boost ratio confidence by 20% (it's very accurate when it works)
-                    weighted_conf = min(1.0, ratio_conf * 1.2)
-                    candidates.append((ratio_chord, ratio_conf, weighted_conf, 'ratio'))
-            
-            # 2. ML model (weight: 1.0x - trained on patterns)
-            if self.ml_chord_enabled:
-                ml_chord = self._predict_ml_chord(event, event_data)
-                if ml_chord and '(' in ml_chord:
-                    chord_name, conf_str = ml_chord.rsplit('(', 1)
-                    ml_conf = float(conf_str.rstrip(')'))
-                    # Only use ML if reasonably confident (>40%)
-                    if ml_conf > 0.4:
-                        candidates.append((chord_name, ml_conf, ml_conf, 'ML'))
-            
-            # 3. Harmonic context (weight: 0.8x - basic fallback)
-            if event.harmonic_context and event.harmonic_context.current_chord:
-                hc_conf = event.harmonic_context.confidence if hasattr(event.harmonic_context, 'confidence') else 0.5
-                # Only use harmonic context if reasonably confident (>25% - lowered threshold)
-                if hc_conf > 0.25:
-                    weighted_hc = hc_conf * 0.8
-                    candidates.append((event.harmonic_context.current_chord, hc_conf, weighted_hc, 'HC'))
-            
-            # Pick candidate with highest WEIGHTED confidence
-            if candidates:
-                best = max(candidates, key=lambda x: x[2])  # x[2] is weighted_conf
-                chord_display = best[0]
-                chord_conf = best[1]  # Display actual confidence, not weighted
-            else:
-                # No confident detection available
-                chord_display = "---"
-                chord_conf = 0.0
-            
-            # Always get consonance from hybrid if available
-            if event_data and self.enable_hybrid_perception:
-                consonance = event_data.get('hybrid_consonance', consonance)
-            
-            # Consonance score
-            consonance_display = f"{consonance:.2f}" if event_data and self.enable_hybrid_perception else "---"
-            
-            # Harmonic context manager status (manual override info)
-            if self.harmonic_context_manager and self.harmonic_context_manager.is_override_active():
-                override_display = f"OVERRIDE: {self.harmonic_context_manager.get_active_chord()} ({self.harmonic_context_manager.get_override_time_remaining():.0f}s)"
-            else:
-                override_display = ""
-            
-            # 🎨 VISUALIZATION: Emit harmonic context to Request Parameters viewport
-            if self.visualization_manager and self.harmonic_context_manager:
-                # Get full status from context manager
-                status = self.harmonic_context_manager.get_status()
-                harmonic_data = {
-                    'detected_chord': chord_display,  # Use the ensemble detection result
-                    'detected_confidence': chord_conf,
-                    'active_chord': status['active_chord'],
-                    'override_active': status['override_active'],
-                    'override_time_left': status['override_expires_in'],
-                    'timestamp': current_time
-                }
-                # Emit via mode_change_signal (reused for harmonic context updates)
-                self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
-            
-            # Recent MIDI notes (keep track of last few)
-            if not hasattr(self, '_recent_midi_notes'):
-                self._recent_midi_notes = []
-            
-            # Build minimal status line - one clean line (with optional override display)
-            status = (
-                f"\r🎹 {note_name}{octave} | "
-                f"CHORD: {chord_display:12s} ({chord_conf:>4.0%}) | "
-                f"Consonance: {consonance_display} | "
-                + (f"{override_display} | " if override_display else "")
-                + f"MIDI: {self.stats['notes_sent']:3d} notes | "
-                f"Events: {self.stats['events_processed']:4d}"
-            )
-            
-            # Print with ANSI codes to stay on same line
-            print(status.ljust(120), end='', flush=True)
+            pitch_display = f"{note_name}{octave}"
+        else:
+            pitch_display = "---"
+
+        # === 2b. CHORD (from Chroma/Ratio analysis) ===
+        chord_display = "---"
+        if event_data and self.enable_hybrid_perception:
+            # Get chord from ratio analysis (most accurate)
+            ratio_chord = event_data.get('hybrid_ratio_chord')
+            if ratio_chord and ratio_chord != 'unknown':
+                chord_display = ratio_chord
+            # Fallback to harmonic context
+            elif event.harmonic_context and event.harmonic_context.current_chord:
+                chord_display = event.harmonic_context.current_chord
+
+        # === 3. LIVE INPUT INDICATOR ===
+        rms_db = event_data.get('rms_db', -80) if event_data else -80
+        if rms_db > -30:
+            input_indicator = "###"  # Loud
+        elif rms_db > -45:
+            input_indicator = "## "  # Medium
+        elif rms_db > -60:
+            input_indicator = "#  "  # Soft
+        else:
+            input_indicator = "   "  # Silent/noise
+
+        # Musical confidence from chroma validation (if available)
+        musical_conf = event_data.get('musical_confidence', 1.0) if event_data else 1.0
+        if musical_conf < 0.3:
+            input_indicator = "???"  # Probably noise
+
+        # === 4. RESPONSE MODE ===
+        mode_display = "---"
+        if hasattr(self, 'decision_log') and self.decision_log:
+            try:
+                mode_display = self.decision_log[-1].get('mode', '---')
+            except (IndexError, AttributeError):
+                pass
+
+        # Build clean status line
+        status = (
+            f"\r⏱ {time_display} | "
+            f"🎵 {pitch_display:4s} | "
+            f"🎹 {chord_display:8s} | "
+            f"📊 [{input_indicator}] | "
+            f"🤖 {mode_display:8s}"
+        )
+
+        # Print with ANSI codes to stay on same line
+        print(status.ljust(80), end='', flush=True)
+
+        # === EMIT TO VISUALIZATION (if enabled) ===
+        if self.visualization_manager and self.harmonic_context_manager:
+            status_obj = self.harmonic_context_manager.get_status()
+            harmonic_data = {
+                'detected_chord': chord_display,
+                'detected_confidence': 0.0,
+                'active_chord': status_obj['active_chord'],
+                'override_active': status_obj['override_active'],
+                'override_time_left': status_obj['override_expires_in'],
+                'timestamp': current_time
+            }
+            self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
     
     def _calculate_pressure_sensitivity(self, decision, event_data: Dict) -> float:
         """Calculate pressure sensitivity based on musical context"""
