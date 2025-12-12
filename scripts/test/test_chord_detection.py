@@ -2,8 +2,8 @@
 """
 Test Chord Detection
 
-Tests polyphonic chord detection using chroma features.
-This is what the training pipeline uses for harmonic analysis.
+Tests polyphonic chord detection using the ACTUAL HarmonicAwareChromaExtractor
+that the training pipeline uses (not plain librosa).
 
 Usage:
     python scripts/test/test_chord_detection.py input_audio/moon_stars_short.wav
@@ -18,6 +18,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import librosa
+from listener.harmonic_chroma import HarmonicAwareChromaExtractor
 
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
@@ -88,7 +89,7 @@ def detect_chord_from_chroma(chroma_vector: np.ndarray, threshold: float = 0.3) 
 
 
 def analyze_audio_chords(audio_path: Path, segment_duration: float = 2.0):
-    """Analyze chord progression in audio file."""
+    """Analyze chord progression in audio file using HarmonicAwareChromaExtractor."""
     print(f"\nAnalyzing: {audio_path.name}")
     print("=" * 60)
 
@@ -97,23 +98,22 @@ def analyze_audio_chords(audio_path: Path, segment_duration: float = 2.0):
     duration = len(audio) / sr
 
     print(f"Duration: {duration:.1f} seconds")
-    print(f"Analyzing in {segment_duration}s segments...\n")
+    print(f"Analyzing in {segment_duration}s segments...")
+    print("Using HarmonicAwareChromaExtractor (same as training pipeline)\n")
 
-    # Analyze in segments
-    hop_length = 512
+    # Create the SAME chroma extractor used in training
+    chroma_extractor = HarmonicAwareChromaExtractor()
+
     segment_samples = int(segment_duration * sr)
-
     chords_detected = []
 
     for start in range(0, len(audio) - segment_samples, segment_samples):
         segment = audio[start:start + segment_samples]
         timestamp = start / sr
 
-        # Extract chroma using CQT (better for harmony)
-        chroma = librosa.feature.chroma_cqt(y=segment, sr=sr, hop_length=hop_length)
-
-        # Average chroma across time
-        chroma_avg = np.mean(chroma, axis=1)
+        # Extract chroma using HarmonicAwareChromaExtractor (NOT plain librosa)
+        # This applies harmonic weighting to suppress overtones
+        chroma_avg = chroma_extractor.extract(segment, sr, use_temporal=True, live_mode=False)
 
         # Detect chord
         chord, confidence, active_notes = detect_chord_from_chroma(chroma_avg)
@@ -133,30 +133,41 @@ def analyze_audio_chords(audio_path: Path, segment_duration: float = 2.0):
 
 
 def analyze_full_chroma(audio_path: Path):
-    """Show full chroma analysis with beat-synced display."""
+    """Show full chroma analysis with beat-synced display using HarmonicAwareChromaExtractor."""
     print("\n" + "=" * 60)
-    print("DETAILED CHROMA ANALYSIS")
+    print("DETAILED CHROMA ANALYSIS (HarmonicAwareChromaExtractor)")
     print("=" * 60)
 
     audio, sr = librosa.load(str(audio_path), sr=44100)
 
-    # Beat-synced chroma
+    # Create the SAME chroma extractor used in training
+    chroma_extractor = HarmonicAwareChromaExtractor()
+
+    # Beat detection
     tempo, beats = librosa.beat.beat_track(y=audio, sr=sr)
     tempo_val = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
     print(f"Detected tempo: {tempo_val:.0f} BPM")
 
-    # Get chroma synced to beats
-    chroma = librosa.feature.chroma_cqt(y=audio, sr=sr)
-    chroma_sync = librosa.util.sync(chroma, beats, aggregate=np.median)
+    # Get beat times
+    beat_times = librosa.frames_to_time(beats, sr=sr)
 
     print(f"\nChroma per beat (first 16 beats):")
     print("-" * 60)
 
-    beat_times = librosa.frames_to_time(beats, sr=sr)
+    # Extract chroma at each beat using HarmonicAwareChromaExtractor
+    hop_samples = int(0.5 * sr)  # ~0.5 seconds around each beat
 
+    beat_chromas = []
     for i, beat_time in enumerate(beat_times[:16]):
-        if i < chroma_sync.shape[1]:
-            chroma_vec = chroma_sync[:, i]
+        beat_sample = int(beat_time * sr)
+        start = max(0, beat_sample - hop_samples // 2)
+        end = min(len(audio), beat_sample + hop_samples // 2)
+        segment = audio[start:end]
+
+        if len(segment) > 2048:
+            chroma_vec = chroma_extractor.extract(segment, sr, use_temporal=True, live_mode=False)
+            beat_chromas.append(chroma_vec)
+
             chord, conf, notes = detect_chord_from_chroma(chroma_vec)
 
             # Show top 3 pitch classes
@@ -165,13 +176,21 @@ def analyze_full_chroma(audio_path: Path):
 
             print(f"Beat {i+1:2d} [{beat_time:5.2f}s]: {chord:8s} | {', '.join(top_notes)}")
 
-    # Overall pitch class distribution
+    # Overall pitch class distribution (using HarmonicAwareChromaExtractor on full audio)
     print("\n" + "=" * 60)
     print("OVERALL PITCH CLASS DISTRIBUTION")
     print("=" * 60)
 
-    chroma_mean = np.mean(chroma, axis=1)
-    chroma_norm = chroma_mean / np.max(chroma_mean)
+    # Compute chroma for entire file in chunks and average
+    chunk_size = sr * 2  # 2 second chunks
+    all_chromas = []
+    for start in range(0, len(audio) - chunk_size, chunk_size):
+        chunk = audio[start:start + chunk_size]
+        chroma = chroma_extractor.extract(chunk, sr, use_temporal=True, live_mode=False)
+        all_chromas.append(chroma)
+
+    chroma_mean = np.mean(all_chromas, axis=0) if all_chromas else np.zeros(12)
+    chroma_norm = chroma_mean / (np.max(chroma_mean) + 1e-10)
 
     # Sort by energy
     sorted_pcs = np.argsort(chroma_norm)[::-1]
