@@ -173,19 +173,29 @@ def test_mert_extraction(audio_path: Path = None):
             for j in range(i+1, min(3, len(features_list))):
                 print(f"   Seg {i+1} vs Seg {j+1}: {sim_matrix[i,j]:.3f}")
 
-    # Test quantization (if quantizer available)
+    # Test quantization (if quantizer available AND trained)
     print("\n" + "=" * 60)
     print("GESTURE TOKEN QUANTIZATION")
     print("=" * 60)
 
     if module.quantizer is not None:
-        print("Quantizer is trained - testing token assignment...")
-        for i, features in enumerate(features_list[:3]):
-            token = int(module.quantizer.transform(features.reshape(1, -1))[0])
-            print(f"   Segment {i+1} → Token {token}")
+        # Check if quantizer is actually fitted
+        try:
+            # Try a test transform
+            test_features = features_list[0].reshape(1, -1)
+            token = int(module.quantizer.transform(test_features)[0])
+            print("Quantizer is trained - testing token assignment...")
+            for i, features in enumerate(features_list[:3]):
+                token = int(module.quantizer.transform(features.reshape(1, -1))[0])
+                print(f"   Segment {i+1} → Token {token}")
+        except ValueError as e:
+            if "fit()" in str(e):
+                print("Quantizer exists but not trained yet")
+                print("(Tokens would be assigned after running Chandra_trainer)")
+            else:
+                raise
     else:
         print("No quantizer loaded (would need to load from trained model)")
-        print("Tokens would be assigned after training gesture vocabulary")
 
     print("\n" + "=" * 60)
     print("SUMMARY")
