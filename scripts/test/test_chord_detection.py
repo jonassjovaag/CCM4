@@ -142,7 +142,8 @@ def analyze_full_chroma(audio_path: Path):
 
     # Beat-synced chroma
     tempo, beats = librosa.beat.beat_track(y=audio, sr=sr)
-    print(f"Detected tempo: {tempo:.0f} BPM")
+    tempo_val = float(tempo[0]) if hasattr(tempo, '__len__') else float(tempo)
+    print(f"Detected tempo: {tempo_val:.0f} BPM")
 
     # Get chroma synced to beats
     chroma = librosa.feature.chroma_cqt(y=audio, sr=sr)
