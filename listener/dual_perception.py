@@ -53,6 +53,7 @@ from listener.ratio_analyzer import FrequencyRatioAnalyzer, ChordAnalysis
 from listener.harmonic_chroma import HarmonicAwareChromaExtractor
 from listener.symbolic_quantizer import SymbolicQuantizer
 from listener.gesture_smoothing import GestureTokenSmoother
+from listener.chroma_validator import ChromaValidator, ChromaValidation
 
 
 @dataclass
@@ -87,6 +88,11 @@ class DualPerceptionResult:
     content_type: str = "hybrid"  # "harmonic", "percussive", or "hybrid"
     harmonic_ratio: float = 0.5  # Energy ratio of harmonic component (0-1)
     percussive_ratio: float = 0.5  # Energy ratio of percussive component (0-1)
+
+    # Chroma validation (noise gate)
+    chroma_validation: Optional[ChromaValidation] = None  # Validation result from ChromaValidator
+    is_musical: bool = True  # Quick access to chroma_validation.is_musical
+    musical_confidence: float = 1.0  # Quick access to chroma_validation.musical_confidence
     
     def __post_init__(self):
         """Ensure default values for mutable fields"""
@@ -119,7 +125,16 @@ class DualPerceptionResult:
             'timestamp': self.timestamp,
             'content_type': self.content_type,  # NEW: Content classification
             'harmonic_ratio': self.harmonic_ratio,  # NEW: Energy ratios
-            'percussive_ratio': self.percussive_ratio  # NEW: Energy ratios
+            'percussive_ratio': self.percussive_ratio,  # NEW: Energy ratios
+            # Chroma validation (noise gate)
+            'is_musical': self.is_musical,
+            'musical_confidence': self.musical_confidence,
+            'chroma_validation': {
+                'is_musical': self.chroma_validation.is_musical,
+                'musical_confidence': self.chroma_validation.musical_confidence,
+                'should_process_mert': self.chroma_validation.should_process_mert,
+                'reason': self.chroma_validation.reason
+            } if self.chroma_validation else None
         }
 
 
@@ -200,7 +215,16 @@ class DualPerceptionModule:
         # Ratio-based harmonic pathway
         self.ratio_analyzer = FrequencyRatioAnalyzer()
         self.chroma_extractor = HarmonicAwareChromaExtractor()
-        
+
+        # Chroma-based validation (noise gate)
+        self.chroma_validator = ChromaValidator(
+            min_chroma_energy=0.5,      # Minimum total chroma energy
+            min_chroma_peak=0.15,       # Minimum peak chroma value
+            min_active_pitches=1,       # At least one clear pitch
+            coherence_threshold=0.3,    # Pitch coherence (vs spread noise)
+            gate_threshold=0.3          # Below this → skip MERT matching
+        )
+
         print("✅ Dual perception initialized:")
         print(f"   Wav2Vec model: {wav2vec_model}")
         print(f"   Vocabulary size: {vocabulary_size} gesture tokens")
@@ -430,6 +454,12 @@ class DualPerceptionModule:
                 chord_label = ratio_analysis.chord_match['type']
                 chord_confidence = ratio_analysis.chord_match['confidence']
         
+        # === VALIDATE: Chroma-based noise gate ===
+        chroma_validation = self.chroma_validator.validate(
+            chroma=chroma,
+            active_pitch_classes=active_pcs
+        )
+
         # === COMBINE: Both representations in one result ===
         return DualPerceptionResult(
             wav2vec_features=primary_features,  # Use dominant source features
@@ -446,9 +476,13 @@ class DualPerceptionModule:
             timestamp=timestamp,
             content_type=content_type,  # NEW: Content type classification
             harmonic_ratio=harmonic_ratio,  # NEW: Energy ratios
-            percussive_ratio=percussive_ratio  # NEW: Energy ratios
+            percussive_ratio=percussive_ratio,  # NEW: Energy ratios
+            # Chroma validation (noise gate)
+            chroma_validation=chroma_validation,
+            is_musical=chroma_validation.is_musical,
+            musical_confidence=chroma_validation.musical_confidence
         )
-    
+
     def _process_single_frame(self,
                              wav2vec_features: np.ndarray,
                              timestamp: float,
@@ -562,6 +596,12 @@ class DualPerceptionModule:
                 chord_label = ratio_analysis.chord_match['type']
                 chord_confidence = ratio_analysis.chord_match['confidence']
         
+        # === VALIDATE: Chroma-based noise gate ===
+        chroma_validation = self.chroma_validator.validate(
+            chroma=chroma,
+            active_pitch_classes=active_pcs
+        )
+
         # === COMBINE: Both representations in one result ===
         return DualPerceptionResult(
             wav2vec_features=wav2vec_features,
@@ -575,7 +615,11 @@ class DualPerceptionModule:
             active_pitch_classes=active_pcs,
             chord_label=chord_label,
             chord_confidence=chord_confidence,
-            timestamp=timestamp
+            timestamp=timestamp,
+            # Chroma validation (noise gate)
+            chroma_validation=chroma_validation,
+            is_musical=chroma_validation.is_musical,
+            musical_confidence=chroma_validation.musical_confidence
         )
     
     def detect_content_type(self, audio: np.ndarray, sr: int = 44100) -> Tuple[str, float, float]:
