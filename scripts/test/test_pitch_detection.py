@@ -44,12 +44,12 @@ def test_yin_pitch_detection():
     print("="*60)
     print("This is what the live listener uses for real-time pitch tracking\n")
 
-    from listener.jhs_listener_core import ListenerCore
+    from listener.jhs_listener_core import DriftListener
 
     sr, t, test_cases = generate_test_tones()
 
     # Create listener with test settings
-    listener = ListenerCore(
+    listener = DriftListener(
         sr=sr,
         fmin=80.0,
         fmax=1000.0,
