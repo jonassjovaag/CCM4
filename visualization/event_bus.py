@@ -51,6 +51,7 @@ class VisualizationEventBus(QObject):
     machine_output_signal = pyqtSignal(dict) # {notes, durations, mode, timestamp}
     gpt_reflection_signal = pyqtSignal(dict)  # {reflection, timestamp}
     rhythm_oracle_signal = pyqtSignal(dict)  # {pattern_id, tempo, density, similarity, duration_pattern}
+    status_bar_signal = pyqtSignal(dict)     # {time_remaining, pitch, chord, rms_db, is_musical, mode}
     
     def __init__(self):
         """Initialize event bus"""
@@ -270,6 +271,37 @@ class VisualizationEventBus(QObject):
         self.gpt_reflection_signal.emit(data)
         # Note: Not recording in _event_history to avoid bloat
     
+    def emit_status_bar(self,
+                       time_remaining: Optional[float] = None,
+                       elapsed_time: Optional[float] = None,
+                       pitch: Optional[float] = None,
+                       chord: Optional[str] = None,
+                       rms_db: float = -80,
+                       is_musical: bool = True,
+                       mode: Optional[str] = None):
+        """
+        Emit status bar update
+
+        Args:
+            time_remaining: Time remaining in concert mode (seconds)
+            elapsed_time: Elapsed time since start (seconds)
+            pitch: Detected pitch frequency (Hz)
+            chord: Detected chord name
+            rms_db: Input level in dB
+            is_musical: Whether input is musical (vs noise)
+            mode: Current response mode
+        """
+        data = {
+            'time_remaining': time_remaining,
+            'elapsed_time': elapsed_time,
+            'pitch': pitch,
+            'chord': chord,
+            'rms_db': rms_db,
+            'is_musical': is_musical,
+            'mode': mode
+        }
+        self.status_bar_signal.emit(data)
+
     def emit_rhythm_oracle(self,
                           pattern_id: str,
                           tempo: float,

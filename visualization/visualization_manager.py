@@ -231,7 +231,14 @@ class VisualizationManager:
                 self.viewports['gpt_reflection'].update_data,
                 Qt.QueuedConnection
             )
-        
+
+        # Status bar viewport
+        if 'status_bar' in self.viewports:
+            self.event_bus.status_bar_signal.connect(
+                self.viewports['status_bar'].update_data,
+                Qt.QueuedConnection
+            )
+
         print("✅ Connected viewports to event bus (with queued connections for thread safety)")
         
         # TEST: Immediately emit test signals to verify connections work

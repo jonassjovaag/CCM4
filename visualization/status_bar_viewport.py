@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Status Bar Viewport
-Top bar showing critical performance state at a glance
+Status Bar Viewport - Simplified Display
+Shows only essential performance info at a glance
 """
 
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QFrame
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 from typing import Dict, Any
@@ -13,212 +13,271 @@ from .base_viewport import BaseViewport
 
 class StatusBarViewport(BaseViewport):
     """
-    Displays critical status information in a horizontal bar:
-    - Behavior mode (large, color-coded)
-    - Override warning (if active, flashing)
-    - Performance phase
-    - Detected chord (what system hears)
-    - Time elapsed
+    Simplified status bar showing only essential info:
+    1. Time left in concert mode
+    2. Detected pitch (monophonic) + Chord (from Chroma)
+    3. Live input indicator
+    4. Response mode
     """
-    
+
     def __init__(self):
         super().__init__(
             viewport_id="status_bar",
             title="",  # No title for status bar
             update_rate_ms=100
         )
-        
+
         # Remove title bar for cleaner look
         self.title_label.hide()
-        
+
         # Setup content
         self._setup_content()
-        
+
         # Mode colors
         self.mode_colors = {
-            'SHADOW': '#2196F3',    # Blue
-            'MIRROR': '#4CAF50',    # Green
-            'COUPLE': '#FF9800',    # Orange
-            'IMITATE': '#9C27B0',   # Purple
-            'CONTRAST': '#F44336',  # Red
-            'LEAD': '#00BCD4'       # Cyan
+            'shadow': '#2196F3',     # Blue
+            'mirror': '#4CAF50',     # Green
+            'couple': '#FF9800',     # Orange
+            'imitate': '#9C27B0',    # Purple
+            'contrast': '#F44336',   # Red
+            'lead': '#00BCD4',       # Cyan
+            'support': '#8BC34A',    # Light Green
+            '---': '#808080'         # Gray (unknown)
         }
-        
-        # Override flash state
-        self.override_flash = False
-        
+
     def _setup_content(self):
-        """Setup horizontal status bar layout"""
+        """Setup simplified horizontal status bar layout"""
         layout = QHBoxLayout()
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(20)
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(30)
         self.content_widget.setLayout(layout)
-        
-        # Set minimum height for status bar
-        self.setMinimumHeight(80)
-        self.setMaximumHeight(100)
-        
-        # 1. Behavior Mode (large, color-coded)
+
+        # Set height for status bar
+        self.setMinimumHeight(90)
+        self.setMaximumHeight(110)
+
+        # === 1. TIME LEFT ===
+        time_frame = self._create_info_frame("TIME", "---")
+        self.time_label = time_frame.findChild(QLabel, "value_label")
+        layout.addWidget(time_frame)
+
+        # === 2. PITCH (monophonic) ===
+        pitch_frame = self._create_info_frame("PITCH", "---")
+        self.pitch_label = pitch_frame.findChild(QLabel, "value_label")
+        layout.addWidget(pitch_frame)
+
+        # === 3. CHORD (from Chroma) ===
+        chord_frame = self._create_info_frame("CHORD", "---")
+        self.chord_label = chord_frame.findChild(QLabel, "value_label")
+        layout.addWidget(chord_frame)
+
+        # === 4. INPUT LEVEL ===
+        input_frame = self._create_input_indicator()
+        layout.addWidget(input_frame)
+
+        # === 5. RESPONSE MODE ===
         mode_frame = QFrame()
         mode_frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        mode_frame.setMinimumWidth(200)
-        mode_layout = QHBoxLayout()
+        mode_frame.setMinimumWidth(150)
+        mode_layout = QVBoxLayout()
+        mode_layout.setContentsMargins(10, 5, 10, 5)
         mode_frame.setLayout(mode_layout)
-        
+
+        mode_title = QLabel("MODE")
+        mode_title.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(9)
+        mode_title.setFont(title_font)
+        mode_title.setStyleSheet("color: #888;")
+        mode_layout.addWidget(mode_title)
+
         self.mode_label = QLabel("---")
         self.mode_label.setAlignment(Qt.AlignCenter)
         mode_font = QFont()
-        mode_font.setPointSize(24)
+        mode_font.setPointSize(18)
         mode_font.setBold(True)
         self.mode_label.setFont(mode_font)
         mode_layout.addWidget(self.mode_label)
+
         layout.addWidget(mode_frame)
         self.mode_frame = mode_frame
-        
-        # 2. Duration
-        self.duration_label = QLabel("---")
-        self.duration_label.setAlignment(Qt.AlignCenter)
-        duration_font = QFont()
-        duration_font.setPointSize(12)
-        self.duration_label.setFont(duration_font)
-        layout.addWidget(self.duration_label)
-        
-        # 3. Override Warning (initially hidden)
-        self.override_frame = QFrame()
-        self.override_frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        self.override_frame.setStyleSheet("background-color: #FF5722; border-radius: 5px;")
-        override_layout = QHBoxLayout()
-        self.override_frame.setLayout(override_layout)
-        
-        self.override_label = QLabel("⚠️ OVERRIDE ACTIVE")
-        self.override_label.setAlignment(Qt.AlignCenter)
-        override_font = QFont()
-        override_font.setPointSize(14)
-        override_font.setBold(True)
-        self.override_label.setFont(override_font)
-        self.override_label.setStyleSheet("color: white; padding: 5px;")
-        override_layout.addWidget(self.override_label)
-        
-        layout.addWidget(self.override_frame)
-        self.override_frame.hide()  # Hidden by default
-        
-        # 4. Phase
-        phase_frame = QFrame()
-        phase_layout = QHBoxLayout()
-        phase_frame.setLayout(phase_layout)
-        
-        phase_label = QLabel("Phase:")
-        phase_label_font = QFont()
-        phase_label_font.setPointSize(10)
-        phase_label.setFont(phase_label_font)
-        phase_layout.addWidget(phase_label)
-        
-        self.phase_label = QLabel("---")
-        phase_font = QFont()
-        phase_font.setPointSize(12)
-        phase_font.setBold(True)
-        self.phase_label.setFont(phase_font)
-        phase_layout.addWidget(self.phase_label)
-        
-        layout.addWidget(phase_frame)
-        
-        # 5. Detected Chord (what system hears)
-        chord_frame = QFrame()
-        chord_frame.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        chord_layout = QHBoxLayout()
-        chord_frame.setLayout(chord_layout)
-        
-        chord_label = QLabel("Detected:")
-        chord_label_font = QFont()
-        chord_label_font.setPointSize(10)
-        chord_label.setFont(chord_label_font)
-        chord_layout.addWidget(chord_label)
-        
-        self.detected_chord_label = QLabel("---")
-        detected_font = QFont()
-        detected_font.setPointSize(14)
-        detected_font.setBold(True)
-        self.detected_chord_label.setFont(detected_font)
-        chord_layout.addWidget(self.detected_chord_label)
-        
-        layout.addWidget(chord_frame)
-        
-        # 6. Time Elapsed
-        self.time_label = QLabel("0:00")
-        time_font = QFont()
-        time_font.setPointSize(12)
-        self.time_label.setFont(time_font)
-        layout.addWidget(self.time_label)
-        
-        # Add stretch to push everything to reasonable spacing
+
+        # Add stretch at end
         layout.addStretch()
-    
+
+    def _create_info_frame(self, title: str, initial_value: str) -> QFrame:
+        """Create a labeled info frame"""
+        frame = QFrame()
+        frame.setMinimumWidth(100)
+        frame_layout = QVBoxLayout()
+        frame_layout.setContentsMargins(10, 5, 10, 5)
+        frame_layout.setSpacing(2)
+        frame.setLayout(frame_layout)
+
+        # Title
+        title_label = QLabel(title)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(9)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #888;")
+        frame_layout.addWidget(title_label)
+
+        # Value
+        value_label = QLabel(initial_value)
+        value_label.setObjectName("value_label")
+        value_label.setAlignment(Qt.AlignCenter)
+        value_font = QFont()
+        value_font.setPointSize(16)
+        value_font.setBold(True)
+        value_label.setFont(value_font)
+        frame_layout.addWidget(value_label)
+
+        return frame
+
+    def _create_input_indicator(self) -> QFrame:
+        """Create the live input level indicator"""
+        frame = QFrame()
+        frame.setMinimumWidth(120)
+        frame_layout = QVBoxLayout()
+        frame_layout.setContentsMargins(10, 5, 10, 5)
+        frame_layout.setSpacing(2)
+        frame.setLayout(frame_layout)
+
+        # Title
+        title_label = QLabel("INPUT")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(9)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet("color: #888;")
+        frame_layout.addWidget(title_label)
+
+        # Level bars container
+        bars_layout = QHBoxLayout()
+        bars_layout.setSpacing(3)
+
+        self.input_bars = []
+        for i in range(5):
+            bar = QFrame()
+            bar.setFixedSize(15, 30)
+            bar.setStyleSheet("background-color: #333; border-radius: 2px;")
+            bars_layout.addWidget(bar)
+            self.input_bars.append(bar)
+
+        frame_layout.addLayout(bars_layout)
+
+        # Status text (MUSIC / NOISE)
+        self.input_status_label = QLabel("")
+        self.input_status_label.setAlignment(Qt.AlignCenter)
+        status_font = QFont()
+        status_font.setPointSize(8)
+        self.input_status_label.setFont(status_font)
+        frame_layout.addWidget(self.input_status_label)
+
+        return frame
+
+    def _update_input_level(self, rms_db: float, is_musical: bool = True):
+        """Update input level indicator bars"""
+        # Map rms_db to 0-5 bars
+        # -60dB = 0 bars, -30dB = 5 bars
+        if rms_db < -60:
+            level = 0
+        elif rms_db > -30:
+            level = 5
+        else:
+            level = int((rms_db + 60) / 6)  # Each bar = 6dB
+
+        # Update bars
+        for i, bar in enumerate(self.input_bars):
+            if i < level:
+                if is_musical:
+                    # Green gradient based on level
+                    if i < 2:
+                        color = "#4CAF50"  # Green
+                    elif i < 4:
+                        color = "#FFC107"  # Yellow
+                    else:
+                        color = "#FF5722"  # Orange/red (loud)
+                else:
+                    color = "#9E9E9E"  # Gray for noise
+                bar.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
+            else:
+                bar.setStyleSheet("background-color: #333; border-radius: 2px;")
+
+        # Update status text
+        if not is_musical:
+            self.input_status_label.setText("NOISE?")
+            self.input_status_label.setStyleSheet("color: #FF5722;")
+        elif level == 0:
+            self.input_status_label.setText("silent")
+            self.input_status_label.setStyleSheet("color: #666;")
+        else:
+            self.input_status_label.setText("")
+
     def _update_display(self, data: Dict[str, Any]):
         """Update status bar with new data"""
-        
-        # Update behavior mode
-        if 'mode' in data:
-            mode = data['mode']
-            self.mode_label.setText(mode)
-            
-            # Update color
-            color = self.mode_colors.get(mode, '#808080')
-            self.mode_frame.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {color};
-                    border-radius: 8px;
-                    padding: 5px;
-                }}
-            """)
-        
-        # Update duration
-        if 'mode_duration' in data:
-            duration = data['mode_duration']
-            self.duration_label.setText(f"{duration:.0f}s")
-        
-        # Update override status
-        if 'harmonic_context' in data:
-            harmonic = data['harmonic_context']
-            override_active = harmonic.get('override_active', False)
-            
-            if override_active:
-                # Show override warning
-                self.override_frame.show()
-                
-                # Update text with time remaining
-                time_left = harmonic.get('override_time_left', 0)
-                active_chord = harmonic.get('active_chord', '---')
-                detected_chord = harmonic.get('detected_chord', '---')
-                
-                self.override_label.setText(
-                    f"⚠️ OVERRIDE: {active_chord} ({time_left:.0f}s) | "
-                    f"Detecting: {detected_chord} (ignored)"
-                )
-                
-                # Flash effect
-                self.override_flash = not self.override_flash
-                if self.override_flash:
-                    self.override_frame.setStyleSheet("background-color: #FF5722; border-radius: 5px;")
-                else:
-                    self.override_frame.setStyleSheet("background-color: #FF8A65; border-radius: 5px;")
+
+        # === 1. TIME LEFT / ELAPSED ===
+        if 'time_remaining' in data:
+            remaining = data['time_remaining']
+            if remaining > 0:
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                self.time_label.setText(f"{mins:02d}:{secs:02d}")
             else:
-                # Hide override warning
-                self.override_frame.hide()
-        
-        # Update detected chord
+                self.time_label.setText("00:00")
+        elif 'elapsed_time' in data:
+            elapsed = data['elapsed_time']
+            mins = int(elapsed // 60)
+            secs = int(elapsed % 60)
+            self.time_label.setText(f"+{mins:02d}:{secs:02d}")
+
+        # === 2. PITCH (monophonic) ===
+        if 'pitch' in data:
+            pitch = data['pitch']
+            if pitch and pitch != 0:
+                # Convert frequency to note name if needed
+                if isinstance(pitch, (int, float)) and pitch > 20:
+                    # It's a frequency, convert to note
+                    import math
+                    midi = round(12 * math.log2(pitch / 440.0) + 69)
+                    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+                    note = note_names[midi % 12]
+                    octave = (midi // 12) - 1
+                    self.pitch_label.setText(f"{note}{octave}")
+                else:
+                    self.pitch_label.setText(str(pitch))
+            else:
+                self.pitch_label.setText("---")
+
+        # === 3. CHORD (from Chroma) ===
         if 'chord' in data:
             chord = data['chord']
-            confidence = data.get('chord_confidence', 0.0)
-            self.detected_chord_label.setText(f"{chord} ({confidence:.0%})")
-        
-        # Update phase
-        if 'phase' in data:
-            phase = data['phase']
-            self.phase_label.setText(phase)
-        
-        # Update time
-        if 'elapsed_time' in data:
-            elapsed = data['elapsed_time']
-            minutes = int(elapsed // 60)
-            seconds = int(elapsed % 60)
-            self.time_label.setText(f"{minutes}:{seconds:02d}")
+            self.chord_label.setText(chord if chord else "---")
+        elif 'harmonic_context' in data:
+            harmonic = data['harmonic_context']
+            detected = harmonic.get('detected_chord', '---')
+            self.chord_label.setText(detected if detected else "---")
+
+        # === 4. INPUT LEVEL ===
+        rms_db = data.get('rms_db', -80)
+        is_musical = data.get('is_musical', True)
+        self._update_input_level(rms_db, is_musical)
+
+        # === 5. RESPONSE MODE ===
+        if 'mode' in data:
+            mode = data['mode']
+            if mode:
+                mode_lower = mode.lower()
+                self.mode_label.setText(mode_lower)
+
+                # Update color
+                color = self.mode_colors.get(mode_lower, '#808080')
+                self.mode_frame.setStyleSheet(f"""
+                    QFrame {{
+                        background-color: {color};
+                        border-radius: 8px;
+                    }}
+                """)
+                self.mode_label.setStyleSheet("color: white;")

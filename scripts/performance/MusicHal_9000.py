@@ -1948,17 +1948,23 @@ class EnhancedDriftEngineAI:
         print(status.ljust(80), end='', flush=True)
 
         # === EMIT TO VISUALIZATION (if enabled) ===
-        if self.visualization_manager and self.harmonic_context_manager:
-            status_obj = self.harmonic_context_manager.get_status()
-            harmonic_data = {
-                'detected_chord': chord_display,
-                'detected_confidence': 0.0,
-                'active_chord': status_obj['active_chord'],
-                'override_active': status_obj['override_active'],
-                'override_time_left': status_obj['override_expires_in'],
-                'timestamp': current_time
-            }
-            self.visualization_manager.event_bus.mode_change_signal.emit({'harmonic_context': harmonic_data})
+        if self.visualization_manager:
+            # Calculate time remaining
+            time_remaining = None
+            elapsed = current_time - self.start_time
+            if self.performance_duration > 0:
+                time_remaining = (self.performance_duration * 60) - elapsed
+
+            # Emit to status bar viewport
+            self.visualization_manager.event_bus.emit_status_bar(
+                time_remaining=time_remaining,
+                elapsed_time=elapsed,
+                pitch=event.f0 if event.f0 > 0 else None,
+                chord=chord_display if chord_display != "---" else None,
+                rms_db=rms_db,
+                is_musical=musical_conf >= 0.3,
+                mode=mode_display if mode_display != "---" else None
+            )
     
     def _calculate_pressure_sensitivity(self, decision, event_data: Dict) -> float:
         """Calculate pressure sensitivity based on musical context"""
