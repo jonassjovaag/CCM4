@@ -219,7 +219,7 @@ class StatusBarViewport(BaseViewport):
         """Update status bar with new data"""
 
         # === 1. TIME LEFT / ELAPSED ===
-        if 'time_remaining' in data:
+        if 'time_remaining' in data and data['time_remaining'] is not None:
             remaining = data['time_remaining']
             if remaining > 0:
                 mins = int(remaining // 60)
@@ -227,7 +227,7 @@ class StatusBarViewport(BaseViewport):
                 self.time_label.setText(f"{mins:02d}:{secs:02d}")
             else:
                 self.time_label.setText("00:00")
-        elif 'elapsed_time' in data:
+        elif 'elapsed_time' in data and data['elapsed_time'] is not None:
             elapsed = data['elapsed_time']
             mins = int(elapsed // 60)
             secs = int(elapsed % 60)
